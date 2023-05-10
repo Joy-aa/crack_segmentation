@@ -202,7 +202,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size',  default=4, type=int,  help='weight decay (default: 1e-4)')
     parser.add_argument('--num_workers', default=4, type=int, help='output dataset directory')
     parser.add_argument('--data_dir',type=str, help='input dataset directory')
-    # /mnt/hangzhou_116_homes/ymd/seg_dataset/
+    # /home/wj/dataset/seg_dataset
     parser.add_argument('--model_dir', type=str, help='output dataset directory')
     parser.add_argument('--model_type', type=str, required=False, default='resnet101', choices=['vgg16', 'resnet101', 'resnet34'])
 

@@ -2,3 +2,6 @@ models/**
 images/**
 **.jpg
 **.JPG
+**.pth
+**.pt
+runs/**

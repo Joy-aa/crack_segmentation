@@ -152,13 +152,15 @@ if __name__ == "__main__":
     inputs = torch.randn((1, 3, 224, 224)).to(device)
     model = UnetPlusPlus(num_classes=3, deep_supervision=deep_supervision).to(device)
     outputs = model(inputs)
-    print(outputs.shape)    
+    print(outputs.shape)
+    pred = outputs.max(dim=1)[1]
+    print(pred.shape)  
     
-    print("deep_supervision: True")
-    deep_supervision = True
-    model = UnetPlusPlus(num_classes=3, deep_supervision=deep_supervision).to(device)
-    outputs = model(inputs)
-    for out in outputs:
-      print(out.shape)
+    # print("deep_supervision: True")
+    # deep_supervision = True
+    # model = UnetPlusPlus(num_classes=3, deep_supervision=deep_supervision).to(device)
+    # outputs = model(inputs)
+    # for out in outputs:
+    #   print(out.shape)
  
  
