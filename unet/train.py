@@ -6,6 +6,7 @@ import torchvision.transforms as transforms
 from torch.utils.data import DataLoader, Dataset, random_split
 import torch.nn.functional as F
 from torch.autograd import Variable
+from torch.utils.tensorboard import SummaryWriter
 import shutil
 import sys
 sys.path.append("..")
@@ -80,7 +81,7 @@ def train(train_loader, model, criterion, optimizer, validation, args):
 
     latest_model_path = find_latest_model_path(args.model_dir)
 
-    best_model_path = os.path.join(*[args.model_dir, 'model_best.pt'])
+    best_model_path = os.path.join(*[args.model_dir, f'model_best_{args.model_type}.pt'])
 
     if latest_model_path is not None:
         state = torch.load(latest_model_path)
@@ -103,7 +104,8 @@ def train(train_loader, model, criterion, optimizer, validation, args):
         min_val_los = 9999
 
     valid_losses = []
-    for epoch in range(epoch, args.n_epoch + 1):
+    writer = SummaryWriter()
+    for epoch in range(epoch, args.n_epoch):
 
         adjust_learning_rate(optimizer, epoch, args.lr)
 
@@ -138,24 +140,31 @@ def train(train_loader, model, criterion, optimizer, validation, args):
         print(f'\tvalid_loss = {valid_loss:.5f}')
         tq.close()
 
+
+        writer.add_scalar('Loss/train', losses.avg, epoch)
+        writer.add_scalar('Loss/test', valid_loss, epoch)
+        # writer.add_scalar('Accuracy/train', np.random.random(), epoch)
+        # writer.add_scalar('Accuracy/test', np.random.random(), epoch)
+
         #save the model of the current epoch
-        epoch_model_path = os.path.join(*[args.model_dir, f'model_epoch_{epoch}.pt'])
-        torch.save({
-            'model': model.state_dict(),
-            'epoch': epoch,
-            'valid_loss': valid_loss,
-            'train_loss': losses.avg
-        }, epoch_model_path)
-
-        if valid_loss < min_val_los:
-            min_val_los = valid_loss
-
+        if np.mod(epoch+1, 5) == 0:
+            epoch_model_path = os.path.join(*[args.model_dir, f'model_epoch_{epoch+1}_{args.model_type}.pt'])
             torch.save({
                 'model': model.state_dict(),
                 'epoch': epoch,
                 'valid_loss': valid_loss,
                 'train_loss': losses.avg
-            }, best_model_path)
+            }, epoch_model_path)
+
+            if valid_loss < min_val_los:
+                min_val_los = valid_loss
+
+                torch.save({
+                    'model': model.state_dict(),
+                    'epoch': epoch,
+                    'valid_loss': valid_loss,
+                    'train_loss': losses.avg
+                }, best_model_path)
 
 def validate(model, val_loader, criterion):
     losses = AverageMeter()
@@ -201,9 +210,9 @@ if __name__ == '__main__':
     parser.add_argument('--weight_decay', default=1e-4, type=float, metavar='W', help='weight decay (default: 1e-4)')
     parser.add_argument('--batch_size',  default=4, type=int,  help='weight decay (default: 1e-4)')
     parser.add_argument('--num_workers', default=4, type=int, help='output dataset directory')
-    parser.add_argument('--data_dir',type=str, help='input dataset directory')
+    parser.add_argument('--data_dir', default='/home/wj/dataset/seg_dataset',type=str, help='input dataset directory')
     # /home/wj/dataset/seg_dataset
-    parser.add_argument('--model_dir', type=str, help='output dataset directory')
+    parser.add_argument('--model_dir', default='checkpoints', type=str, help='output dataset directory')
     parser.add_argument('--model_type', type=str, required=False, default='resnet101', choices=['vgg16', 'resnet101', 'resnet34'])
 
     args = parser.parse_args()

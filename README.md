@@ -1,5 +1,8 @@
 # Crack Segmentation
 
+## RUN
+tensorboard --logdir=/home/wj/local/crack_segmentation/runs --bind_all --port=6008
+
 ## 1. Inference
 - step 1. download the pre-trained model [unet_vgg16](https://drive.google.com/open?id=1wA2eAsyFZArG3Zc9OaKvnBuxSAPyDl08).
 - step 2. put the downloaded model under the folder ./models
