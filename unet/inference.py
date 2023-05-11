@@ -84,8 +84,8 @@ def disable_axis():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--img_dir',type=str, default='./test_images', help='input dataset directory')
-    parser.add_argument('--model_path', type=str, default='./models/model_unet_vgg_16_best.pt', help='trained model path')
+    parser.add_argument('--img_dir',type=str, default='../images', help='input dataset directory')
+    parser.add_argument('--model_path', type=str, default='../models/model_unet_vgg_16_best.pt', help='trained model path')
     parser.add_argument('--model_type', type=str, default='vgg16', choices=['vgg16', 'resnet101', 'resnet34'])
     parser.add_argument('--out_viz_dir', type=str, default='', required=False, help='visualization output dir')
     parser.add_argument('--out_pred_dir', type=str, default='./test_result', required=False,  help='prediction output dir')
@@ -150,10 +150,10 @@ if __name__ == '__main__':
                     i2 = i + h
                     j2 = j + w
                     if i2>img_height:
-                        i1 = img_height - h
+                        i1 = max(0, img_height - h)
                         i2 = img_height
                     if j2>img_width:
-                        j1 = img_width - w
+                        j1 = max(0, img_width - w)
                         j2 = img_width
                     img_pat = img_0[i1:i2 + offset, j1:j2 + offset]
                     prob_map_full = evaluate_img(model, img_pat)
