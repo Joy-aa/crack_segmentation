@@ -2,6 +2,7 @@ models/**
 images/**
 **.jpg
 **.JPG
+**.bmp
 **.pth
 **.pt
 runs/**

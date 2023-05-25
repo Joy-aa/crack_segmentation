@@ -1,4 +1,6 @@
 import sys
+sys.path.append("..")
+from utils import getmask, calc_accuracy, calc_miou, calc_precision, calc_recall, calc_f1
 import os
 import numpy as np
 from pathlib import Path
@@ -14,6 +16,8 @@ from PIL import Image
 import gc
 from simple_Unetpp import UnetPlusPlus, load_model
 from tqdm import tqdm
+import datetime
+import csv
 
 input_size = (448, 448)
 
@@ -46,8 +50,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--img_dir',type=str, default='../images', help='input dataset directory')
     parser.add_argument('--model_path', type=str, default='./checkpoints/Unet++_10.pth', help='trained model path')
+    parser.add_argument('--type', type=str, default='visual', choices=['visual', 'test'])
     parser.add_argument('--out_pred_dir', type=str, default='./result_images', required=False,  help='prediction output dir')
-    parser.add_argument('--threshold', type=float, default=0.1 , help='threshold to cut off crack response')
+    parser.add_argument('--threshold', type=float, default=0.5 , help='threshold to cut off crack response')
     args = parser.parse_args()
 
     if args.out_pred_dir != '':
@@ -57,11 +62,21 @@ if __name__ == '__main__':
 
     
     model = load_model(model_path = args.model_path, num_classes = 1)
+    state = torch.load(args.model_path)
 
-    offset = 0
-    paths = [path for path in Path(args.img_dir).glob('*.*')]
+    offset = 32
+    acc = 0
+    precision = 0
+    recall = 0
+    f1 = 0
+    miou = 0
+    if args.type == 'test':
+        DIR_IMG  = os.path.join(args.img_dir, 'image')
+        DIR_MASK = os.path.join(args.img_dir, 'label')
+    else:
+        DIR_IMG  = args.img_dir
+    paths = [path for path in Path(DIR_IMG).glob('*.*')]
     for path in tqdm(paths):
-
         # img_0 = Image.open(str(path))
         img_0 = cv.imread(str(path), 1)
         img_0 = np.asarray(img_0)
@@ -77,6 +92,8 @@ if __name__ == '__main__':
 
         cof = 1
         w, h = int(cof * input_size[0]), int(cof * input_size[1])
+        w = w - offset
+        h = h - offset
 
         a = 0
         if a == 1:
@@ -86,21 +103,35 @@ if __name__ == '__main__':
                 for j in range(0, img_width+w, w):
                     i1 = i
                     j1 = j
-                    i2 = i + h
-                    j2 = j + w
+                    i2 = i + h + offset
+                    j2 = j + w + offset
                     if i2>img_height:
-                        i1 = max(0, img_height - h)
+                        i1 = max(0, img_height - h - offset)
                         i2 = img_height
                     if j2>img_width:
-                        j1 = max(0, img_width - w)
+                        j1 = max(0, img_width - w - offset)
                         j2 = img_width
-                    print(i1, i2, j1, j2)
-                    img_pat = img_0[i1:i2 + offset, j1:j2 + offset]
+                    img_pat = img_0[i1:i2, j1:j2]
                     prob_map_full = evaluate_img(model, img_pat)
-                    img_1[i1:i2 + offset, j1:j2 + offset] += prob_map_full
+                    img_1[i1:i2, j1:j2] += prob_map_full
         img_1[img_1 > 1] = 1
+        # pred_mask = getmask(img_1, threshold=args.threshold)
         if args.out_pred_dir != '':
             cv.imwrite(filename=join(args.out_pred_dir, f'{path.stem}.jpg'), img=(img_1 * 255).astype(np.uint8))
+        # if args.type == 'test':
+        #     gt_mask = cv.imread(os.path.join(DIR_MASK, f'{path.stem}.jpg'), 0)
+        #     acc += calc_accuracy(gt_mask, pred_mask) / len(paths)
+        #     precision += calc_precision(gt_mask, pred_mask) / len(paths)
+        #     recall  += calc_recall(gt_mask, pred_mask) / len(paths)
+        #     f1 += calc_f1(gt_mask, pred_mask) / len(paths)
+        #     miou += calc_miou(gt_mask, pred_mask) / len(paths)
 
         
         gc.collect()
+    # headers = ['datetime','modelType','trainLoss','validLoss','Accuracy','Precision','Recall',"F1-score",'MIOU']
+
+    now_time = datetime.datetime.now()
+    row = (now_time, args.model_path, state['train_loss'], state['valid_loss'], acc, precision, recall, f1, miou)
+    with open('../result.csv','a+',encoding='utf8',newline='') as f :
+        writer = csv.writer(f)
+        writer.writerow(row)

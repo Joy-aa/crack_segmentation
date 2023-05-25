@@ -88,7 +88,7 @@ if __name__ == '__main__':
     parser.add_argument('--model_path', type=str, default='../models/model_unet_vgg_16_best.pt', help='trained model path')
     parser.add_argument('--model_type', type=str, default='vgg16', choices=['vgg16', 'resnet101', 'resnet34'])
     parser.add_argument('--out_viz_dir', type=str, default='', required=False, help='visualization output dir')
-    parser.add_argument('--out_pred_dir', type=str, default='./test_result', required=False,  help='prediction output dir')
+    parser.add_argument('--out_pred_dir', type=str, default='./result2', required=False,  help='prediction output dir')
     parser.add_argument('--threshold', type=float, default=0.1 , help='threshold to cut off crack response')
     args = parser.parse_args()
 
@@ -138,6 +138,8 @@ if __name__ == '__main__':
 
         cof = 1
         w, h = int(cof * input_size[0]), int(cof * input_size[1])
+        # w = w - offset
+        # h = h - offset
 
         a = 0
         if a == 1:
@@ -155,6 +157,7 @@ if __name__ == '__main__':
                     if j2>img_width:
                         j1 = max(0, img_width - w)
                         j2 = img_width
+                    # print(i1, i2, j1, j2)
                     img_pat = img_0[i1:i2 + offset, j1:j2 + offset]
                     prob_map_full = evaluate_img(model, img_pat)
                     img_1[i1:i2 + offset, j1:j2 + offset] += prob_map_full
