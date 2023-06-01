@@ -6,4 +6,4 @@ images/**
 **.pth
 **.pt
 **.png
-runs/**
+**/runs/**
