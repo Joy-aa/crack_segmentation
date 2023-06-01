@@ -2,7 +2,9 @@ models/**
 images/**
 **.jpg
 **.JPG
+**.bmp
 **.pth
 **.pt
-runs/**
-notebooks/**
+**.png
+**/runs/**
+# notebooks/**
