@@ -1,0 +1,21 @@
+name: deepsegmentor
+channels:
+- peterjc123
+- menpo
+- conda-forge
+- defaults
+dependencies:
+- python=3.8.1
+- pytorch
+- scipy
+- opencv3
+- scikit-image
+- scikit-learn
+- pip:
+  - dominate
+  - Pillow
+  - numpy
+  - torchvision
+  - torchaudio
+  - visdom
+  - matplotlib

@@ -31,7 +31,7 @@ def test(test_data_path='/home/wj/local/crack_segmentation/images',
     # test_dataset = loadedDataset(test_list, preprocess=test_pipline)
 
     DIR_IMG  = os.path.join(test_data_path, 'image')
-    DIR_MASK = os.path.join(test_data_path, 'label')
+    DIR_MASK = os.path.join(test_data_path, 'new_label')
 
     img_paths  = [path for path in Path(DIR_IMG).glob('*.*')]
     # mask_names = [path.name for path in Path(DIR_MASK).glob('*.*')]

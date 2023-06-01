@@ -36,11 +36,11 @@ def main():
     # -------------------- build trainer --------------------- #
 
     device = torch.device("cuda")
-    # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    num_gpu = torch.cuda.device_count()
+    # device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+    # num_gpu = torch.cuda.device_count()
 
     model = DeepCrack()
-    model = torch.nn.DataParallel(model, device_ids=range(num_gpu))
+    # model = torch.nn.DataParallel(model, device_ids=range(num_gpu))
     model.to(device)
 
     trainer = DeepCrackTrainer(model).to(device)

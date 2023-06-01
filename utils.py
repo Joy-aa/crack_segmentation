@@ -5,11 +5,13 @@ import argparse
 import pandas as pd
 import csv
 import datetime
-import cv2
+import cv2 
+import cv2 as cv
 from PIL import Image, ImageEnhance
 import os
 from pathlib import Path
 from torch.utils.data import random_split
+from tqdm import tqdm
 
 def tensorWriter(metric, value, iter):
     writer = SummaryWriter()
@@ -237,26 +239,39 @@ if __name__ == "__main__":
     # save_img_path = 'cut_data/img'
     # save_label_path = 'cut_data/label'
 
-    data_dir = '/mnt/hangzhou_116_homes/ymd/seg_dataset'
-    DIR_IMG  = os.path.join(data_dir, 'images')
-    DIR_MASK = os.path.join(data_dir, 'masks')
+    data_dir = '/nfs/ymd/DamCrack'
+    DIR_IMG  = os.path.join(data_dir, 'image')
+    DIR_MASK = os.path.join(data_dir, 'label')
 
     img_names  = [path.name for path in Path(DIR_IMG).glob('*.jpg')]
-    # mask_names = [path.name for path in Path(DIR_MASK).glob('*.jpg')]
+    # mask_names = [path.name for path in Path(DIR_MASK).glob('*.bmp')]
 
     train_size = int(0.85*len(img_names))
     valid_size = len(img_names) - train_size
     train_names, valid_names = random_split(img_names, [train_size, valid_size])\
     
-    with open('/home/wj/local/crack_segmentation/DeepCrack/codes/data/train_example.txt','w') as f:    #设置文件对象
+    with open('/home/wj/pycharmProjects/crack_segmentation/DeepCrack/codes/data/train_example.txt','w') as f:    #设置文件对象
         for name in train_names:
-            str = os.path.join(DIR_IMG, name) + ' ' + os.path.join(DIR_MASK, name)
+            str = os.path.join(DIR_IMG, name) + ' ' + os.path.join(DIR_MASK, name.split('.')[0] + '.bmp')
+            # print(str)
             f.write(str + '\n')  
 
 
-    with open('/home/wj/local/crack_segmentation/DeepCrack/codes/data/val_example.txt','w') as f:    #设置文件对象
+    with open('/home/wj/pycharmProjects/crack_segmentation/DeepCrack/codes/data/val_example.txt','w') as f:    #设置文件对象
         for name in valid_names:
-            str = os.path.join(DIR_IMG, name) + ' ' + os.path.join(DIR_MASK, name)
+            str = os.path.join(DIR_IMG, name) + ' ' + os.path.join(DIR_MASK, name.split('.')[0] + '.bmp')
             f.write(str + '\n')  
+    # img_paths  = [path for path in Path(DIR_MASK).glob('noncrack*.bmp')]
+    # # mask_paths = [path for path in Path(DIR_MASK).glob('Crack500*.jpg')]
+    # # print(len(img_paths))
+    # for img_path in tqdm(img_paths):
+    #     img = cv.imread(str(img_path), 0)
+    #     # print(img.shape)
+
+    #     cv.imwrite(os.path.join(str(img_path).split('.')[0] + '.bmp'), img)
+    #     os.remove(os.path.join(DIR_MASK, img_path.name))
+    #     # print(os.path.join(str(img_path).split('.')[0] + '.bmp'))
+    #     # print(os.path.join(DIR_MASK, img_path.name))
+
 
 
