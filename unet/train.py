@@ -6,6 +6,7 @@ import torchvision.transforms as transforms
 from torch.utils.data import DataLoader, Dataset, random_split
 import torch.nn.functional as F
 from torch.autograd import Variable
+from torch.utils.tensorboard import SummaryWriter
 import shutil
 import sys
 sys.path.append("..")
@@ -15,6 +16,8 @@ import argparse
 import tqdm
 import numpy as np
 import scipy.ndimage as ndimage
+
+os.environ["CUDA_VISIBLE_DEVICES"] = '0,1'
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""

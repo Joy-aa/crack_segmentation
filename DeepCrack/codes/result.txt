@@ -1,3 +1,6 @@
-accuracy:0.99399 | precision:0.34631 | recall:0.23220 | f1:0.22001 
-accuracy:0.99443 | precision:0.28262 | recall:0.07814 | f1:0.10951 
-accuracy:0.99399 | precision:0.34631 | recall:0.23220 | f1:0.22001 
+accuracy:0.01696 | precision:0.01696 | recall:1.00000 | f1:0.03336 
+accuracy:0.01696 | precision:0.01696 | recall:1.00000 | f1:0.03336 
+accuracy:0.01696 | precision:0.01696 | recall:1.00000 | f1:0.03336 
+accuracy:0.01696 | precision:0.01696 | recall:1.00000 | f1:0.03336 
+accuracy:0.87705 | precision:0.12003 | recall:0.98696 | f1:0.21403 
+accuracy:0.98651 | precision:0.59404 | recall:0.64646 | f1:0.61914 

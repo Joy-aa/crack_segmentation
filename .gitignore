@@ -6,4 +6,6 @@ images/**
 **.pth
 **.pt
 **.png
+**.pyc
 **/runs/**
+notebooks/**
