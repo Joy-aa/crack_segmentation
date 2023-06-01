@@ -1,0 +1,6 @@
+accuracy:0.01696 | precision:0.01696 | recall:1.00000 | f1:0.03336 
+accuracy:0.01696 | precision:0.01696 | recall:1.00000 | f1:0.03336 
+accuracy:0.01696 | precision:0.01696 | recall:1.00000 | f1:0.03336 
+accuracy:0.01696 | precision:0.01696 | recall:1.00000 | f1:0.03336 
+accuracy:0.87705 | precision:0.12003 | recall:0.98696 | f1:0.21403 
+accuracy:0.98651 | precision:0.59404 | recall:0.64646 | f1:0.61914 

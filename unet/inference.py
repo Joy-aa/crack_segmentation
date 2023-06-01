@@ -148,6 +148,8 @@ if __name__ == '__main__':
 
         cof = 1
         w, h = int(cof * input_size[0]), int(cof * input_size[1])
+        # w = w - offset
+        # h = h - offset
 
         a = 0
         if a == 1:
@@ -160,10 +162,10 @@ if __name__ == '__main__':
                     i2 = i + h
                     j2 = j + w
                     if i2>img_height:
-                        i1 = img_height - h
+                        i1 = max(0, img_height - h)
                         i2 = img_height
                     if j2>img_width:
-                        j1 = img_width - w
+                        j1 = max(0, img_width - w)
                         j2 = img_width
                     img_pat = img_0[i1:i2, j1:j2]
                     mask_pat = lab[i1:i2, j1:j2]

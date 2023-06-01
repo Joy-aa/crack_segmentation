@@ -53,7 +53,7 @@ def calc_f1(mask, pred_mask):
 def calc_metric(pred_list, gt_list, mode='lsit', threshold = 0, max_value = 1):
     metric = {
                 'accuracy': 0,
-                'neg_accuracy' : 0,
+                'neg_accuracy': 0,
                 'precision': 0,
                 'recall': 0,
                 'f1': 0,}
@@ -77,6 +77,7 @@ def calc_metric(pred_list, gt_list, mode='lsit', threshold = 0, max_value = 1):
     else:
         print("fault type")
         return metric
+    # print(mask[mask<1].numel())
     metric['accuracy'], metric['neg_accuracy'] = calc_accuracy(mask, pred_mask)
     metric['precision'] = calc_precision(mask, pred_mask)
     metric['recall'] = calc_recall(mask, pred_mask)

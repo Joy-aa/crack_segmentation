@@ -10,13 +10,14 @@ import pandas as pd
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader, random_split
 import sys
-sys.path.append("..")
+sys.path.append("/home/wj/local/crack_segmentation")
 from data_loader import ImgDataSet
 import numpy as np
 import os
 import argparse
 from pathlib import Path
 from torch.autograd import Variable
+import datetime
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
@@ -35,19 +36,23 @@ class AverageMeter(object):
         self.count += n
         self.avg = self.sum / self.count
 
-def train_ch13(model, train_iter, test_iter, loss, trainer, num_epochs,scheduler,
+def train_ch13(model, train_iter, test_iter, loss, trainer, num_epochs, validation,
                devices=d2l.try_all_gpus()):
     timer, num_batches = d2l.Timer(), len(train_iter)
-    animator = d2l.Animator(xlabel='epoch', xlim=[1, num_epochs], ylim=[0, 1],
-                            legend=['train loss', 'train acc', 'test acc'])
+    # animator = d2l.Animator(xlabel='epoch', xlim=[1, num_epochs], ylim=[0, 1],
+    #                         legend=['train loss', 'train acc', 'test acc'])
     net = nn.DataParallel(model, device_ids=devices).to(devices[0])
     
     loss_list = []
-    train_acc_list = []
-    test_acc_list = []
+    valid_loss_list=[]
     epochs_list = []
     time_list = []
     for epoch in range(num_epochs):
+        
+        tq = tqdm.tqdm(total=(len(train_loader) * 4))
+        tq.set_description(f'Epoch {epoch}')
+        losses = AverageMeter()
+
         # Sum of training loss, sum of training accuracy, no. of examples,
         # no. of predictions
         metric = d2l.Accumulator(4)
@@ -57,34 +62,36 @@ def train_ch13(model, train_iter, test_iter, loss, trainer, num_epochs,scheduler
                 net, features, labels, loss.float(), trainer, devices)
             metric.add(l, acc, labels.shape[0], labels.numel())
             timer.stop()
-            if (i + 1) % (num_batches // 5) == 0 or i == num_batches - 1:
-                animator.add(epoch + (i + 1) / num_batches,
-                             (metric[0] / metric[2], metric[1] / metric[3],
-                              None))
-        test_acc = d2l.evaluate_accuracy_gpu(net, test_iter)
-        animator.add(epoch + 1, (None, None, test_acc))
-        scheduler.step()
- 
-        print(f"epoch {epoch+1} --- loss {metric[0] / metric[2]:.3f} ---  train acc {metric[1] / metric[3]:.3f} --- test acc {test_acc:.3f} --- cost time {timer.sum()}")
+            # if (i + 1) % (num_batches // 5) == 0 or i == num_batches - 1:
+            #     animator.add(epoch + (i + 1) / num_batches,
+            #                  (metric[0] / metric[2], metric[1] / metric[3],
+            #                   None))
+            losses.update(metric[0] / metric[2])
+            tq.set_postfix(loss='{:.5f}'.format(losses.avg))
+            tq.update(4)
+
+        valid_metrics = validation(net, test_iter, loss)
+        valid_loss = valid_metrics['valid_loss']
+        # print(f'\tvalid_loss = {valid_loss:.5f}')
+        print(f"epoch {epoch} --- train loss {losses.avg:.5f}--- valid loss {valid_loss:.5f}  --- cost time {timer.sum()}")
+        tq.close()
         
-        #---------保存训练数据---------------
+        # # ---------保存训练数据---------------
         df = pd.DataFrame()
         loss_list.append(metric[0] / metric[2])
-        train_acc_list.append(metric[1] / metric[3])
-        test_acc_list.append(test_acc)
+        valid_loss_list.append(valid_loss)
         epochs_list.append(epoch)
         time_list.append(timer.sum())
         
         df['epoch'] = epochs_list
-        df['loss'] = loss_list
-        df['train_acc'] = train_acc_list
-        df['test_acc'] = test_acc_list
+        df['train_loss'] = loss_list
+        df['valid_loss'] = valid_loss_list
         df['time'] = time_list
-        df.to_excel("savefile/Unet++_camvid1.xlsx")
+        today = str(datetime.date.today())
+        df.to_excel(f"savefile/Unet++_crack_{today}.xlsx")
         #----------------保存模型-------------------
-        if np.mod(epoch+1, 5) == 0:
-            torch.save(model.state_dict(), f'checkpoints/Unet++_{epoch+1}.pth')
-
+        if np.mod(epoch+1, 2) == 0:
+            torch.save(net.state_dict(), f'checkpoints/Unet++_{epoch+1}.pth')
 
 def adjust_learning_rate(optimizer, epoch, lr):
     """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
@@ -149,6 +156,8 @@ def validate(model, val_loader, criterion):
     with torch.no_grad():
 
         for i, (input, target) in enumerate(val_loader):
+            # print(input.shape)
+            # print(target.shape)
             input_var = Variable(input).cuda()
             target_var = Variable(target).cuda()
 
@@ -161,7 +170,7 @@ def validate(model, val_loader, criterion):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
-    parser.add_argument('--n_epoch', default=10, type=int, metavar='N', help='number of total epochs to run')
+    parser.add_argument('--n_epoch', default=20, type=int, metavar='N', help='number of total epochs to run')
     parser.add_argument('--lr', default=0.001, type=float, metavar='LR', help='initial learning rate')
     parser.add_argument('--momentum', default=0.9, type=float, metavar='M', help='momentum')
     parser.add_argument('--print_freq', default=20, type=int, metavar='N', help='print frequency (default: 10)')
@@ -169,11 +178,11 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size',  default=4, type=int,  help='weight decay (default: 1e-4)')
     parser.add_argument('--num_workers', default=4, type=int, help='output dataset directory')
     parser.add_argument('--data_dir',type=str, help='input dataset directory')
-    # /home/wj/dataset/seg_dataset
+    # /mnt/hangzhou_116_homes/ymd/seg_dataset
     # parser.add_argument('--model_dir', type=str, help='output dataset directory')
 
     args = parser.parse_args()
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     # os.makedirs(args.model_dir, exist_ok=True)
 
     DIR_IMG  = os.path.join(args.data_dir, 'images')
@@ -202,9 +211,9 @@ if __name__ == '__main__':
     train_loader = DataLoader(train_dataset, args.batch_size, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
     valid_loader = DataLoader(valid_dataset, args.batch_size, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
 
-    model = UnetPlusPlus(num_classes=1).to(device)
-    model.cuda()
-    lossf = nn.BCEWithLogitsLoss().to(device)
+    model = UnetPlusPlus(num_classes=1).cuda()
+    # model.cuda()
+    lossf = nn.BCEWithLogitsLoss()
     #选用adam优化器来训练
     # optimizer = optim.SGD(model.parameters(),lr=0.001)
     optimizer = torch.optim.SGD(model.parameters(), args.lr,
@@ -213,8 +222,9 @@ if __name__ == '__main__':
     # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.1, last_epoch=-1)
     
     #训练50轮
-    # epochs_num = 50
-    # train_ch13(model, train_loader, valid_loader, lossf, optimizer, epochs_num,scheduler)
+    # train_ch13(model, train_loader, valid_loader, lossf, optimizer, args.n_epoch, validate)
 
-    train(train_loader, model, lossf, optimizer, validate, args)
+    # train(train_loader, model, lossf, optimizer, validate, args)
+
+    validate(model, valid_loader, lossf)
     

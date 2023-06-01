@@ -102,3 +102,27 @@ class FCN8(nn.Module):
  
         return output
 
+if __name__ == '__main__':
+    import cv2 as cv
+    import os
+    img = cv.imread('/home/wj/local/crack_segmentation/images/creak_s28.jpg')
+    # path = 'ima'
+    img_height, img_width, img_channels = img.shape
+    input_size=(448,448)
+    cof = 1
+    w, h = int(cof * input_size[0]), int(cof * input_size[1])
+    for i in range(0, img_height+h, h):
+        for j in range(0, img_width+w, w):
+            i1 = i
+            j1 = j
+            i2 = i + h
+            j2 = j + w
+            if i2>img_height:
+                        i1 = max(img_height - h, 0)
+                        i2 = img_height
+            if j2>img_width:
+                        j1 = max(img_width - w, 0)
+                        j2 = img_width
+            img_pat = img[i1:i2, j1:j2]
+            # print(i1,i2,j1,j2)
+            cv.imwrite(os.path.join('../result_images', 'creak_s28'+str(i)+str(j)+'.jpg'), img_pat)

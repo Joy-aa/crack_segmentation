@@ -144,7 +144,22 @@ class UnetPlusPlus(nn.Module):
         else:
             return self.final_super_0_4(x_0_4)
  
- 
+def load_model(model_path, num_classes):
+    model = UnetPlusPlus(num_classes=num_classes)
+    checkpoint = torch.load(model_path)
+    if 'model' in checkpoint:
+        model.load_state_dict(checkpoint['model'])
+    elif 'state_dict' in checkpoint:
+        model.load_state_dict(checkpoint['check_point'])
+    else:
+        raise Exception('undefind model format')
+
+    model.cuda()
+    model.eval()
+
+    return model
+
+
 if __name__ == "__main__":
     print("deep_supervision: False")
     deep_supervision = False
