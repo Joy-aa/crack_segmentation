@@ -1,0 +1,9 @@
+models/**
+images/**
+**.jpg
+**.JPG
+**.bmp
+**.pth
+**.pt
+**.png
+runs/**

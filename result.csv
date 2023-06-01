@@ -1,0 +1,4 @@
+datetime,modelType,trainLoss,validLoss,Accuracy,Precision,Recall,F1-score,MIOU
+2023-05-11 12:05:33.141895,./checkpoints/Unet++_10.pth,"tensor(0.0277, device='cuda:0', requires_grad=True)",0.034832802906789334,0.9598266228641138,0.0,0.0,nan,0.0037713298704133654
+2023-05-11 14:40:25.220001,./checkpoints/Unet++_10.pth,"tensor(0.0277, device='cuda:0', requires_grad=True)",0.034832802906789334,0,0,0,0,0
+2023-05-11 15:01:57.836966,./checkpoints/Unet++_10.pth,"tensor(0.0277, device='cuda:0', requires_grad=True)",0.034832802906789334,0,0,0,0,0
