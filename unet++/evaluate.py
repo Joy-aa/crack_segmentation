@@ -1,6 +1,5 @@
 import sys
-sys.path.append("..")
-from utils import getmask, calc_accuracy, calc_miou, calc_precision, calc_recall, calc_f1
+sys.path.append("/home/wj/local/crack_segmentation")
 import os
 import numpy as np
 from pathlib import Path
@@ -18,6 +17,7 @@ from simple_Unetpp import UnetPlusPlus, load_model
 from tqdm import tqdm
 import datetime
 import csv
+from metric import calc_metric
 
 input_size = (448, 448)
 
@@ -48,9 +48,9 @@ def disable_axis():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--img_dir',type=str, default='../images', help='input dataset directory')
+    parser.add_argument('--img_dir',type=str, default='/mnt/hangzhou_116_homes/DamDetection/data', help='input dataset directory')
     parser.add_argument('--model_path', type=str, default='./checkpoints/Unet++_10.pth', help='trained model path')
-    parser.add_argument('--type', type=str, default='visual', choices=['visual', 'test'])
+    parser.add_argument('--type', type=str, default='test', choices=['visual', 'test'])
     parser.add_argument('--out_pred_dir', type=str, default='./result_images', required=False,  help='prediction output dir')
     parser.add_argument('--threshold', type=float, default=0.5 , help='threshold to cut off crack response')
     args = parser.parse_args()
@@ -61,8 +61,11 @@ if __name__ == '__main__':
             os.remove(str(path))
 
     
-    model = load_model(model_path = args.model_path, num_classes = 1)
-    state = torch.load(args.model_path)
+    model = UnetPlusPlus(num_classes=1)
+    model.load_state_dict(torch.load(args.model_path))
+    model.cuda()
+    model.eval()
+    # state = torch.load(args.model_path)
 
     offset = 32
     acc = 0
@@ -72,14 +75,23 @@ if __name__ == '__main__':
     miou = 0
     if args.type == 'test':
         DIR_IMG  = os.path.join(args.img_dir, 'image')
-        DIR_MASK = os.path.join(args.img_dir, 'label')
+        DIR_MASK = os.path.join(args.img_dir, 'new_label')
     else:
         DIR_IMG  = args.img_dir
     paths = [path for path in Path(DIR_IMG).glob('*.*')]
+    metrics = {
+            'accuracy': 0,
+            'precision': 0,
+            'recall': 0,
+            'f1': 0,
+    }
     for path in tqdm(paths):
-        # img_0 = Image.open(str(path))
+        pred_list = []
+        gt_list = []
         img_0 = cv.imread(str(path), 1)
         img_0 = np.asarray(img_0)
+        mask_path = os.path.join(DIR_MASK, path.stem+'.png')
+        lab = cv.imread(mask_path, 0)
         if len(img_0.shape) != 3:
             print(f'incorrect image shape: {path.name}{img_0.shape}')
             continue
@@ -112,26 +124,35 @@ if __name__ == '__main__':
                         j1 = max(0, img_width - w - offset)
                         j2 = img_width
                     img_pat = img_0[i1:i2, j1:j2]
+                    mask_pat = lab[i1:i2, j1:j2]
                     prob_map_full = evaluate_img(model, img_pat)
                     img_1[i1:i2, j1:j2] += prob_map_full
+                    if i2-i1 != h or j2-j1 != w:
+                        prob_map_full = cv.resize(prob_map_full, (w, h), cv.INTER_AREA)
+                        mask_pat = cv.resize(mask_pat, (w, h), cv.INTER_AREA)
+                    pred_list.append(prob_map_full)
+                    gt_list.append(mask_pat)
+        metric = calc_metric(pred_list, gt_list, mode='list', threshold=0.5)
+        metrics['accuracy'] += metric['accuracy'] / len(paths)
+        metrics['precision'] += metric['precision'] / len(paths)
+        metrics['recall'] += metric['recall'] / len(paths)
+        metrics['f1'] += metric['f1'] / len(paths)
+        print(metric)
         img_1[img_1 > 1] = 1
         # pred_mask = getmask(img_1, threshold=args.threshold)
         if args.out_pred_dir != '':
             cv.imwrite(filename=join(args.out_pred_dir, f'{path.stem}.jpg'), img=(img_1 * 255).astype(np.uint8))
-        # if args.type == 'test':
-        #     gt_mask = cv.imread(os.path.join(DIR_MASK, f'{path.stem}.jpg'), 0)
-        #     acc += calc_accuracy(gt_mask, pred_mask) / len(paths)
-        #     precision += calc_precision(gt_mask, pred_mask) / len(paths)
-        #     recall  += calc_recall(gt_mask, pred_mask) / len(paths)
-        #     f1 += calc_f1(gt_mask, pred_mask) / len(paths)
-        #     miou += calc_miou(gt_mask, pred_mask) / len(paths)
-
-        
         gc.collect()
     # headers = ['datetime','modelType','trainLoss','validLoss','Accuracy','Precision','Recall',"F1-score",'MIOU']
 
-    now_time = datetime.datetime.now()
-    row = (now_time, args.model_path, state['train_loss'], state['valid_loss'], acc, precision, recall, f1, miou)
-    with open('../result.csv','a+',encoding='utf8',newline='') as f :
-        writer = csv.writer(f)
-        writer.writerow(row)
+    # now_time = datetime.datetime.now()
+    # row = (now_time, args.model_path, state['train_loss'], state['valid_loss'], acc, precision, recall, f1, miou)
+    # with open('../result.csv','a+',encoding='utf8',newline='') as f :
+    #     writer = csv.writer(f)
+    #     writer.writerow(row)
+
+    with open('result.txt', 'a', encoding='utf-8') as fout:
+            print(metrics)
+            line =  "accuracy:{:.5f} | precision:{:.5f} | recall:{:.5f} | f1:{:.5f} " \
+                .format(metrics['accuracy'], metrics['precision'], metrics['recall'], metrics['f1']) + '\n'
+            fout.write(line)

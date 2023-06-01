@@ -18,9 +18,9 @@ from torch.autograd import Variable
 os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 
 
-def test(test_data_path='/home/wj/local/crack_segmentation/images',
+def test(test_data_path='/mnt/hangzhou_116_homes/DamDetection/data/',
          save_path='deepcrack_results/',
-         pretrained_model='checkpoints/DeepCrack_CT260_FT1/epoch(9)_acc(0.23493-0.98289).pth', ):
+         pretrained_model='checkpoints/DeepCrack_CT260_FT1/epoch(19)_acc(0.35963-0.98486).pth', ):
     if not os.path.exists(save_path):
         os.mkdir(save_path)
 
@@ -71,15 +71,22 @@ def test(test_data_path='/home/wj/local/crack_segmentation/images',
     cof = 1
     w, h = int(cof * input_size[0]), int(cof * input_size[1])
 
-    pred_list= []
-    gt_list=[]
+    metrics = {
+            'accuracy': 0,
+            'precision': 0,
+            'recall': 0,
+            'f1': 0,
+    }
 
     with torch.no_grad():
         for path in tqdm(img_paths):
-            print(path)
+            pred_list= []
+            gt_list=[]
+            # print(path)
             img = cv2.imread(str(path), 1)
-            mask_path = os.path.join(DIR_MASK, path.stem+'.bmp')
+            mask_path = os.path.join(DIR_MASK, path.stem+'.png')
             lab = cv2.imread(mask_path, 0)
+            # lab[lab > 0] = 255
             # print(img.shape)
             # print(lab.shape)
         
@@ -110,20 +117,32 @@ def test(test_data_path='/home/wj/local/crack_segmentation/images',
                     # test_data, test_target = img_pat.type(torch.cuda.FloatTensor).to(device), mask_pat.type(torch.cuda.FloatTensor).to(device)
                     test_pred = trainer.val_op(test_data, test_target)
                     test_pred = torch.sigmoid(test_pred[0].squeeze()).data.cpu().numpy()
+
+                    pred_list.append(test_pred)
+                    gt_list.append(mask_pat)
+
                     if i2-i1 != h or j2-j1 != w:
                         test_pred = cv2.resize(test_pred, (j2-j1, i2-i1), cv2.INTER_AREA)
                     img_1[i1:i2, j1:j2] = test_pred
+                    
+            metric = calc_metric(pred_list, gt_list, mode='list', threshold=0.5)
+            metrics['accuracy'] += metric['accuracy'] / len(img_paths)
+            metrics['precision'] += metric['precision'] / len(img_paths)
+            metrics['recall'] += metric['recall'] / len(img_paths)
+            metrics['f1'] += metric['f1'] / len(img_paths)
+            print(metric)
+
+                    
             # img_1[img_1 > 1] = 1
-            pred_list.append(img_1)
-            gt_list.append(lab)
+            # pred_list.append(img_1)
+            # gt_list.append(lab)
             save_name = os.path.join(save_path, f'{path.stem}.jpg')
             # print(save_name)
             cv2.imwrite(filename=save_name, img=(img_1 * 255).astype(np.uint8))
-    metric = calc_metric(pred_list, gt_list, mode='list', threshold=0.5)
     with open('result.txt', 'a', encoding='utf-8') as fout:
-            print(metric)
+            print(metrics)
             line =  "accuracy:{:.5f} | precision:{:.5f} | recall:{:.5f} | f1:{:.5f} " \
-                .format(metric['accuracy'], metric['precision'], metric['recall'], metric['f1']) + '\n'
+                .format(metrics['accuracy'], metrics['precision'], metrics['recall'], metrics['f1']) + '\n'
             fout.write(line)
 
 

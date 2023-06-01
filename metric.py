@@ -59,14 +59,17 @@ def calc_metric(pred_list, gt_list, mode='lsit', threshold = 0, max_value = 1):
                 'f1': 0,}
     if mode == 'list':
         pred_arr = np.array(pred_list)
-        pred_arr[pred_arr > threshold * max_value] = 1
-        pred_arr[pred_arr <= threshold * max_value] = 0
         gt_arr = np.array(gt_list)
-        print(np.sum(pred_arr == 0))
-        print(np.sum(pred_arr == 1))
+        print(pred_arr.shape)
+        print(gt_arr.shape)
+        th = threshold * max_value
+        pred_arr[pred_arr > th] = 1
+        pred_arr[pred_arr <= th] = 0
+        # print(np.sum(pred_arr == 0))
+        # print(np.sum(pred_arr == 1))
         gt_arr[gt_arr > 0] = 1
-        print(np.sum(gt_arr == 0))
-        print(np.sum(gt_arr == 1))
+        # print(np.sum(gt_arr == 0))
+        # print(np.sum(gt_arr == 1))
         pred_mask = torch.tensor(pred_arr)
         mask = torch.tensor(gt_arr)
     elif mode == 'tensor':
