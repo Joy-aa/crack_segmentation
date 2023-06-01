@@ -17,7 +17,7 @@ python inference.py  --img_dir /mnt/hangzhou_116_homes/DamDetection/data/Agray -
 - step 2. run the training code
 - step 3: run the code
 ```python 
-python train_unet.py --data_dir your_data_path --model_dir your_model_path --model_type vgg_16
+python train_unet.py --data_dir /home/wj/dataset/crack --model_dir your_model_path --model_type vgg_16
 ```
 
 ***

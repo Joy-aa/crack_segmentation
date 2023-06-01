@@ -17,6 +17,8 @@ import tqdm
 import numpy as np
 import scipy.ndimage as ndimage
 
+os.environ["CUDA_VISIBLE_DEVICES"] = '0,1'
+
 class AverageMeter(object):
     """Computes and stores the average and current value"""
     def __init__(self):
@@ -34,7 +36,7 @@ class AverageMeter(object):
         self.count += n
         self.avg = self.sum / self.count
 
-def create_model(device, type ='vgg16'):
+def create_model(type ='vgg16'):
     if type == 'vgg16':
         print('create vgg16 model')
         model = UNet16(pretrained=True)
@@ -51,7 +53,7 @@ def create_model(device, type ='vgg16'):
     else:
         assert False
     model.eval()
-    return model.to(device)
+    return model
 
 def adjust_learning_rate(optimizer, epoch, lr):
     """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
@@ -67,7 +69,7 @@ def find_latest_model_path(dir):
             continue
         model_paths.append(path)
         parts = path.stem.split('_')
-        epoch = int(parts[-1])
+        epoch = int(parts[-2])
         epochs.append(epoch)
 
     if len(epochs) > 0:
@@ -79,12 +81,12 @@ def find_latest_model_path(dir):
 
 def train(train_loader, model, criterion, optimizer, validation, args):
 
-    latest_model_path = find_latest_model_path(args.model_dir)
+    # latest_model_path = find_latest_model_path(args.model_dir)
 
     best_model_path = os.path.join(*[args.model_dir, f'model_best_{args.model_type}.pt'])
 
-    if latest_model_path is not None:
-        state = torch.load(latest_model_path)
+    if best_model_path is not None:
+        state = torch.load(best_model_path)
         epoch = state['epoch']
         model.load_state_dict(state['model'])
         epoch = epoch
@@ -92,7 +94,7 @@ def train(train_loader, model, criterion, optimizer, validation, args):
         #if latest model path does exist, best_model_path should exists as well
         assert Path(best_model_path).exists() == True, f'best model path {best_model_path} does not exist'
         #load the min loss so far
-        best_state = torch.load(latest_model_path)
+        best_state = torch.load(best_model_path)
         min_val_los = best_state['valid_loss']
 
         print(f'Restored model at epoch {epoch}. Min validation loss so far is : {min_val_los}')
@@ -203,14 +205,14 @@ def calc_crack_pixel_weight(mask_dir):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
-    parser.add_argument('--n_epoch', default=10, type=int, metavar='N', help='number of total epochs to run')
+    parser.add_argument('--n_epoch', default=500, type=int, metavar='N', help='number of total epochs to run')
     parser.add_argument('--lr', default=0.001, type=float, metavar='LR', help='initial learning rate')
     parser.add_argument('--momentum', default=0.9, type=float, metavar='M', help='momentum')
     parser.add_argument('--print_freq', default=20, type=int, metavar='N', help='print frequency (default: 10)')
     parser.add_argument('--weight_decay', default=1e-4, type=float, metavar='W', help='weight decay (default: 1e-4)')
-    parser.add_argument('--batch_size',  default=4, type=int,  help='weight decay (default: 1e-4)')
+    parser.add_argument('--batch_size',  default=8, type=int,  help='weight decay (default: 1e-4)')
     parser.add_argument('--num_workers', default=4, type=int, help='output dataset directory')
-    parser.add_argument('--data_dir', default='/home/wj/dataset/seg_dataset',type=str, help='input dataset directory')
+    parser.add_argument('--data_dir', default='/mnt/hangzhou_116_homes/ymd/DamCrack',type=str, help='input dataset directory')
     # /home/wj/dataset/seg_dataset
     parser.add_argument('--model_dir', default='checkpoints', type=str, help='output dataset directory')
     parser.add_argument('--model_type', type=str, required=False, default='resnet101', choices=['vgg16', 'resnet101', 'resnet34'])
@@ -218,17 +220,22 @@ if __name__ == '__main__':
     args = parser.parse_args()
     os.makedirs(args.model_dir, exist_ok=True)
 
-    DIR_IMG  = os.path.join(args.data_dir, 'images')
-    DIR_MASK = os.path.join(args.data_dir, 'masks')
+    DIR_IMG  = os.path.join(args.data_dir, 'image')
+    DIR_MASK = os.path.join(args.data_dir, 'label')
 
     img_names  = [path.name for path in Path(DIR_IMG).glob('*.jpg')]
-    mask_names = [path.name for path in Path(DIR_MASK).glob('*.jpg')]
+    mask_names = [path.name for path in Path(DIR_MASK).glob('*.bmp')]
 
     print(f'total images = {len(img_names)}')
 
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    model = create_model(args.model_type)
 
-    model = create_model(device, args.model_type)
+    device = torch.device("cuda")
+    # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    num_gpu = torch.cuda.device_count()
+
+    model = torch.nn.DataParallel(model, device_ids=range(num_gpu))
+    model.to(device)
 
     optimizer = torch.optim.SGD(model.parameters(), args.lr,
                                 momentum=args.momentum,

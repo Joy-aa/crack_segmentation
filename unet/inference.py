@@ -1,4 +1,5 @@
 import sys
+sys.path.append('/home/wj/local/crack_segmentation')
 import os
 import numpy as np
 from pathlib import Path
@@ -15,6 +16,7 @@ from PIL import Image
 import gc
 from build_unet import load_unet_vgg16, load_unet_resnet_101, load_unet_resnet_34
 from tqdm import tqdm
+from metric import calc_metric
 
 def evaluate_img(model, img):
     channel_means = [0.485, 0.456, 0.406]
@@ -84,18 +86,12 @@ def disable_axis():
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--img_dir',type=str, default='./test_images', help='input dataset directory')
-    parser.add_argument('--model_path', type=str, default='./models/model_unet_vgg_16_best.pt', help='trained model path')
+    parser.add_argument('--img_dir',type=str, default='/mnt/hangzhou_116_homes/DamDetection/data', help='input dataset directory')
+    parser.add_argument('--model_path', type=str, default='/home/wj/local/crack_segmentation/unet/checkpoints/model_epoch_19_vgg16.pt', help='trained model path')
     parser.add_argument('--model_type', type=str, default='vgg16', choices=['vgg16', 'resnet101', 'resnet34'])
-    parser.add_argument('--out_viz_dir', type=str, default='', required=False, help='visualization output dir')
     parser.add_argument('--out_pred_dir', type=str, default='./test_result', required=False,  help='prediction output dir')
     parser.add_argument('--threshold', type=float, default=0.1 , help='threshold to cut off crack response')
     args = parser.parse_args()
-
-    if args.out_viz_dir != '':
-        os.makedirs(args.out_viz_dir, exist_ok=True)
-        for path in Path(args.out_viz_dir).glob('*.*'):
-            os.remove(str(path))
 
     if args.out_pred_dir != '':
         os.makedirs(args.out_pred_dir, exist_ok=True)
@@ -117,8 +113,19 @@ if __name__ == '__main__':
     channel_stds  = [0.229, 0.224, 0.225]
     offset = 32
 
-    paths = [path for path in Path(args.img_dir).glob('*.*')]
+    DIR_IMG  = os.path.join(args.img_dir, 'image')
+    DIR_MASK = os.path.join(args.img_dir, 'new_label')
+
+    paths  = [path for path in Path(DIR_IMG).glob('*.*')]
+    metrics = {
+            'accuracy': 0,
+            'precision': 0,
+            'recall': 0,
+            'f1': 0,
+    }
     for path in tqdm(paths):
+        pred_list=[]
+        gt_list = []
         #print(str(path))
 
         train_tfms = transforms.Compose([transforms.ToTensor(), transforms.Normalize(channel_means, channel_stds)])
@@ -129,6 +136,9 @@ if __name__ == '__main__':
         if len(img_0.shape) != 3:
             print(f'incorrect image shape: {path.name}{img_0.shape}')
             continue
+        
+        mask_path = os.path.join(DIR_MASK, path.stem+'.png')
+        lab = cv.imread(mask_path, 0)
 
         img_0 = img_0[:,:,:3]
 
@@ -155,53 +165,33 @@ if __name__ == '__main__':
                     if j2>img_width:
                         j1 = img_width - w
                         j2 = img_width
-                    img_pat = img_0[i1:i2 + offset, j1:j2 + offset]
+                    img_pat = img_0[i1:i2, j1:j2]
+                    mask_pat = lab[i1:i2, j1:j2]
                     prob_map_full = evaluate_img(model, img_pat)
-                    img_1[i1:i2 + offset, j1:j2 + offset] += prob_map_full
+                    img_1[i1:i2, j1:j2] += prob_map_full
+
+                    if i2-i1 != h or j2-j1 != w:
+                        prob_map_full = cv.resize(prob_map_full, (w, h), cv.INTER_AREA)
+                        mask_pat = cv.resize(mask_pat, (w, h), cv.INTER_AREA)
+
+                    pred_list.append(prob_map_full)
+                    gt_list.append(mask_pat)
+
+        metric = calc_metric(pred_list, gt_list, mode='list', threshold=0.5)
+        metrics['accuracy'] += metric['accuracy'] / len(paths)
+        metrics['precision'] += metric['precision'] / len(paths)
+        metrics['recall'] += metric['recall'] / len(paths)
+        metrics['f1'] += metric['f1'] / len(paths)
+        print(metric)
         img_1[img_1 > 1] = 1
         if args.out_pred_dir != '':
             cv.imwrite(filename=join(args.out_pred_dir, f'{path.stem}.jpg'), img=(img_1 * 255).astype(np.uint8))
 
-        if args.out_viz_dir != '':
-            # plt.subplot(121)
-            # plt.imshow(img_0), plt.title(f'{img_0.shape}')
-            if img_0.shape[0] > 2000 or img_0.shape[1] > 2000:
-                img_1 = cv.resize(img_0, None, fx=0.2, fy=0.2, interpolation=cv.INTER_AREA)
-            else:
-                img_1 = img_0
-
-            # plt.subplot(122)
-            # plt.imshow(img_0), plt.title(f'{img_0.shape}')
-            # plt.show()
-
-            prob_map_patch = evaluate_img_patch(model, img_1)
-
-            #plt.title(f'name={path.stem}. \n cut-off threshold = {args.threshold}', fontsize=4)
-            prob_map_viz_patch = prob_map_patch.copy()
-            prob_map_viz_patch = prob_map_viz_patch/ prob_map_viz_patch.max()
-            prob_map_viz_patch[prob_map_viz_patch < args.threshold] = 0.0
-            fig = plt.figure()
-            st = fig.suptitle(f'name={path.stem} \n cut-off threshold = {args.threshold}', fontsize="x-large")
-            ax = fig.add_subplot(231)
-            ax.imshow(img_1)
-            ax = fig.add_subplot(232)
-            ax.imshow(prob_map_viz_patch)
-            ax = fig.add_subplot(233)
-            ax.imshow(img_1)
-            ax.imshow(prob_map_viz_patch, alpha=0.4)
-
-            prob_map_viz_full = prob_map_full.copy()
-            prob_map_viz_full[prob_map_viz_full < args.threshold] = 0.0
-
-            ax = fig.add_subplot(234)
-            ax.imshow(img_0)
-            ax = fig.add_subplot(235)
-            ax.imshow(prob_map_viz_full)
-            ax = fig.add_subplot(236)
-            ax.imshow(img_0)
-            ax.imshow(prob_map_viz_full, alpha=0.4)
-
-            plt.savefig(join(args.out_viz_dir, f'{path.stem}.jpg'), dpi=500)
-            plt.close('all')
-
         gc.collect()
+    
+    # metric = calc_metric(pred_list, gt_list, mode='list', threshold=0.5)
+    with open('result.txt', 'a', encoding='utf-8') as fout:
+            print(metrics)
+            line =  "accuracy:{:.5f} | precision:{:.5f} | recall:{:.5f} | f1:{:.5f} " \
+                .format(metrics['accuracy'], metrics['precision'], metrics['recall'], metrics['f1']) + '\n'
+            fout.write(line)
