@@ -6,5 +6,9 @@ images/**
 **.pth
 **.pt
 **.png
+**.pyc
 **/runs/**
 notebooks/**
+log/**
+**.ipynb
+CascadePSP/checkpoints/**
