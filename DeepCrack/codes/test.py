@@ -13,11 +13,8 @@ import os
 from pathlib import Path
 # from config import Config as cfg
 import torchvision.transforms as transforms
-<<<<<<< HEAD
 import sys
 sys.path.append("/home/wj/pycharmProjects/crack_segmentation")
-=======
->>>>>>> 2977c52c2996dd5ba7a0c47bcddea24a8365c04a
 from metric import *
 from data_loader import ImgDataSet
 from PIL import Image
