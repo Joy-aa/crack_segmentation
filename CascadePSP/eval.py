@@ -65,6 +65,7 @@ batch_size = 1
 if para['ade']:
     val_dataset = SplitTransformDataset(para['dir'], need_name=True, perturb=False, img_suffix='_im.jpg')
 else:
+    # print('val')
     val_dataset = OfflineDataset(para['dir'], need_name=True, resize=False, do_crop=False)
 val_loader = DataLoader(val_dataset, batch_size, shuffle=False, num_workers=2)
 

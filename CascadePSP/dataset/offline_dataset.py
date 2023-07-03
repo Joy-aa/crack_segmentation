@@ -6,6 +6,7 @@ from torchvision.transforms import functional
 from PIL import Image
 import numpy as np
 import progressbar
+from PIL import ImageOps
 
 from dataset.make_bb_trans import *
 from PIL import ImageOps
@@ -20,6 +21,7 @@ class OfflineDataset(Dataset):
 
         imgs = os.listdir(root)
         imgs = sorted(imgs)
+        # print(imgs)
 
         """
         There are three kinds of files: _im.png, _seg.png, _gt.png
@@ -27,6 +29,9 @@ class OfflineDataset(Dataset):
         # im_list = [im for im in imgs if 'im' in im[-7:].lower()]
 
         # self.im_list = [path.join(root, im) for im in im_list]
+        # im_list = [im for im in imgs if 'creak' in im[-7:].lower()]
+        # im_list = [path.name for path in Path(root).glob('*.*')]
+
         self.im_list = [path.join(root, im) for im in imgs]
 
         print('%d images found' % len(self.im_list))

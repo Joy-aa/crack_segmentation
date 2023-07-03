@@ -24,7 +24,7 @@ class Refiner:
         if not os.path.exists(model_folder):
             os.makedirs(model_folder, exist_ok=True)
 
-        model_path = os.path.join(model_folder, 'model')
+        model_path = os.path.join(model_folder, 'old_model')
         if download_and_check_model:
             download_and_or_check_model_file(model_path)
 
