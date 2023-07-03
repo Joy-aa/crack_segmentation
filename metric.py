@@ -60,8 +60,8 @@ def calc_metric(pred_list, gt_list, mode='lsit', threshold = 0, max_value = 1):
     if mode == 'list':
         pred_arr = np.array(pred_list)
         gt_arr = np.array(gt_list)
-        print(pred_arr.shape)
-        print(gt_arr.shape)
+        # print(pred_arr.shape)
+        # print(gt_arr.shape)
         th = threshold * max_value
         pred_arr[pred_arr > th] = 1
         pred_arr[pred_arr <= th] = 0

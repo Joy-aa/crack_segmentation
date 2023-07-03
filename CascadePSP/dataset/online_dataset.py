@@ -20,10 +20,12 @@ class OnlineTransformDataset(Dataset):
     Method 0 - FSS style (class/1.jpg class/1.png)
     Method 1 - Others style (XXX.jpg XXX.png)
     """
-    def __init__(self, root, need_name=False, method=0, perturb=True):
+    def __init__(self, root, root_mask, need_name=False, method=0, perturb=True):
         self.root = root
+        self.gt_root = root_mask
         self.need_name = need_name
         self.method = method
+        # self.im_list = []
 
         if method == 0:
             # Get images
@@ -45,6 +47,7 @@ class OnlineTransformDataset(Dataset):
 
         elif method == 1:
             self.im_list = [path.join(self.root, im) for im in os.listdir(self.root) if '.jpg' in im]
+            self.gt_list = [path.join(self.gt_root, im) for im in os.listdir(self.gt_root) if '.bmp' in im]
 
         print('%d images found' % len(self.im_list))
 
@@ -102,9 +105,9 @@ class OnlineTransformDataset(Dataset):
         im = Image.open(self.im_list[idx]).convert('RGB')
 
         if self.method == 0:
-            gt = Image.open(self.im_list[idx][:-3]+'png').convert('L')
+            gt = Image.open(self.gt_list[idx][:-3]+'bmp').convert('L')
         else:
-            gt = Image.open(self.im_list[idx].replace('.jpg','.png')).convert('L')
+            gt = Image.open(self.gt_list[idx]).convert('L')
 
         seed = np.random.randint(2147483647)
 

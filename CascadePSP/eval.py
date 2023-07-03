@@ -23,9 +23,9 @@ class Parser():
 
         parser = ArgumentParser()
 
-        parser.add_argument('--dir', help='Directory with testing images')
-        parser.add_argument('--model', help='Pretrained model')
-        parser.add_argument('--output', help='Output directory')
+        parser.add_argument('--dir', default='/mnt/hangzhou_116_homes/DamDetection/data/image', help='Directory with testing images')
+        parser.add_argument('--model',default='/home/wj/local/crack_segmentation/CascadePSP/checkpoints/old_model', help='Pretrained model')
+        parser.add_argument('--output', default='/home/wj/local/crack_segmentation/CascadePSP/results', help='Output directory')
 
         parser.add_argument('--global_only', help='Global step only', action='store_true')
 
@@ -62,6 +62,7 @@ batch_size = 1
 if para['ade']:
     val_dataset = SplitTransformDataset(para['dir'], need_name=True, perturb=False, img_suffix='_im.jpg')
 else:
+    # print('val')
     val_dataset = OfflineDataset(para['dir'], need_name=True, resize=False, do_crop=False)
 val_loader = DataLoader(val_dataset, batch_size, shuffle=False, num_workers=2)
 
@@ -93,12 +94,12 @@ with torch.no_grad():
 
         # Save output images
         for i in range(im.shape[0]):
-            cv2.imwrite(path.join(para['output'], '%s_im.png' % (name[i]))
-                ,cv2.cvtColor(tensor_to_im(im[i]), cv2.COLOR_RGB2BGR))
+            # cv2.imwrite(path.join(para['output'], '%s_im.png' % (name[i]))
+            #     ,cv2.cvtColor(tensor_to_im(im[i]), cv2.COLOR_RGB2BGR))
             cv2.imwrite(path.join(para['output'], '%s_seg.png' % (name[i]))
                 ,tensor_to_seg(images['seg'][i]))
-            cv2.imwrite(path.join(para['output'], '%s_gt.png' % (name[i]))
-                ,tensor_to_gray_im(gt[i]))
+            # cv2.imwrite(path.join(para['output'], '%s_gt.png' % (name[i]))
+            #     ,tensor_to_gray_im(gt[i]))
             cv2.imwrite(path.join(para['output'], '%s_mask.png' % (name[i]))
                 ,tensor_to_gray_im(images['pred_224'][i]))
 

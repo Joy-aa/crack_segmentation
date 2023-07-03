@@ -6,6 +6,7 @@ from torchvision.transforms import functional
 from PIL import Image
 import numpy as np
 import progressbar
+from PIL import ImageOps
 
 from dataset.make_bb_trans import *
 
@@ -19,13 +20,15 @@ class OfflineDataset(Dataset):
 
         imgs = os.listdir(root)
         imgs = sorted(imgs)
+        # print(imgs)
 
         """
         There are three kinds of files: _im.png, _seg.png, _gt.png
         """
-        im_list = [im for im in imgs if 'im' in im[-7:].lower()]
+        # im_list = [im for im in imgs if 'creak' in im[-7:].lower()]
+        # im_list = [path.name for path in Path(root).glob('*.*')]
 
-        self.im_list = [path.join(root, im) for im in im_list]
+        self.im_list = [path.join(root, im) for im in imgs]
 
         print('%d images found' % len(self.im_list))
 
@@ -70,12 +73,25 @@ class OfflineDataset(Dataset):
                 self.gts.append(gt)
         
     def load_tuple(self, im):
-        seg = Image.open(im[:-7]+'_seg.png').convert('L')
+        seg = Image.open(im).convert('L')
         crop_lambda = self.get_crop_lambda(seg)
 
         image = self.resize_bi(crop_lambda(Image.open(im).convert('RGB')))
-        gt = self.resize_bi(crop_lambda(Image.open(im[:-7]+'_gt.png').convert('L')))
-        seg = self.resize_bi(crop_lambda(Image.open(im[:-7]+'_seg.png').convert('L')))
+        dirStr, _ = os.path.splitext(im)
+        img_name = dirStr.split("/")[-1]
+        print(img_name)
+        gt_path = os.path.join("/mnt/hangzhou_116_homes/DamDetection/data", "new_label", img_name+".png")
+        seg_path = os.path.join("/home/wj/local/crack_segmentation/unet/result3", img_name+".jpg" )
+        # print(im)
+        # print(gt_path)
+        # print(seg_path)
+        gt = self.resize_bi(crop_lambda(Image.open(gt_path).convert('L')))
+        seg = self.resize_bi(crop_lambda(Image.open(seg_path).convert('L')))
+        image = ImageOps.exif_transpose(image)
+        gt = ImageOps.exif_transpose(gt)
+        seg = ImageOps.exif_transpose(seg)
+        print(image.size)
+        print(seg.size)
 
         return image, seg, gt
 
@@ -105,7 +121,9 @@ class OfflineDataset(Dataset):
         seg = self.seg_transform(seg)
 
         if self.need_name:
-            return im, seg, gt, os.path.basename(self.im_list[idx][:-7])
+            dirStr, _ = os.path.splitext(self.im_list[idx])
+            img_name = dirStr.split("/")[-1]
+            return im, seg, gt, os.path.basename(img_name)
         else:
             return im, seg, gt
 

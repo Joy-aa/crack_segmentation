@@ -55,8 +55,12 @@ class Fuse(nn.Module):
         outputs = torch.cat([down_inp, up_inp], 1)
         outputs = F.interpolate(outputs, scale_factor=self.scale, mode='bilinear')
         outputs = self.nn(outputs)
-
-        return self.conv(outputs)
+        outputs = self.conv(outputs)
+        # outputs = torch.cat([down_inp, up_inp], 1)
+        # outputs = self.nn(outputs)
+        # outputs = self.conv(outputs)
+        # outputs = F.interpolate(outputs, scale_factor=self.scale, mode='bilinear')
+        return outputs
 
 
 
@@ -162,6 +166,7 @@ if __name__ == '__main__':
     inp = torch.randn((1,3,512,512))
 
     model = DeepCrack()
+    print(model)
 
-    out = model(inp)
+    # out = model(inp)
 
