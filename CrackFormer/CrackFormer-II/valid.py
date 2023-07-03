@@ -10,11 +10,11 @@ from pathlib import Path
 from tqdm import tqdm
 import cv2 as cv
 import sys
-sys.path.append("/home/wj/local/crack_segmentation")
+sys.path.append("/home/wj/pycharmProjects/crack_segmentation")
 from metric import *
 import bisect
 
-def Test(valid_img_dir, valid_lab_dir, valid_result_dir, valid_log_dir, best_model_dir, model, input_size = (512, 1024, 2048)):
+def Test(valid_img_dir, valid_lab_dir, valid_result_dir, valid_log_dir, best_model_dir, model, input_size = (512, 800, 1024, 1600)):
     
     validator = Validator(model, valid_log_dir, best_model_dir)
     cof = 1
@@ -55,10 +55,13 @@ def Test(valid_img_dir, valid_lab_dir, valid_result_dir, valid_log_dir, best_mod
             newH = img_height
             newW = img_width
         else:
-            newH = int(img_height / L * input_size[p-1])
-            newW = int(img_width / L * input_size[p-1])
+            # newH = int(img_height / L * input_size[p-1])
+            # newW = int(img_width / L * input_size[p-1])
+            newH = input_size[p-1]
+            newW = input_size[p-1]
         img_pat = cv.resize(img_0, (newW, newH), cv.INTER_AREA)
         mask_pat = cv2.resize(lab, (newW, newH), cv2.INTER_AREA)
+        print(img_pat.shape)
         prob_map_full = validator.validate(img_pat)
         metric = calc_metric(prob_map_full, mask_pat, mode='list', threshold=0.5)
         metrics['accuracy'] += metric['accuracy'] / len(img_paths)
@@ -118,8 +121,8 @@ def Test(valid_img_dir, valid_lab_dir, valid_result_dir, valid_log_dir, best_mod
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--img_dir',type=str, default='/mnt/hangzhou_116_homes/DamDetection/data', help='input dataset directory')
-    parser.add_argument('--model_path', type=str, default='/home/wj/local/crack_segmentation/CrackFormer/CrackFormer-II/model/epoch(5)_acc(0.30-0.98).pth', help='trained model path')
+    parser.add_argument('--img_dir',type=str, default='/nfs/DamDetection/data', help='input dataset directory')
+    parser.add_argument('--model_path', type=str, default='model/epoch(5)_acc(0.30-0.98).pth', help='trained model path')
     parser.add_argument('--model_type', type=str, default='crackformer', choices=['crackformer', 'SDDNet', 'STRNet'])
     parser.add_argument('--out_pred_dir', type=str, default='./test_result', required=False,  help='prediction output dir')
     parser.add_argument('--threshold', type=float, default=0.1 , help='threshold to cut off crack response')
@@ -140,7 +143,8 @@ if __name__ == '__main__':
         print('undefind model name pattern')
         exit()
     model.load_state_dict(torch.load(args.model_path))
-    model.cuda()
+    device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+    model.to(device)
     DIR_IMG  = os.path.join(args.img_dir, 'image')
     DIR_MASK = os.path.join(args.img_dir, 'new_label')
     valid_log_dir = "./log/" + args.model_type + '/'

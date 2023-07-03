@@ -83,8 +83,9 @@ class Validator(object):
 
     def validate(self, image):
         self.net.eval()  # 取消掉dropout
+        device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
         with torch.no_grad():
-                x = Variable(self.transforms(image)).cuda()
+                x = Variable(self.transforms(image)).to(device)
                 x = x.unsqueeze(0)
                 outs = self.net.forward(x)  # 前向传播，得到处理后的图像y（tensor形式）
                 y = outs[-1]

@@ -15,6 +15,9 @@ from os import path
 from argparse import ArgumentParser
 import time
 
+import sys
+sys.path.append("/home/wj/pycharmProjects/crack_segmentation")
+from metric import *
 
 class Parser():
     def parse(self):
@@ -23,9 +26,9 @@ class Parser():
 
         parser = ArgumentParser()
 
-        parser.add_argument('--dir', help='Directory with testing images')
-        parser.add_argument('--model', help='Pretrained model')
-        parser.add_argument('--output', help='Output directory')
+        parser.add_argument('--dir', default='/nfs/DamDetection/data/image', help='Directory with testing images')
+        parser.add_argument('--model',default='/home/wj/pycharmProjects/crack_segmentation/CascadePSP/checkpoints/model_44300', help='Pretrained model')
+        parser.add_argument('--output', default='/home/wj/pycharmProjects/crack_segmentation/CascadePSP/results', help='Output directory')
 
         parser.add_argument('--global_only', help='Global step only', action='store_true')
 
@@ -69,6 +72,13 @@ os.makedirs(para['output'], exist_ok=True)
 
 epoch_start_time = time.time()
 model = model.eval()
+metrics = {
+            'accuracy': 0,
+            'precision': 0,
+            'recall': 0,
+            'f1': 0,
+    }
+
 with torch.no_grad():
     for im, seg, gt, name in progressbar.progressbar(val_loader):
         im, seg, gt = im, seg, gt
@@ -80,7 +90,7 @@ with torch.no_grad():
             else:
                 images = process_im_single_pass(model, im, seg, para['L'], para)
         else:
-            images = process_high_res_im(model, im, seg, para, name, aggre_device='cuda:0')
+            images = process_high_res_im(model, im, seg, para, name, aggre_device='cuda:1')
 
         images['im'] = im
         images['seg'] = seg
@@ -93,13 +103,26 @@ with torch.no_grad():
 
         # Save output images
         for i in range(im.shape[0]):
-            cv2.imwrite(path.join(para['output'], '%s_im.png' % (name[i]))
-                ,cv2.cvtColor(tensor_to_im(im[i]), cv2.COLOR_RGB2BGR))
-            cv2.imwrite(path.join(para['output'], '%s_seg.png' % (name[i]))
-                ,tensor_to_seg(images['seg'][i]))
-            cv2.imwrite(path.join(para['output'], '%s_gt.png' % (name[i]))
-                ,tensor_to_gray_im(gt[i]))
+            print(torch.max(images['pred_224'][i]))
+            print(torch.max(gt[i]))
+            metric = calc_metric(images['pred_224'][i], gt[i], mode='tensor', threshold=0.5, max_value=1)
+            metrics['accuracy'] += metric['accuracy'] / len(val_loader)
+            metrics['precision'] += metric['precision'] / len(val_loader)
+            metrics['recall'] += metric['recall'] / len(val_loader)
+            metrics['f1'] += metric['f1'] / len(val_loader)
+            print(metric)
+            # cv2.imwrite(path.join(para['output'], '%s_im.png' % (name[i]))
+            #     ,cv2.cvtColor(tensor_to_im(im[i]), cv2.COLOR_RGB2BGR))
+            # cv2.imwrite(path.join(para['output'], '%s_seg.png' % (name[i]))
+            #     ,tensor_to_seg(images['seg'][i]))
+            # cv2.imwrite(path.join(para['output'], '%s_gt.png' % (name[i]))
+            #     ,tensor_to_gray_im(gt[i]))
             cv2.imwrite(path.join(para['output'], '%s_mask.png' % (name[i]))
                 ,tensor_to_gray_im(images['pred_224'][i]))
+with open('result.txt', 'a', encoding='utf-8') as fout:
+            print(metrics)
+            line =  "accuracy:{:.5f} | precision:{:.5f} | recall:{:.5f} | f1:{:.5f} " \
+                .format(metrics['accuracy'], metrics['precision'], metrics['recall'], metrics['f1']) + '\n'
+            fout.write(line)
 
 print('Time taken: %.1f s' % (time.time() - epoch_start_time))
