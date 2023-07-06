@@ -1,5 +1,5 @@
 from torch import nn
-# from tools.visdom import Visualizer
+from utils.Visdom import Visualizer
 from utils.checkpointer import Checkpointer
 from config import Config as cfg
 import torch
@@ -16,6 +16,7 @@ def get_optimizer(model):
 class Trainer(nn.Module):
     def __init__(self, model):
         super(Trainer, self).__init__()
+        self.vis = Visualizer(env=cfg.vis_env)
         self.model = model
 
         self.saver = Checkpointer(cfg.name, cfg.checkpoint_path, overwrite=False, verbose=True, timestamp=True,
