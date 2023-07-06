@@ -1,5 +1,5 @@
 import sys
-sys.path.append('/home/wj/pycharmProjects/crack_segmentation')
+sys.path.append('/home/wj/local/crack_segmentation')
 from metric import *
 import os
 import numpy as np

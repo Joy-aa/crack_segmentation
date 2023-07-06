@@ -16,7 +16,7 @@ from argparse import ArgumentParser
 import time
 
 import sys
-sys.path.append("/home/wj/pycharmProjects/crack_segmentation")
+sys.path.append("/home/wj/local/crack_segmentation")
 from metric import *
 
 class Parser():
@@ -26,9 +26,9 @@ class Parser():
 
         parser = ArgumentParser()
 
-        parser.add_argument('--dir', default='/nfs/DamDetection/data/image', help='Directory with testing images')
-        parser.add_argument('--model',default='/home/wj/pycharmProjects/crack_segmentation/CascadePSP/checkpoints/model_44300', help='Pretrained model')
-        parser.add_argument('--output', default='/home/wj/pycharmProjects/crack_segmentation/CascadePSP/results', help='Output directory')
+        parser.add_argument('--dir', default='/home/wj/dataset/crack/image', help='Directory with testing images')
+        parser.add_argument('--model',default='/home/wj/local/crack_segmentation/CascadePSP/checkpoints/model_44300', help='Pretrained model')
+        parser.add_argument('--output', default='/home/wj/local/crack_segmentation/CascadePSP/results', help='Output directory')
 
         parser.add_argument('--global_only', help='Global step only', action='store_true')
 
