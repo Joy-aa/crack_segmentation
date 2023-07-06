@@ -21,31 +21,65 @@ from torch.autograd import Variable
 os.environ["CUDA_VISIBLE_DEVICES"] = cfg.gpu_id
 
 
+class AverageMeter(object):
+    """Computes and stores the average and current value"""
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.val = 0
+        self.avg = 0
+        self.sum = 0
+        self.count = 0
+
+    def update(self, val, n=1):
+        self.val = val
+        self.sum += val * n
+        self.count += n
+        self.avg = self.sum / self.count
+
+def adjust_learning_rate(optimizer, epoch, lr):
+    """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
+    lr = lr * (cfg.lr_decay ** (epoch // 20))
+    for param_group in optimizer.param_groups:
+        param_group['lr'] = lr
+
 def main(model, device):
     # ----------------------- dataset ----------------------- #
 
-    DIR_IMG  = os.path.join(cfg.data_dir, 'images')
-    DIR_MASK = os.path.join(cfg.data_dir, 'masks')
+    TRAIN_IMG  = os.path.join(cfg.data_dir, 'train_image')
+    TRAIN_MASK = os.path.join(cfg.data_dir, 'train_label')
+    VALID_IMG = os.path.join(cfg.data_dir, 'val_image')
+    VALID_MASK = os.path.join(cfg.data_dir, 'val_label')
 
-    img_names  = [path.name for path in Path(DIR_IMG).glob('*.jpg')]
-    mask_names = [path.name for path in Path(DIR_MASK).glob('*.jpg')]
 
+    train_img_names  = [path.name for path in Path(TRAIN_IMG).glob('*.jpg')]
+    train_mask_names = [path.name for path in Path(TRAIN_MASK).glob('*.bmp')]
+    valid_img_names  = [path.name for path in Path(VALID_IMG).glob('*.jpg')]
+    valid_mask_names = [path.name for path in Path(VALID_MASK).glob('*.bmp')]
+
+    print(f'total train images = {len(train_img_names)}')
+    print(f'total valid images = {len(valid_img_names)}')
+    
     channel_means = [0.485, 0.456, 0.406]
     channel_stds  = [0.229, 0.224, 0.225]
-    train_tfms = transforms.Compose([transforms.ToTensor(),
-                                     transforms.Normalize(channel_means, channel_stds)])
+    train_tfms = transforms.Compose([transforms.ToTensor()])
+                                    #  transforms.Normalize(channel_means, channel_stds)])
 
+    val_tfms = transforms.Compose([transforms.ToTensor()])
+                                #    transforms.Normalize(channel_means, channel_stds)])
+    
     mask_tfms = transforms.Compose([transforms.ToTensor()])
 
 
-    dataset = ImgDataSet(img_dir=DIR_IMG, img_fnames=img_names, img_transform=train_tfms, mask_dir=DIR_MASK, mask_fnames=mask_names, mask_transform=mask_tfms)
-    train_size = int(0.85*len(dataset))
-    valid_size = len(dataset) - train_size
-    train_dataset, valid_dataset = random_split(dataset, [train_size, valid_size])
+    train_dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
+    valid_dataset = ImgDataSet(img_dir=VALID_IMG, img_fnames=valid_img_names, img_transform=val_tfms, mask_dir=VALID_MASK, mask_fnames=valid_mask_names, mask_transform=mask_tfms)
+    train_size = int(0.25*len(train_dataset))
+    rest_size = len(train_dataset) - train_size
+    train_dataset, rest_dataset = torch.utils.data.random_split(train_dataset, [train_size, rest_size])
 
-    train_loader = DataLoader(train_dataset, batch_size=cfg.train_batch_size, shuffle=True, num_workers=4, drop_last=True)
-
-    val_loader = DataLoader(valid_dataset, batch_size=cfg.val_batch_size, shuffle=False, num_workers=4, drop_last=True)
+    train_loader = torch.utils.data.DataLoader(train_dataset, cfg.train_batch_size, shuffle=True, pin_memory=torch.cuda.is_available(), num_workers=4)
+    val_loader = torch.utils.data.DataLoader(valid_dataset, cfg.val_batch_size, shuffle=True, pin_memory=torch.cuda.is_available(), num_workers=4)
 
     # -------------------- build trainer --------------------- #
 
@@ -62,10 +96,14 @@ def main(model, device):
     try:
 
         for epoch in range(1, cfg.epoch):
+
+            adjust_learning_rate(trainer.optimizer, epoch, cfg.lr)   
+
+            trainer.vis.log('Start Epoch %d ...' % epoch, 'train info')
             model.train()
 
             # ---------------------  training ------------------- #
-            bar = tqdm(enumerate(train_loader), total=(len(train_loader) * cfg.train_batch_size))
+            bar = tqdm(total=(len(train_loader) * cfg.train_batch_size))
             bar.set_description('Epoch %d --- Training --- :' % epoch)
             train_loss = {
                         'total_loss': 0,
@@ -76,19 +114,55 @@ def main(model, device):
                         'eval_fuse2_loss': 0,
                         'eval_fuse1_loss': 0,
             }
-            for idx, (img, lab) in bar:
+            train_total_loss = AverageMeter()
+            train_output_loss = AverageMeter()
+            for idx, (img, lab) in enumerate(train_loader, 1):
                 # data, target = img.type(torch.cuda.FloatTensor).to(device), lab.type(torch.cuda.FloatTensor).to(device)
                 data  = Variable(img).cuda()
                 target = Variable(lab).cuda()
                 pred = trainer.train_op(data, target)
 
-                train_loss['total_loss'] += trainer.log_loss['total_loss']
-                train_loss['output_loss'] += trainer.log_loss['output_loss']
-                bar.set_postfix(total_loss='{:.5f}'.format(train_loss['total_loss']), output_loss='{:.5f}'.format(train_loss['output_loss']))
+                if idx % cfg.vis_train_loss_every == 0:
+                    trainer.vis.log(trainer.log_loss, 'train_loss')
+                    trainer.vis.plot_many({
+                        'train_total_loss': trainer.log_loss['total_loss'],
+                        'train_output_loss': trainer.log_loss['output_loss'],
+                        'train_fuse5_loss': trainer.log_loss['fuse5_loss'],
+                        'train_fuse4_loss': trainer.log_loss['fuse4_loss'],
+                        'train_fuse3_loss': trainer.log_loss['fuse3_loss'],
+                        'train_fuse2_loss': trainer.log_loss['fuse2_loss'],
+                        'train_fuse1_loss': trainer.log_loss['fuse1_loss'],
+                    })
+
+                if idx % cfg.vis_train_acc_every == 0:
+                    trainer.acc_op(pred[0], target)
+                    trainer.vis.log(trainer.log_acc, 'train_acc')
+                    trainer.vis.plot_many({
+                        'train_mask_acc': trainer.log_acc['mask_acc'],
+                        'train_mask_pos_acc': trainer.log_acc['mask_pos_acc'],
+                        'train_mask_neg_acc': trainer.log_acc['mask_neg_acc'],
+                    })
+                if idx % cfg.vis_train_img_every == 0:
+                    trainer.vis.img_many({
+                        'train_img': data.cpu(),
+                        'train_output': torch.sigmoid(pred[0].contiguous().cpu()),
+                        'train_lab': target.cpu(),
+                        'train_fuse5': torch.sigmoid(pred[1].contiguous().cpu()),
+                        'train_fuse4': torch.sigmoid(pred[2].contiguous().cpu()),
+                        'train_fuse3': torch.sigmoid(pred[3].contiguous().cpu()),
+                        'train_fuse2': torch.sigmoid(pred[4].contiguous().cpu()),
+                        'train_fuse1': torch.sigmoid(pred[5].contiguous().cpu()),
+                    })
+
+                 # train_loss['total_loss'] += trainer.log_loss['total_loss']
+                train_total_loss.update(trainer.log_loss['total_loss'])
+                # train_loss['output_loss'] += trainer.log_loss['output_loss']
+                train_output_loss.update(trainer.log_loss['output_loss'])
+                bar.set_postfix(total_loss='{:.5f}'.format(train_total_loss.avg), output_loss='{:.5f}'.format(train_output_loss.avg))
                 bar.update(cfg.train_batch_size)
                 
             bar.close()
-            bar1 = tqdm(enumerate(val_loader, 1), total=(len(val_loader) * cfg.val_batch_size))
+            bar1 = tqdm(total=(len(val_loader) * cfg.val_batch_size))
             bar1.set_description('Epoch %d --- Evaluation --- :' % epoch)
             # -------------------- val ------------------- #
             model.eval()
@@ -106,7 +180,7 @@ def main(model, device):
                         'mask_neg_acc': 0,}
 
             with torch.no_grad():
-                        for idx, (img, lab) in bar1:
+                        for idx, (img, lab) in enumerate(val_loader, 1):
                             # val_data, val_target = img.type(torch.cuda.FloatTensor).to(device), lab.type(torch.cuda.FloatTensor).to(device)
                             val_data  = Variable(img).cuda()
                             val_target = Variable(lab).cuda()

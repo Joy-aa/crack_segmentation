@@ -1,0 +1,10 @@
+./checkpoints/model_epoch_24_vgg16.pt
+threshold:1 | accuracy:0.99063 | precision:0.30288 | recall:0.60415 | f1:0.38152 
+threshold:2 | accuracy:0.99347 | precision:0.38959 | recall:0.48165 | f1:0.40067 
+threshold:3 | accuracy:0.99454 | precision:0.45398 | recall:0.38031 | f1:0.37840 
+threshold:4 | accuracy:0.99496 | precision:0.50649 | recall:0.29005 | f1:0.33046 
+threshold:5 | accuracy:0.99506 | precision:0.55658 | recall:0.20972 | f1:0.26585 
+threshold:6 | accuracy:0.99503 | precision:0.59215 | recall:0.14083 | f1:0.19394 
+threshold:7 | accuracy:0.99492 | precision:0.63563 | recall:0.08433 | f1:0.12425 
+threshold:8 | accuracy:0.99478 | precision:0.66808 | recall:0.04060 | f1:0.06404 
+threshold:9 | accuracy:0.99463 | precision:0.75111 | recall:0.01010 | f1:0.01757 

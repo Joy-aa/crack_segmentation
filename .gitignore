@@ -7,6 +7,7 @@ images/**
 **.pt
 **.png
 **.pyc
+**.chkp
 **/runs/**
 notebooks/**
 log/**

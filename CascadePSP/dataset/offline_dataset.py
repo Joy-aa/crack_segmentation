@@ -29,9 +29,6 @@ class OfflineDataset(Dataset):
         # im_list = [im for im in imgs if 'im' in im[-7:].lower()]
 
         # self.im_list = [path.join(root, im) for im in im_list]
-        # im_list = [im for im in imgs if 'creak' in im[-7:].lower()]
-        # im_list = [path.name for path in Path(root).glob('*.*')]
-
         self.im_list = [path.join(root, im) for im in imgs]
 
         print('%d images found' % len(self.im_list))
@@ -84,8 +81,8 @@ class OfflineDataset(Dataset):
         dirStr, _ = os.path.splitext(im)
         img_name = dirStr.split("/")[-1]
         print(img_name)
-        gt_path = os.path.join("/nfs/DamDetection/data", "new_label", img_name+".png")
-        seg_path = os.path.join("/home/wj/pycharmProjects/crack_segmentation/CrackFormer/CrackFormer-II/test_result", img_name+".jpg" )
+        gt_path = os.path.join("/home/wj/dataset/crack", "new_label", img_name+".png")
+        seg_path = os.path.join("/home/wj/local/crack_segmentation/CrackFormer/CrackFormer-II/test_result", img_name+".jpg" )
         # print(im)
         # print(gt_path)
         # print(seg_path)
