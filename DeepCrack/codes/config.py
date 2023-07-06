@@ -5,13 +5,13 @@ import setproctitle
 class Config:
     name = 'DeepCrack_CT260_FT1'
 
-    gpu_id = '0,1'
+    gpu_id = '1'
 
     setproctitle.setproctitle("%s" % name)
 
     # path
-    train_data_path = 'data/train_example.txt'
-    val_data_path = 'data/val_example.txt'
+    train_data_path = '/mnt/hangzhou_116_homes/wj/DamCrack'
+    val_data_path = '/mnt/hangzhou_116_homes/wj/DamCrack'
     checkpoint_path = 'checkpoints'
     log_path = 'log'
     saver_path = os.path.join(checkpoint_path, name)
@@ -27,9 +27,9 @@ class Config:
 
     # training
     epoch = 500
-    pretrained_model = ''
+    pretrained_model = 'checkpoints/DeepCrack_CT260_FT1/epoch(19)_acc(0.35963-0.98486).pth'
     weight_decay = 0.0000
-    lr_decay = 0.1
+    lr_decay = 0.5
     lr = 1e-3
     momentum = 0.9
     use_adam = True  # Use Adam optimizer

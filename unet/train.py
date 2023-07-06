@@ -1,6 +1,5 @@
 import torch
-from torch import nn
-from unet_transfer import UNet16, UNetResNet
+from unet_transfer import UNet16, UNetResNet, UNet16V2
 from pathlib import Path
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader, Dataset, random_split
@@ -9,13 +8,16 @@ from torch.autograd import Variable
 from torch.utils.tensorboard import SummaryWriter
 import shutil
 import sys
-sys.path.append("..")
+sys.path.append("/home/wj/pycharmProjects/crack_segmentation")
+from logger import BoardLogger
 from data_loader import ImgDataSet
 import os
+import datetime
 import argparse
 import tqdm
 import numpy as np
 import scipy.ndimage as ndimage
+from build_unet import BinaryFocalLoss, dice_loss
 
 os.environ["CUDA_VISIBLE_DEVICES"] = '0,1'
 
@@ -36,10 +38,13 @@ class AverageMeter(object):
         self.count += n
         self.avg = self.sum / self.count
 
-def create_model(device, type ='vgg16'):
+def create_model(type ='vgg16'):
     if type == 'vgg16':
         print('create vgg16 model')
         model = UNet16(pretrained=True)
+    elif type == 'vgg16V2':
+        print('create vgg16V2 model')
+        model = UNet16V2(pretrained=True)
     elif type == 'resnet101':
         encoder_depth = 101
         num_classes = 1
@@ -53,11 +58,11 @@ def create_model(device, type ='vgg16'):
     else:
         assert False
     model.eval()
-    return model.to(device)
+    return model
 
 def adjust_learning_rate(optimizer, epoch, lr):
     """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
-    lr = lr * (0.1 ** (epoch // 30))
+    lr = lr * (0.5 ** (epoch // 20))
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
@@ -79,17 +84,23 @@ def find_latest_model_path(dir):
     else:
         return None
 
-def train(train_loader, model, criterion, optimizer, validation, args):
+def train(train_loader, valid_loader, model, criterion, optimizer, validation, args, logger):
 
-    latest_model_path = find_latest_model_path(args.model_dir)
-
+    # latest_model_path = find_latest_model_path(args.model_dir)
+    # latest_model_path = os.path.join(*[args.model_dir, 'model_start.pt'])
+    latest_model_path = None
     best_model_path = os.path.join(*[args.model_dir, 'model_best.pt'])
 
     if latest_model_path is not None:
         state = torch.load(latest_model_path)
         epoch = state['epoch']
         model.load_state_dict(state['model'])
-        epoch = epoch
+        # weights = state['model']
+        # weights_dict = {}
+        # for k, v in weights.items():
+        #     new_k = k.replace('module.', '') if 'module' in k else k
+        #     weights_dict[new_k] = v
+        # model.load_state_dict(weights_dict)
 
         #if latest model path does exist, best_model_path should exists as well
         assert Path(best_model_path).exists() == True, f'best model path {best_model_path} does not exist'
@@ -106,6 +117,9 @@ def train(train_loader, model, criterion, optimizer, validation, args):
         min_val_los = 9999
 
     valid_losses = []
+    # scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, para['steps'], para['gamma'])
+    total_iter = 0
+    # for epoch in range(0, args.n_epoch + 1):
     for epoch in range(epoch, args.n_epoch + 1):
 
         adjust_learning_rate(optimizer, epoch, args.lr)
@@ -114,7 +128,7 @@ def train(train_loader, model, criterion, optimizer, validation, args):
         tq.set_description(f'Epoch {epoch}')
 
         losses = AverageMeter()
-
+        report_interval = 100
         model.train()
         for i, (input, target) in enumerate(train_loader):
             input_var  = Variable(input).cuda()
@@ -126,18 +140,26 @@ def train(train_loader, model, criterion, optimizer, validation, args):
             true_masks_flat  = target_var.view(-1)
 
             loss = criterion(masks_probs_flat, true_masks_flat)
+            # loss += criterion1(masks_probs_flat, true_masks_flat)
+            loss += dice_loss(F.sigmoid(masks_pred.squeeze(1)), target_var.squeeze(1).float(), multiclass=False)
             losses.update(loss)
+            # total_iter = 
+            if (i+total_iter) % report_interval == 0:
+                logger.log_scalar('train/lr', optimizer.param_groups[0]['lr'], i+total_iter)
+                logger.log_scalar('train/loss', losses.avg, i+total_iter)
             tq.set_postfix(loss='{:.5f}'.format(losses.avg))
             tq.update(args.batch_size)
-
             # compute gradient and do SGD step
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
+        total_iter += len(train_loader)
         valid_metrics = validation(model, valid_loader, criterion)
         valid_loss = valid_metrics['valid_loss']
         valid_losses.append(valid_loss)
+        # logger.log_scalar('train/lr', optimizer.get_lr()[0], i)
+        logger.log_scalar('valid/loss', valid_loss, epoch)
         print(f'\tvalid_loss = {valid_loss:.5f}')
         tq.close()
 
@@ -171,6 +193,8 @@ def validate(model, val_loader, criterion):
 
             output = model(input_var)
             loss = criterion(output, target_var)
+            # loss += criterion1(output, target_var)
+            loss += dice_loss(F.sigmoid(output.squeeze(1)), target_var.squeeze(1).float(), multiclass=False)
 
             losses.update(loss.item(), input_var.size(0))
 
@@ -195,40 +219,57 @@ def calc_crack_pixel_weight(mask_dir):
 
     return avg_w / (1.0 - avg_w)
 
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
-    parser.add_argument('--n_epoch', default=10, type=int, metavar='N', help='number of total epochs to run')
+    parser.add_argument('--n_epoch', default=100, type=int, metavar='N', help='number of total epochs to run')
     parser.add_argument('--lr', default=0.001, type=float, metavar='LR', help='initial learning rate')
     parser.add_argument('--momentum', default=0.9, type=float, metavar='M', help='momentum')
     parser.add_argument('--print_freq', default=20, type=int, metavar='N', help='print frequency (default: 10)')
-    parser.add_argument('--weight_decay', default=1e-4, type=float, metavar='W', help='weight decay (default: 1e-4)')
-    parser.add_argument('--batch_size',  default=4, type=int,  help='weight decay (default: 1e-4)')
+    parser.add_argument('--weight_decay', default=5e-4, type=float, metavar='W', help='weight decay (default: 1e-4)')
+    parser.add_argument('--batch_size',  default=16, type=int,  help='weight decay (default: 1e-4)')
     parser.add_argument('--num_workers', default=4, type=int, help='output dataset directory')
     parser.add_argument('--data_dir',type=str, help='input dataset directory')
-    # /home/wj/dataset/seg_dataset
+    # /home/wj/dataset/seg_dataset /nfs/ymd/DamCrack
     parser.add_argument('--model_dir', type=str, help='output dataset directory')
-    parser.add_argument('--model_type', type=str, required=False, default='resnet101', choices=['vgg16', 'resnet101', 'resnet34'])
+    parser.add_argument('--model_type', type=str, required=False, default='vgg16', choices=['vgg16', 'vgg16V2', 'resnet101', 'resnet34'])
 
     args = parser.parse_args()
     os.makedirs(args.model_dir, exist_ok=True)
 
-    DIR_IMG  = os.path.join(args.data_dir, 'images')
-    DIR_MASK = os.path.join(args.data_dir, 'masks')
+    TRAIN_IMG  = os.path.join(args.data_dir, 'train_image')
+    TRAIN_MASK = os.path.join(args.data_dir, 'train_label')
+    VALID_IMG = os.path.join(args.data_dir, 'val_image')
+    VALID_MASK = os.path.join(args.data_dir, 'val_label')
 
-    img_names  = [path.name for path in Path(DIR_IMG).glob('*.jpg')]
-    mask_names = [path.name for path in Path(DIR_MASK).glob('*.jpg')]
 
-    print(f'total images = {len(img_names)}')
+    train_img_names  = [path.name for path in Path(TRAIN_IMG).glob('*.jpg')]
+    train_mask_names = [path.name for path in Path(TRAIN_MASK).glob('*.bmp')]
+    valid_img_names  = [path.name for path in Path(VALID_IMG).glob('*.jpg')]
+    valid_mask_names = [path.name for path in Path(VALID_MASK).glob('*.bmp')]
 
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    print(f'total train images = {len(train_img_names)}')
+    print(f'total valid images = {len(valid_img_names)}')
 
-    model = create_model(device, args.model_type)
+    device = torch.device("cuda")
+    # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    num_gpu = torch.cuda.device_count()
+
+    model = create_model(args.model_type)
+    model = torch.nn.DataParallel(model, device_ids=range(num_gpu))
+    model.to(device)
+
+    
+    long_id = '%s_%s' % (str(args.lr), datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S'))
+    logger = BoardLogger(long_id)
 
     optimizer = torch.optim.SGD(model.parameters(), args.lr,
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay)
+    # optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     
-    criterion = nn.BCEWithLogitsLoss().to('cuda')
+    # criterion = torch.nn.BCEWithLogitsLoss().to(device)
+    criterion = BinaryFocalLoss().to(device)
 
     channel_means = [0.485, 0.456, 0.406]
     channel_stds  = [0.229, 0.224, 0.225]
@@ -240,15 +281,14 @@ if __name__ == '__main__':
 
     mask_tfms = transforms.Compose([transforms.ToTensor()])
 
-    dataset = ImgDataSet(img_dir=DIR_IMG, img_fnames=img_names, img_transform=train_tfms, mask_dir=DIR_MASK, mask_fnames=mask_names, mask_transform=mask_tfms)
-    train_size = int(0.85*len(dataset))
-    valid_size = len(dataset) - train_size
-    train_dataset, valid_dataset = random_split(dataset, [train_size, valid_size])
+    train_dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
+    valid_dataset = ImgDataSet(img_dir=VALID_IMG, img_fnames=valid_img_names, img_transform=train_tfms, mask_dir=VALID_MASK, mask_fnames=valid_mask_names, mask_transform=mask_tfms)
+    
 
-    train_loader = DataLoader(train_dataset, args.batch_size, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
-    valid_loader = DataLoader(valid_dataset, args.batch_size, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
+    train_loader = DataLoader(train_dataset, args.batch_size, shuffle=True, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
+    valid_loader = DataLoader(valid_dataset, args.batch_size, shuffle=True, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
 
     model.cuda()
 
-    train(train_loader, model, criterion, optimizer, validate, args)
+    train(train_loader, valid_loader, model, criterion, optimizer, validate, args, logger)
 

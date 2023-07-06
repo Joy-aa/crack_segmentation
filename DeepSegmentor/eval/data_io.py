@@ -20,10 +20,16 @@ def get_image_pairs(data_dir, suffix_gt='real_B', suffix_pred='fake_B'):
     gt_list = glob.glob(os.path.join(data_dir, '*{}.png'.format(suffix_gt)))
     pred_list = [ll.replace(suffix_gt, suffix_pred) for ll in gt_list]
     assert len(gt_list) == len(pred_list)
+    # print(gt_list)
     pred_imgs, gt_imgs = [], []
     for pred_path, gt_path in zip(pred_list, gt_list):
         pred_imgs.append(imread(pred_path))
         gt_imgs.append(imread(gt_path, thresh=127))
+    # print(np.sum(pred_imgs[0] == 0))
+    # print(np.sum(pred_imgs[0] == 255))
+
+    # print(np.sum(gt_imgs[0] == 0))
+    # print(np.sum(gt_imgs[0] == 255))
     return pred_imgs, gt_imgs
 
 def save_results(input_list, output_path):

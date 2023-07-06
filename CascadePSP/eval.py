@@ -65,6 +65,7 @@ batch_size = 1
 if para['ade']:
     val_dataset = SplitTransformDataset(para['dir'], need_name=True, perturb=False, img_suffix='_im.jpg')
 else:
+    # print('val')
     val_dataset = OfflineDataset(para['dir'], need_name=True, resize=False, do_crop=False)
 val_loader = DataLoader(val_dataset, batch_size, shuffle=False, num_workers=2)
 
@@ -103,27 +104,26 @@ with torch.no_grad():
 
         # Save output images
         for i in range(im.shape[0]):
-            # print(torch.max(images['pred_224'][i]))
-            # print(torch.max(gt[i]))
-            # metric = calc_metric(images['pred_224'][i], gt[i], mode='tensor', threshold=0.5, max_value=1)
-            # metrics['accuracy'] += metric['accuracy'] / len(val_loader)
-            # metrics['precision'] += metric['precision'] / len(val_loader)
-            # metrics['recall'] += metric['recall'] / len(val_loader)
-            # metrics['f1'] += metric['f1'] / len(val_loader)
-            # print(metric)
+            print(torch.max(images['pred_224'][i]))
+            print(torch.max(gt[i]))
+            metric = calc_metric(images['pred_224'][i], gt[i], mode='tensor', threshold=0.5, max_value=1)
+            metrics['accuracy'] += metric['accuracy'] / len(val_loader)
+            metrics['precision'] += metric['precision'] / len(val_loader)
+            metrics['recall'] += metric['recall'] / len(val_loader)
+            metrics['f1'] += metric['f1'] / len(val_loader)
+            print(metric)
             # cv2.imwrite(path.join(para['output'], '%s_im.png' % (name[i]))
             #     ,cv2.cvtColor(tensor_to_im(im[i]), cv2.COLOR_RGB2BGR))
             # cv2.imwrite(path.join(para['output'], '%s_seg.png' % (name[i]))
             #     ,tensor_to_seg(images['seg'][i]))
             # cv2.imwrite(path.join(para['output'], '%s_gt.png' % (name[i]))
             #     ,tensor_to_gray_im(gt[i]))
-            # print(images['pred_224'][i])
             cv2.imwrite(path.join(para['output'], '%s_mask.png' % (name[i]))
                 ,tensor_to_gray_im(images['pred_224'][i]))
-# with open('result.txt', 'a', encoding='utf-8') as fout:
-#             print(metrics)
-#             line =  "accuracy:{:.5f} | precision:{:.5f} | recall:{:.5f} | f1:{:.5f} " \
-#                 .format(metrics['accuracy'], metrics['precision'], metrics['recall'], metrics['f1']) + '\n'
-#             fout.write(line)
+with open('result.txt', 'a', encoding='utf-8') as fout:
+            print(metrics)
+            line =  "accuracy:{:.5f} | precision:{:.5f} | recall:{:.5f} | f1:{:.5f} " \
+                .format(metrics['accuracy'], metrics['precision'], metrics['recall'], metrics['f1']) + '\n'
+            fout.write(line)
 
 print('Time taken: %.1f s' % (time.time() - epoch_start_time))

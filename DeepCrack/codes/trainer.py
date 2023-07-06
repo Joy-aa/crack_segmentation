@@ -87,15 +87,15 @@ class DeepCrackTrainer(nn.Module):
 
         return pred_output, pred_fuse5, pred_fuse4, pred_fuse3, pred_fuse2, pred_fuse1,
 
-    def acc_op(self, pred, target):
+    def acc_op(self, output, target):
         mask = target
         mask[mask > 0] = 1
 
-        pred = pred
-        pred[pred > cfg.acc_sigmoid_th] = 1
-        pred[pred <= cfg.acc_sigmoid_th] = 0
+        pred_mask = output[:, 0, :, :].contiguous()
+        mask =  mask[:, 0, :, :].contiguous()
 
-        pred_mask = pred[:, 0, :, :].contiguous()
+        pred_mask[pred_mask > cfg.acc_sigmoid_th] = 1
+        pred_mask[pred_mask <= cfg.acc_sigmoid_th] = 0
         # print(pred_mask.shape)
         # print(mask.shape)
 

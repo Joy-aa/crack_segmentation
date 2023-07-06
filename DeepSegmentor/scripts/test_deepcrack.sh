@@ -1,6 +1,6 @@
 GPU_IDS=$1
 
-DATAROOT=./datasets/DeepCrack
+DATAROOT=/nfs/ymd/DamCrack
 NAME=deepcrack
 MODEL=deepcrack
 DATASET_MODE=deepcrack
@@ -9,7 +9,7 @@ BATCH_SIZE=1
 NORM=batch
 
 NUM_CLASSES=1
-NUM_TEST=10000
+NUM_TEST=100
 
 python3 test.py \
   --dataroot ${DATAROOT} \

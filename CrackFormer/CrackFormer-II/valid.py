@@ -10,11 +10,11 @@ from pathlib import Path
 from tqdm import tqdm
 import cv2 as cv
 import sys
-sys.path.append("/home/wj/local/crack_segmentation")
+sys.path.append("/home/wj/pycharmProjects/crack_segmentation")
 from metric import *
 import bisect
 
-def Test(valid_img_dir, valid_lab_dir, valid_result_dir, valid_log_dir, best_model_dir, model, input_size = (512, 1024, 2048), threshold = 0.1):
+def Test(valid_img_dir, valid_lab_dir, valid_result_dir, valid_log_dir, best_model_dir, model, input_size = (512, 800, 1024, 1600), threshold = 0.1):
     
     validator = Validator(model, valid_log_dir, best_model_dir)
     cof = 1
@@ -102,8 +102,8 @@ def Test(valid_img_dir, valid_lab_dir, valid_result_dir, valid_log_dir, best_mod
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--img_dir',type=str, default='/mnt/hangzhou_116_homes/DamDetection/data', help='input dataset directory')
-    parser.add_argument('--model_path', type=str, default='/home/wj/local/crack_segmentation/CrackFormer/CrackFormer-II/model/epoch(5)_acc(0.30-0.98).pth', help='trained model path')
+    parser.add_argument('--img_dir',type=str, default='/nfs/DamDetection/data', help='input dataset directory')
+    parser.add_argument('--model_path', type=str, default='model/epoch(5)_acc(0.30-0.98).pth', help='trained model path')
     parser.add_argument('--model_type', type=str, default='crackformer', choices=['crackformer', 'SDDNet', 'STRNet'])
     parser.add_argument('--out_pred_dir', type=str, default='./test_result', required=False,  help='prediction output dir')
     parser.add_argument('--type', type=str, default='out' , choices=['out', 'metric'])

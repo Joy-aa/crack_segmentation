@@ -51,13 +51,16 @@ def process_high_res_im(model, im, seg, para, name=None, aggre_device='cpu:0'):
     """
     Global Step
     """
+    # print(im.shape)
+    # print(seg.shape)
     if max(h, w) > max_L:
         im_small = resize_max_side(im, max_L, 'area')
         seg_small = resize_max_side(seg, max_L, 'area')
     else:
         im_small = im
         seg_small = seg
-
+    # print(im_small.shape)
+    # print(seg_small.shape)
     images = safe_forward(model, im_small, seg_small)
 
     pred_224 = images['pred_224'].to(aggre_device)

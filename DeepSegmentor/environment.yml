@@ -5,16 +5,17 @@ channels:
 - conda-forge
 - defaults
 dependencies:
-- python=3.5.5
-- pytorch=0.4.1
+- python=3.8.1
+- pytorch
 - scipy
 - opencv3
 - scikit-image
 - scikit-learn
 - pip:
-  - dominate==2.3.1
-  - Pillow==5.0.0
-  - numpy==1.15.0
-  - torchvision==0.2.1
-  - visdom==0.1.7
+  - dominate
+  - Pillow
+  - numpy
+  - torchvision
+  - torchaudio
+  - visdom
   - matplotlib

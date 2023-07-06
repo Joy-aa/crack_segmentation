@@ -22,8 +22,8 @@ class DeepCrackDataset(BaseDataset):
         """
         BaseDataset.__init__(self, opt)
 
-        self.img_paths = make_dataset(os.path.join(opt.dataroot, '{}_img'.format(opt.phase)))
-        self.lab_dir = os.path.join(opt.dataroot, '{}_lab'.format(opt.phase))
+        self.img_paths = make_dataset(os.path.join(opt.dataroot, '{}'.format(opt.phase)))
+        self.lab_dir = os.path.join(opt.dataroot, 'label')
 
         self.img_transforms = transforms.Compose([transforms.ToTensor(),
                                                   transforms.Normalize((0.5, 0.5, 0.5),
@@ -47,7 +47,7 @@ class DeepCrackDataset(BaseDataset):
         img = cv2.imread(img_path, cv2.IMREAD_UNCHANGED)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-        lab_path = os.path.join(self.lab_dir, os.path.basename(img_path).split('.')[0]+'.png')
+        lab_path = os.path.join(self.lab_dir, os.path.basename(img_path).split('.')[0]+'.bmp')
         lab = cv2.imread(lab_path, cv2.IMREAD_UNCHANGED)
         if len(lab.shape) == 3:
             lab = cv2.cvtColor(lab, cv2.COLOR_BGR2GRAY)

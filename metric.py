@@ -16,8 +16,9 @@ def getpred(mask, pred, threshold = 0, max_value = 1):
     pred[pred > threshold * max_value] = 1
     pred[pred <= threshold * max_value] = 0
     mask[mask > 0] = 1
-    pred_mask = pred[:, 0, :, :].contiguous()
-    mask = mask[:, 0, :, :].contiguous()
+    pred_mask = mask
+    # pred_mask = pred[:, 0, :, :].contiguous()
+    # mask = mask[:, 0, :, :].contiguous()
     return mask, pred_mask
 
 def calc_accuracy(mask, pred_mask):
@@ -73,7 +74,10 @@ def calc_metric(pred_list, gt_list, mode='list', threshold = 0, max_value = 1):
         pred_mask = torch.tensor(pred_arr)
         mask = torch.tensor(gt_arr)
     elif mode == 'tensor':
+        # print(pred_list.shape)
+        # print(gt_list.shape)
         mask, pred_mask = getpred(pred_list, gt_list, threshold, max_value)
+
     else:
         print("fault type")
         return metric
@@ -85,16 +89,25 @@ def calc_metric(pred_list, gt_list, mode='list', threshold = 0, max_value = 1):
     return metric
 
 if __name__ == "__main__":
-    a =  torch.tensor(np.random.randint(0, 100, (1, 1, 10, 10)))
-    b =  torch.tensor(np.random.rand(1, 1, 10, 10))
-    # tfms = transforms.ToTensor()
-    # a = tfms(a)
-    print(b)
-    print(a)
-    # b = transforms.ToTensor()
-    c, d = getpred(a,b)
-
-    print(calc_accuracy(c, d))
-    print(calc_precision(c, d))
-    print(calc_recall(c, d))
-    print(calc_f1(c,d))
+    from pathlib import Path
+    from tqdm import tqdm
+    import cv2 as cv
+    import os
+    DIR_PRED = '/nfs/ymd/result/preprocess'
+    DIR_GT = '/nfs/DamDetection/data/new_label'
+    paths = [path for path in Path(DIR_PRED).glob('*.*')]
+    metrics = {
+                'accuracy': 0,
+                'neg_accuracy': 0,
+                'precision': 0,
+                'recall': 0,
+                'f1': 0,}
+    for path in tqdm(paths):
+        mask = cv.imread(str(path), 0)
+        gt = cv.imread(os.path.join(DIR_GT, path.name), 0)
+        metric = calc_metric(mask, gt, 'list')
+        metrics['accuracy'] += metric['accuracy'] / len(paths)
+        metrics['precision'] += metric['precision'] / len(paths)
+        metrics['recall'] += metric['recall'] / len(paths)
+        metrics['f1'] += metric['f1'] / len(paths)
+    print(metrics)

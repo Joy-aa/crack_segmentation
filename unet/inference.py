@@ -10,7 +10,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 import torchvision.transforms as transforms
-from unet_transfer import UNet16, input_size
+from unet_transfer import UNet16, input_size, UNet16V2
 import argparse
 from os.path import join
 from PIL import Image
@@ -32,8 +32,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     # /nfs/DamDetection/data/  /mnt/hangzhou_116_homes/DamDetection/data/  /home/wj/dataset/crack/
     parser.add_argument('--img_dir',type=str, default='../images', help='input dataset directory')
-    parser.add_argument('--model_path', type=str, default='./checkpoints/model_epoch_35_vgg16.pt', help='trained model path')
-    parser.add_argument('--model_type', type=str, default='vgg16', choices=['vgg16', 'resnet101', 'resnet34'])
+    parser.add_argument('--model_path', type=str, default='./checkpoints/model_epoch_29.pt', help='trained model path')
+    parser.add_argument('--model_type', type=str, default='vgg16', choices=['vgg16', 'vgg16V2', 'resnet101', 'resnet34'])
     parser.add_argument('--out_pred_dir', type=str, default='./result_img', required=False,  help='prediction output dir')
     parser.add_argument('--type', type=str, default='out' , choices=['out', 'metric'])
     args = parser.parse_args()
@@ -56,7 +56,16 @@ if __name__ == '__main__':
             weights_dict[new_k] = v
         model.load_state_dict(weights_dict)
         model.cuda()
-
+    elif args.model_type == 'vgg16V2':
+        model = UNet16V2(pretrained=True)
+        checkpoint = torch.load(args.model_path)
+        weights = checkpoint['model']
+        weights_dict = {}
+        for k, v in weights.items():
+            new_k = k.replace('module.', '') if 'module' in k else k
+            weights_dict[new_k] = v
+        model.load_state_dict(weights_dict)
+        model.cuda()
     elif args.model_type  == 'resnet101':
         model = load_unet_resnet_101(args.model_path)
     elif args.model_type  == 'resnet34':
@@ -143,12 +152,12 @@ if __name__ == '__main__':
                         pred_list.append(prob_map_full)
                         gt_list.append(mask_pat)
                     # print(prob_map_full.shape)
-        #             img_1[i1:i2 + offset, j1:j2 + offset] += prob_map_full
-        # img_1[img_1 > 1] = 1
-        # if args.out_pred_dir != '':
+                    img_1[i1:i2 + offset, j1:j2 + offset] += prob_map_full
+        img_1[img_1 > 1] = 1
+        if args.out_pred_dir != '':
         #     # img_1[img_1 > 0.3] = 1
         #     # img_1[img_1 <= 0.3] = 0
-        #     cv.imwrite(filename=join(args.out_pred_dir, f'{path.stem}.jpg'), img=(img_1 * 255).astype(np.uint8))
+            cv.imwrite(filename=join(args.out_pred_dir, f'{path.stem}.jpg'), img=(img_1 * 255).astype(np.uint8))
 
         if args.type == 'metric':
             # metric = calc_metric(pred_list, gt_list, mode='list', threshold=0.3)

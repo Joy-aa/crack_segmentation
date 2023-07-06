@@ -1,5 +1,9 @@
 # from data.dataset import readIndex, dataReadPip, loadedDataset
+import sys
+sys.path.append("/home/wj/local/crack_segmentation")
+# sys.path.append("/home/wj/local/crack_segmentation/DeepCrack/codes")
 from model.deepcrack import DeepCrack
+from model.deepcrackv2 import DeepCrackV2
 from trainer import DeepCrackTrainer
 import cv2
 from tqdm import tqdm
@@ -7,20 +11,22 @@ import numpy as np
 import torch
 import os
 from pathlib import Path
+# from config import Config as cfg
 import torchvision.transforms as transforms
 import sys
-sys.path.append("/home/wj/local/crack_segmentation")
+sys.path.append("/home/wj/pycharmProjects/crack_segmentation")
 from metric import *
 from data_loader import ImgDataSet
 from PIL import Image
 from torch.autograd import Variable
+import bisect
 
-os.environ["CUDA_VISIBLE_DEVICES"] = '0'
+# os.environ["CUDA_VISIBLE_DEVICES"] = '1'
+input_size = (512, 800, 1024)
 
-
-def test(test_data_path='/mnt/hangzhou_116_homes/DamDetection/data/',
+def test(test_data_path='/nfs/DamDetection/data/',
          save_path='deepcrack_results/',
-         pretrained_model='checkpoints/DeepCrack_CT260_FT1/epoch(19)_acc(0.35963-0.98486).pth', ):
+         pretrained_model='checkpoints/DeepCrack_CT260_FT1/epoch(14)_acc(0.12132-0.99598).pth', ):
     if not os.path.exists(save_path):
         os.mkdir(save_path)
 
@@ -33,16 +39,15 @@ def test(test_data_path='/mnt/hangzhou_116_homes/DamDetection/data/',
     DIR_IMG  = os.path.join(test_data_path, 'image')
     DIR_MASK = os.path.join(test_data_path, 'new_label')
 
-    img_paths  = [path for path in Path(DIR_IMG).glob('*.*')]
+    paths  = [path for path in Path(DIR_IMG).glob('*.*')]
     # mask_names = [path.name for path in Path(DIR_MASK).glob('*.*')]
 
-    print(f'total images = {len(img_paths)}')
+    print(f'total images = {len(paths)}')
 
     channel_means = [0.485, 0.456, 0.406]
     channel_stds  = [0.229, 0.224, 0.225]
 
-    # val_tfms = transforms.Compose([transforms.ToTensor(),transforms.Normalize(channel_means, channel_stds)])
-    val_tfms = transforms.Compose([transforms.ToTensor()])
+    val_tfms = transforms.Compose([transforms.ToTensor(),transforms.Normalize(channel_means, channel_stds)])
 
     mask_tfms = transforms.Compose([transforms.ToTensor()])
 
@@ -53,45 +58,50 @@ def test(test_data_path='/mnt/hangzhou_116_homes/DamDetection/data/',
 
     # -------------------- build trainer --------------------- #
 
-    device = torch.device("cuda")
-    num_gpu = torch.cuda.device_count()
+    # device = torch.device("cuda")
+    # num_gpu = torch.cuda.device_count()
+    device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
 
-    model = DeepCrack()
+    # model = DeepCrack()
+    model = DeepCrackV2()
 
-    model = torch.nn.DataParallel(model, device_ids=range(num_gpu))
+    # model = torch.nn.DataParallel(model, device_ids=range(num_gpu))
     model.to(device)
 
-    trainer = DeepCrackTrainer(model).to(device)
+    trainer = DeepCrackTrainer(model)
+    # checkpoint = trainer.saver.load(pretrained_model, multi_gpu=True)
+    # weights = checkpoint['model']
+    # weights_dict = {}
+    # for k, v in weights.items():
+    #         new_k = k.replace('module.', '') if 'module' in k else k
+    #         weights_dict[new_k] = v
+    # model.load_state_dict(weights_dict)
 
-    model.load_state_dict(trainer.saver.load(pretrained_model, multi_gpu=True))
+    model.load_state_dict(trainer.saver.load(pretrained_model, multi_gpu=False))
+    model.cuda()
 
     model.eval()
 
     input_size = (448, 448)
     cof = 1
     w, h = int(cof * input_size[0]), int(cof * input_size[1])
+    offset = 32
 
-    metrics = {
-            'accuracy': 0,
-            'precision': 0,
-            'recall': 0,
-            'f1': 0,
-    }
-
+    # metrics = {
+    #         'accuracy': 0,
+    #         'precision': 0,
+    #         'recall': 0,
+    #         'f1': 0,
+    # }
+    metrics=[]
     with torch.no_grad():
-        for path in tqdm(img_paths):
+        for path in tqdm(paths):
             pred_list= []
             gt_list=[]
-            # print(path)
+            print(path)
             img = cv2.imread(str(path), 1)
             mask_path = os.path.join(DIR_MASK, path.stem+'.png')
             lab = cv2.imread(mask_path, 0)
-            # lab[lab > 0] = 255
-            # print(img.shape)
-            # print(lab.shape)
-        
-            # img = img.unsqueeze(0)
-            # img = np.transpose(img, (1, 2, 0))
             img_height, img_width, *img_channels = img.shape
             img_1 = np.zeros((img_height, img_width))
             for i in range(0, img_height+h, h):
@@ -106,44 +116,61 @@ def test(test_data_path='/mnt/hangzhou_116_homes/DamDetection/data/',
                     if j2>img_width:
                         j1 = max(0, img_width - w)
                         j2 = img_width
-                    img_pat = img[i1:i2, j1:j2]
-                    mask_pat = lab[i1:i2, j1:j2]
-                    if i2-i1 != h or j2-j1 != w:
-                        img_pat = cv2.resize(img_pat, (w, h), cv2.INTER_AREA)
-                        mask_pat = cv2.resize(mask_pat, (w, h), cv2.INTER_AREA)
-                    test_data = val_tfms(Image.fromarray(img_pat))
-                    test_target = mask_tfms(Image.fromarray(mask_pat))
-                    test_data, test_target = Variable(test_data.unsqueeze(0)).cuda(), Variable(test_target.unsqueeze(0)).cuda()
-                    # test_data, test_target = img_pat.type(torch.cuda.FloatTensor).to(device), mask_pat.type(torch.cuda.FloatTensor).to(device)
-                    test_pred = trainer.val_op(test_data, test_target)
-                    test_pred = torch.sigmoid(test_pred[0].squeeze()).data.cpu().numpy()
+                    img_pat = img[i1:i2 + offset, j1:j2 + offset]
+                    mask_pat = lab[i1:i2 + offset, j1:j2 + offset]
+                    ori_shape = mask_pat.shape
+                    if mask_pat.shape != (h+offset, w+offset):
+                        img_pat = cv2.resize(img_pat, (w+offset, h+offset), cv2.INTER_AREA)
+                        mask_pat = cv2.resize(mask_pat, (w+offset, h+offset), cv2.INTER_AREA)
+                        test_data = val_tfms(Image.fromarray(img_pat))
+                        test_target = mask_tfms(Image.fromarray(mask_pat))
+                        test_data, test_target = Variable(test_data.unsqueeze(0)).cuda(), Variable(test_target.unsqueeze(0)).cuda()
+                        test_pred = trainer.val_op(test_data, test_target)
+                        test_pred = torch.sigmoid(test_pred[0].squeeze()).data.cpu().numpy()
+                        pred_list.append(test_pred)
+                        gt_list.append(mask_pat)
+                        test_pred = cv2.resize(test_pred, (ori_shape[1], ori_shape[0]), cv2.INTER_AREA)
+                    else:
+                        test_data = val_tfms(Image.fromarray(img_pat))
+                        test_target = mask_tfms(Image.fromarray(mask_pat))
+                        test_data, test_target = Variable(test_data.unsqueeze(0)).cuda(), Variable(test_target.unsqueeze(0)).cuda()
+                        test_pred = trainer.val_op(test_data, test_target)
+                        test_pred = torch.sigmoid(test_pred[1].squeeze()).data.cpu().numpy()
+                        pred_list.append(test_pred)
+                        gt_list.append(mask_pat)
 
-                    pred_list.append(test_pred)
-                    gt_list.append(mask_pat)
-
-                    if i2-i1 != h or j2-j1 != w:
-                        test_pred = cv2.resize(test_pred, (j2-j1, i2-i1), cv2.INTER_AREA)
-                    img_1[i1:i2, j1:j2] = test_pred
-                    
-            metric = calc_metric(pred_list, gt_list, mode='list', threshold=0.5)
-            metrics['accuracy'] += metric['accuracy'] / len(img_paths)
-            metrics['precision'] += metric['precision'] / len(img_paths)
-            metrics['recall'] += metric['recall'] / len(img_paths)
-            metrics['f1'] += metric['f1'] / len(img_paths)
-            print(metric)
-
-                    
-            # img_1[img_1 > 1] = 1
-            # pred_list.append(img_1)
-            # gt_list.append(lab)
+                    img_1[i1:i2 + offset, j1:j2 + offset] +=  test_pred
+            img_1[img_1 > 1] = 1
             save_name = os.path.join(save_path, f'{path.stem}.jpg')
-            # print(save_name)
             cv2.imwrite(filename=save_name, img=(img_1 * 255).astype(np.uint8))
-    with open('result.txt', 'a', encoding='utf-8') as fout:
-            print(metrics)
-            line =  "accuracy:{:.5f} | precision:{:.5f} | recall:{:.5f} | f1:{:.5f} " \
-                .format(metrics['accuracy'], metrics['precision'], metrics['recall'], metrics['f1']) + '\n'
-            fout.write(line)
+
+                    
+            for i in range(1, 10):
+                threshold = i / 10
+                metric = calc_metric(pred_list, gt_list, mode='list', threshold=threshold)
+                print(metric)
+                metric['accuracy'] = metric['accuracy'] / len(paths)
+                metric['precision'] = metric['precision'] / len(paths)
+                metric['recall'] = metric['recall'] / len(paths)
+                metric['f1'] = metric['f1'] / len(paths)
+                if len(metrics) < i:
+                    metrics.append(metric)
+                else:
+                    metrics[i-1]['accuracy'] += metric['accuracy']
+                    metrics[i-1]['precision'] += metric['precision']
+                    metrics[i-1]['recall'] += metric['recall']
+                    metrics[i-1]['f1'] += metric['f1']
+
+    print(metrics)
+    d = datetime.today()
+    datetime.strftime(d,'%Y-%m-%d %H-%M-%S')
+    os.makedirs('./result_dir', exist_ok=True)
+    with open(os.path.join('./result_dir', str(d)+'.txt'), 'a', encoding='utf-8') as fout:
+                fout.write(pretrained_model+'\n')
+                for i in range(1, 10): 
+                    line =  "threshold:{:d} | accuracy:{:.5f} | precision:{:.5f} | recall:{:.5f} | f1:{:.5f} " \
+                        .format(i, metrics[i-1]['accuracy'],  metrics[i-1]['precision'],  metrics[i-1]['recall'],  metrics[i-1]['f1']) + '\n'
+                    fout.write(line)
 
 
 if __name__ == '__main__':
