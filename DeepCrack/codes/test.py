@@ -1,7 +1,6 @@
 # from data.dataset import readIndex, dataReadPip, loadedDataset
 import sys
 sys.path.append("/home/wj/local/crack_segmentation")
-# sys.path.append("/home/wj/local/crack_segmentation/DeepCrack/codes")
 from model.deepcrack import DeepCrack
 from model.deepcrackv2 import DeepCrackV2
 from trainer import DeepCrackTrainer
@@ -13,8 +12,6 @@ import os
 from pathlib import Path
 # from config import Config as cfg
 import torchvision.transforms as transforms
-import sys
-sys.path.append("/home/wj/pycharmProjects/crack_segmentation")
 from metric import *
 from data_loader import ImgDataSet
 from PIL import Image
@@ -22,11 +19,10 @@ from torch.autograd import Variable
 import bisect
 
 # os.environ["CUDA_VISIBLE_DEVICES"] = '1'
-input_size = (512, 800, 1024)
 
 def test(test_data_path='/nfs/DamDetection/data/',
          save_path='deepcrack_results/',
-         pretrained_model='checkpoints/DeepCrack_CT260_FT1/epoch(14)_acc(0.12132-0.99598).pth', ):
+         pretrained_model='checkpoints/DeepCrack_CT260_FT1/epoch(68)_acc(0.16684-0.99606).pth', ):
     if not os.path.exists(save_path):
         os.mkdir(save_path)
 
@@ -47,7 +43,8 @@ def test(test_data_path='/nfs/DamDetection/data/',
     channel_means = [0.485, 0.456, 0.406]
     channel_stds  = [0.229, 0.224, 0.225]
 
-    val_tfms = transforms.Compose([transforms.ToTensor(),transforms.Normalize(channel_means, channel_stds)])
+    # val_tfms = transforms.Compose([transforms.ToTensor(),transforms.Normalize(channel_means, channel_stds)])
+    val_tfms = transforms.Compose([transforms.ToTensor()])
 
     mask_tfms = transforms.Compose([transforms.ToTensor()])
 

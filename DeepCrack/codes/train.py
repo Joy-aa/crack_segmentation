@@ -61,33 +61,15 @@ def main():
     
     channel_means = [0.485, 0.456, 0.406]
     channel_stds  = [0.229, 0.224, 0.225]
-    train_tfms = transforms.Compose([transforms.ToTensor(),
-                                     transforms.Normalize(channel_means, channel_stds)])
+    train_tfms = transforms.Compose([transforms.ToTensor()])
 
-    val_tfms = transforms.Compose([transforms.ToTensor(),
-                                   transforms.Normalize(channel_means, channel_stds)])
+    val_tfms = transforms.Compose([transforms.ToTensor()])
     
     mask_tfms = transforms.Compose([transforms.ToTensor()])
-
-    # data_augment_op = augCompose(transforms=[[RandomColorJitter, 0.5], [RandomBlur, 0.2]])
-
-    # train_pipline = dataReadPip(transforms=data_augment_op)
-
-    # test_pipline = dataReadPip(transforms=None)
-
-    # train_dataset = loadedDataset(readIndex(cfg.train_data_path, shuffle=True), preprocess=train_pipline)
-
-    # test_dataset = loadedDataset(readIndex(cfg.val_data_path), preprocess=test_pipline)
-
-    # train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=cfg.train_batch_size,
-    #                                            shuffle=True, num_workers=4, drop_last=True)
-
-    # val_loader = torch.utils.data.DataLoader(test_dataset, batch_size=cfg.val_batch_size,
-    #                                          shuffle=False, num_workers=4, drop_last=True)
     
     train_dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
     valid_dataset = ImgDataSet(img_dir=VALID_IMG, img_fnames=valid_img_names, img_transform=val_tfms, mask_dir=VALID_MASK, mask_fnames=valid_mask_names, mask_transform=mask_tfms)
-    train_size = int(0.5*len(train_dataset))
+    train_size = int(0.3*len(train_dataset))
     rest_size = len(train_dataset) - train_size
     train_dataset, rest_dataset = torch.utils.data.random_split(train_dataset, [train_size, rest_size])
 
@@ -98,13 +80,13 @@ def main():
 
     device = torch.device("cuda")
     # device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
-    # num_gpu = torch.cuda.device_count()
+    num_gpu = torch.cuda.device_count()
 
     # model = DeepCrack(num_classes=1)
-    initial = True
-    # model = DeepCrackV2(pretrained_model=initial)
-    model = DeepCrack()
-    # model = torch.nn.DataParallel(model, device_ids=range(num_gpu))
+    initial = False
+    model = DeepCrackV2(pretrained_model=initial)
+    # model = DeepCrack()
+    model = torch.nn.DataParallel(model, device_ids=range(num_gpu))
     model.to(device)
 
     trainer = DeepCrackTrainer(model).to(device)
