@@ -6,16 +6,16 @@ channels:
 - defaults
 dependencies:
 - python=3.8.1
-- pytorch
+- torch
 - scipy
-- opencv3
+- opencv4
 - scikit-image
 - scikit-learn
 - pip:
-  - dominate
-  - Pillow
-  - numpy
-  - torchvision
-  - torchaudio
-  - visdom
-  - matplotlib
+  - dominate==2.8.0
+  - Pillow==9.5.0
+  - numpy==1.24.3
+  - torchvision==0.15.2
+  - torchaudio==2.0.2
+  - visdom==0.2.4
+  - matplotlib==3.7.1
