@@ -39,8 +39,8 @@ class Trainer(nn.Module):
 
         pred_fuse5, pred_fuse4, pred_fuse3, pred_fuse2, pred_fuse1, pred_output, = self.model(input)
 
-        output_loss = self.mask_loss(pred_output.view(-1, 1), target.view(-1, 1)) / cfg.train_batch_size
-        fuse5_loss = self.mask_loss(pred_fuse5.view(-1, 1), target.view(-1, 1)) / cfg.train_batch_size
+        output_loss = self.model.calculate_loss(pred_output.view(-1, 1), target.view(-1, 1)) / cfg.train_batch_size
+        fuse5_loss = self.model.calculate_loss(pred_fuse5.view(-1, 1), target.view(-1, 1)) / cfg.train_batch_size
         fuse4_loss = self.mask_loss(pred_fuse4.view(-1, 1), target.view(-1, 1)) / cfg.train_batch_size
         fuse3_loss = self.mask_loss(pred_fuse3.view(-1, 1), target.view(-1, 1)) / cfg.train_batch_size
         fuse2_loss = self.mask_loss(pred_fuse2.view(-1, 1), target.view(-1, 1)) / cfg.train_batch_size

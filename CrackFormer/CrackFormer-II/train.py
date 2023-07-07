@@ -40,9 +40,10 @@ class AverageMeter(object):
 
 def adjust_learning_rate(optimizer, epoch, lr):
     """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
-    lr = lr * (cfg.lr_decay ** (epoch // 20))
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = lr
+    if epoch == 20 or epoch == 50 or epoch == 100:
+        lr = lr * cfg.lr_decay
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = lr
 
 def main(model, device):
     # ----------------------- dataset ----------------------- #
@@ -105,15 +106,15 @@ def main(model, device):
             # ---------------------  training ------------------- #
             bar = tqdm(total=(len(train_loader) * cfg.train_batch_size))
             bar.set_description('Epoch %d --- Training --- :' % epoch)
-            train_loss = {
-                        'total_loss': 0,
-                        'output_loss': 0,
-                        'eval_fuse5_loss': 0,
-                        'eval_fuse4_loss': 0,
-                        'eval_fuse3_loss': 0,
-                        'eval_fuse2_loss': 0,
-                        'eval_fuse1_loss': 0,
-            }
+            # train_loss = {
+            #             'total_loss': 0,
+            #             'output_loss': 0,
+            #             'eval_fuse5_loss': 0,
+            #             'eval_fuse4_loss': 0,
+            #             'eval_fuse3_loss': 0,
+            #             'eval_fuse2_loss': 0,
+            #             'eval_fuse1_loss': 0,
+            # }
             train_total_loss = AverageMeter()
             train_output_loss = AverageMeter()
             for idx, (img, lab) in enumerate(train_loader, 1):
@@ -238,6 +239,7 @@ if __name__ == '__main__':
     device = torch.device("cuda")
     # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     num_gpu = torch.cuda.device_count()
+    print(device)
 
     model = torch.nn.DataParallel(model, device_ids=range(num_gpu))
     model.to(device)

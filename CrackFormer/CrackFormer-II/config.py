@@ -10,7 +10,8 @@ class Config:
     setproctitle.setproctitle("%s" % name)
 
     # path
-    data_dir = '/mnt/ningbo_nfs_36/wj/DamCrack'
+    # data_dir = '/mnt/ningbo_nfs_36/wj/DamCrack'
+    data_dir = '/nfs/wj/DamCrack'
     checkpoint_path = 'model'
     log_path = 'log'
     saver_path = os.path.join(checkpoint_path, name)
@@ -26,13 +27,13 @@ class Config:
 
     # training
     epoch = 500
-    pretrained_model = 'model/epoch(3)_acc(0.28-0.98).pth'
+    pretrained_model = '/home/wj/local/crack_segmentation/CrackFormer/CrackFormer-II/model/crack260.pth'
     weight_decay = 0.0000
     lr_decay = 0.5
-    lr = 5e-3
+    lr = 1e-3
     momentum = 0.9
-    use_adam = True  # Use Adam optimizer
-    train_batch_size = 4
+    use_adam = False  # Use Adam optimizer
+    train_batch_size = 2
     val_batch_size = 4
     test_batch_size = 4
 

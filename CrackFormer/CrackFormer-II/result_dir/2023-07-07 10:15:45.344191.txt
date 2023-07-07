@@ -1,0 +1,10 @@
+model/epoch(5)_acc(0.30-0.98).pth
+threshold:1 | accuracy:0.99158 | precision:0.28476 | recall:0.51210 | f1:0.33003 
+threshold:2 | accuracy:0.99424 | precision:0.38069 | recall:0.36512 | f1:0.32264 
+threshold:3 | accuracy:0.99511 | precision:0.46598 | recall:0.25609 | f1:0.27392 
+threshold:4 | accuracy:0.99539 | precision:0.54099 | recall:0.16681 | f1:0.20611 
+threshold:5 | accuracy:0.99541 | precision:0.61127 | recall:0.09415 | f1:0.13105 
+threshold:6 | accuracy:0.99530 | precision:0.67260 | recall:0.04017 | f1:0.06071 
+threshold:7 | accuracy:0.99519 | precision:0.76963 | recall:0.01085 | f1:0.01800 
+threshold:8 | accuracy:0.99513 | precision:0.90575 | recall:0.00150 | f1:0.00276 
+threshold:9 | accuracy:0.99511 | precision:0.99167 | recall:0.00004 | f1:0.00009 
