@@ -1,7 +1,6 @@
 # from data.dataset import readIndex, dataReadPip, loadedDataset
 import sys
 sys.path.append("/home/wj/local/crack_segmentation")
-# sys.path.append("/home/wj/local/crack_segmentation/DeepCrack/codes")
 from model.deepcrack import DeepCrack
 from model.deepcrackv2 import DeepCrackV2
 from trainer import DeepCrackTrainer
@@ -13,8 +12,6 @@ import os
 from pathlib import Path
 # from config import Config as cfg
 import torchvision.transforms as transforms
-import sys
-sys.path.append("/home/wj/pycharmProjects/crack_segmentation")
 from metric import *
 from data_loader import ImgDataSet
 from PIL import Image
@@ -25,7 +22,11 @@ import bisect
 
 def test(test_data_path='/mnt/ningbo_nfs_36/wj/data/',
          save_path='deepcrack_results/',
+<<<<<<< HEAD
          pretrained_model='checkpoints/DeepCrack_CT260_FT1/epoch(73)_acc(0.32035-0.99489).pth', ):
+=======
+         pretrained_model='checkpoints/DeepCrack_CT260_FT1/epoch(68)_acc(0.16684-0.99606).pth', ):
+>>>>>>> e9f39ef9011b2c7ec67e08d5ba7393a433da6809
     if not os.path.exists(save_path):
         os.mkdir(save_path)
 

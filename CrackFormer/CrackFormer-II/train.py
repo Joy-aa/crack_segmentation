@@ -40,9 +40,10 @@ class AverageMeter(object):
 
 def adjust_learning_rate(optimizer, epoch, lr):
     """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
-    lr = lr * (cfg.lr_decay ** (epoch // 20))
-    for param_group in optimizer.param_groups:
-        param_group['lr'] = lr
+    if epoch == 20 or epoch == 50 or epoch == 100:
+        lr = lr * cfg.lr_decay
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = lr
 
 def main(model, device):
     # ----------------------- dataset ----------------------- #
@@ -57,24 +58,25 @@ def main(model, device):
     train_mask_names = [path.name for path in Path(TRAIN_MASK).glob('*.bmp')]
     valid_img_names  = [path.name for path in Path(VALID_IMG).glob('*.jpg')]
     valid_mask_names = [path.name for path in Path(VALID_MASK).glob('*.bmp')]
-
+    # train_img_names = train_img_names[:len(train_img_names)*0.1]
+    # train_mask_names = train_mask_names[:len(train_mask_names)*0.1]
     print(f'total train images = {len(train_img_names)}')
     print(f'total valid images = {len(valid_img_names)}')
     
     channel_means = [0.485, 0.456, 0.406]
     channel_stds  = [0.229, 0.224, 0.225]
-    train_tfms = transforms.Compose([transforms.ToTensor()])
-                                    #  transforms.Normalize(channel_means, channel_stds)])
+    train_tfms = transforms.Compose([transforms.ToTensor(),
+                                     transforms.Normalize(channel_means, channel_stds)])
 
-    val_tfms = transforms.Compose([transforms.ToTensor()])
-                                #    transforms.Normalize(channel_means, channel_stds)])
+    val_tfms = transforms.Compose([transforms.ToTensor(),
+                                   transforms.Normalize(channel_means, channel_stds)])
     
     mask_tfms = transforms.Compose([transforms.ToTensor()])
 
 
     train_dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
     valid_dataset = ImgDataSet(img_dir=VALID_IMG, img_fnames=valid_img_names, img_transform=val_tfms, mask_dir=VALID_MASK, mask_fnames=valid_mask_names, mask_transform=mask_tfms)
-    train_size = int(0.25*len(train_dataset))
+    train_size = int(0.2*len(train_dataset))
     rest_size = len(train_dataset) - train_size
     train_dataset, rest_dataset = torch.utils.data.random_split(train_dataset, [train_size, rest_size])
 
@@ -105,15 +107,15 @@ def main(model, device):
             # ---------------------  training ------------------- #
             bar = tqdm(total=(len(train_loader) * cfg.train_batch_size))
             bar.set_description('Epoch %d --- Training --- :' % epoch)
-            train_loss = {
-                        'total_loss': 0,
-                        'output_loss': 0,
-                        'eval_fuse5_loss': 0,
-                        'eval_fuse4_loss': 0,
-                        'eval_fuse3_loss': 0,
-                        'eval_fuse2_loss': 0,
-                        'eval_fuse1_loss': 0,
-            }
+            # train_loss = {
+            #             'total_loss': 0,
+            #             'output_loss': 0,
+            #             'eval_fuse5_loss': 0,
+            #             'eval_fuse4_loss': 0,
+            #             'eval_fuse3_loss': 0,
+            #             'eval_fuse2_loss': 0,
+            #             'eval_fuse1_loss': 0,
+            # }
             train_total_loss = AverageMeter()
             train_output_loss = AverageMeter()
             for idx, (img, lab) in enumerate(train_loader, 1):
@@ -238,6 +240,7 @@ if __name__ == '__main__':
     device = torch.device("cuda")
     # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     num_gpu = torch.cuda.device_count()
+    print(device)
 
     model = torch.nn.DataParallel(model, device_ids=range(num_gpu))
     model.to(device)

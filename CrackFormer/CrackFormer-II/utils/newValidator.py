@@ -20,7 +20,7 @@ class Validator(object):
         # 数值归一化到[-1, 1]
         if self.normalize:
             self.transforms = transforms.Compose(
-                [transforms.ToTensor(), transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))])
+                [transforms.ToTensor(), transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
         else:
             self.transforms = transforms.ToTensor()
 
@@ -83,9 +83,9 @@ class Validator(object):
 
     def validate(self, image):
         self.net.eval()  # 取消掉dropout
-        device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+        # device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
         with torch.no_grad():
-                x = Variable(self.transforms(image)).to(device)
+                x = Variable(self.transforms(image))
                 x = x.unsqueeze(0)
                 outs = self.net.forward(x)  # 前向传播，得到处理后的图像y（tensor形式）
                 y = outs[-1]
