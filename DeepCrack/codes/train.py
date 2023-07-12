@@ -67,15 +67,9 @@ def main():
     
     mask_tfms = transforms.Compose([transforms.ToTensor()])
     
-<<<<<<< HEAD
     train_dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=mask_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
     valid_dataset = ImgDataSet(img_dir=VALID_IMG, img_fnames=valid_img_names, img_transform=mask_tfms, mask_dir=VALID_MASK, mask_fnames=valid_mask_names, mask_transform=mask_tfms)
     train_size = int(0.25*len(train_dataset))
-=======
-    train_dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
-    valid_dataset = ImgDataSet(img_dir=VALID_IMG, img_fnames=valid_img_names, img_transform=val_tfms, mask_dir=VALID_MASK, mask_fnames=valid_mask_names, mask_transform=mask_tfms)
-    train_size = int(0.3*len(train_dataset))
->>>>>>> e9f39ef9011b2c7ec67e08d5ba7393a433da6809
     rest_size = len(train_dataset) - train_size
     train_dataset, rest_dataset = torch.utils.data.random_split(train_dataset, [train_size, rest_size])
 
@@ -85,22 +79,13 @@ def main():
     # -------------------- build trainer --------------------- #
 
     device = torch.device("cuda")
-<<<<<<< HEAD
     # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-=======
-    # device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
->>>>>>> e9f39ef9011b2c7ec67e08d5ba7393a433da6809
     num_gpu = torch.cuda.device_count()
 
     # model = DeepCrack(num_classes=1)
     initial = False
-<<<<<<< HEAD
     # model = DeepCrackV2(pretrained_model=initial)
     model = DeepCrack()
-=======
-    model = DeepCrackV2(pretrained_model=initial)
-    # model = DeepCrack()
->>>>>>> e9f39ef9011b2c7ec67e08d5ba7393a433da6809
     model = torch.nn.DataParallel(model, device_ids=range(num_gpu))
     model.to(device)
 

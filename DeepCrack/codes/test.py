@@ -22,11 +22,7 @@ import bisect
 
 def test(test_data_path='/mnt/ningbo_nfs_36/wj/data/',
          save_path='deepcrack_results/',
-<<<<<<< HEAD
          pretrained_model='checkpoints/DeepCrack_CT260_FT1/epoch(73)_acc(0.32035-0.99489).pth', ):
-=======
-         pretrained_model='checkpoints/DeepCrack_CT260_FT1/epoch(68)_acc(0.16684-0.99606).pth', ):
->>>>>>> e9f39ef9011b2c7ec67e08d5ba7393a433da6809
     if not os.path.exists(save_path):
         os.mkdir(save_path)
 
