@@ -26,7 +26,7 @@ class Config:
 
     # training
     epoch = 500
-    pretrained_model = 'model/epoch(3)_acc(0.28-0.98).pth'
+    pretrained_model = '/home/wj/local/crack_segmentation/CrackFormer/CrackFormer-II/model/epoch(5)_acc(0.30-0.98).pth'
     weight_decay = 0.0000
     lr_decay = 0.5
     lr = 5e-3
