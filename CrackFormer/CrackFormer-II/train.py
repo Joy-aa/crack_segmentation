@@ -65,11 +65,11 @@ def main(model, device):
     
     channel_means = [0.485, 0.456, 0.406]
     channel_stds  = [0.229, 0.224, 0.225]
-    train_tfms = transforms.Compose([transforms.ToTensor(),
-                                     transforms.Normalize(channel_means, channel_stds)])
+    train_tfms = transforms.Compose([transforms.ToTensor()])
+                                    #  transforms.Normalize(channel_means, channel_stds)])
 
-    val_tfms = transforms.Compose([transforms.ToTensor(),
-                                   transforms.Normalize(channel_means, channel_stds)])
+    val_tfms = transforms.Compose([transforms.ToTensor()])
+                                #    transforms.Normalize(channel_means, channel_stds)])
     
     mask_tfms = transforms.Compose([transforms.ToTensor()])
 

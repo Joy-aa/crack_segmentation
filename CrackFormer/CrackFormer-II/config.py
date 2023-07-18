@@ -10,8 +10,8 @@ class Config:
     setproctitle.setproctitle("%s" % name)
 
     # path
-    # data_dir = '/mnt/ningbo_nfs_36/wj/DamCrack'
-    data_dir = '/nfs/wj/DamCrack'
+    data_dir = '/mnt/nfs/wj/DamCrack'
+    # data_dir = '/nfs/wj/DamCrack'
     checkpoint_path = 'model'
     log_path = 'log'
     saver_path = os.path.join(checkpoint_path, name)
