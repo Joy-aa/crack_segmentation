@@ -1,0 +1,10 @@
+checkpoints/DeepCrack_CT260_FT1/epoch(73)_acc(0.32035-0.99489).pth
+threshold:1 | accuracy:0.99318 | precision:0.34226 | recall:0.48851 | f1:0.37559 
+threshold:2 | accuracy:0.99381 | precision:0.36859 | recall:0.44075 | f1:0.37452 
+threshold:3 | accuracy:0.99417 | precision:0.38741 | recall:0.40456 | f1:0.36931 
+threshold:4 | accuracy:0.99442 | precision:0.40374 | recall:0.37226 | f1:0.36145 
+threshold:5 | accuracy:0.99461 | precision:0.41895 | recall:0.34092 | f1:0.35077 
+threshold:6 | accuracy:0.99477 | precision:0.43472 | recall:0.30805 | f1:0.33650 
+threshold:7 | accuracy:0.99491 | precision:0.45162 | recall:0.27021 | f1:0.31555 
+threshold:8 | accuracy:0.99502 | precision:0.47199 | recall:0.22105 | f1:0.28051 
+threshold:9 | accuracy:0.99506 | precision:0.49621 | recall:0.14645 | f1:0.20814 

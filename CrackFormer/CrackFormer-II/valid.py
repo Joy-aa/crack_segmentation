@@ -138,7 +138,7 @@ if __name__ == '__main__':
         print('undefind model name pattern')
         exit()
     model.load_state_dict(torch.load(args.model_path))
-    device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     model.to(device)
     # model.cuda()
     if args.type == 'out':

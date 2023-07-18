@@ -67,9 +67,9 @@ def main():
     
     mask_tfms = transforms.Compose([transforms.ToTensor()])
     
-    train_dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
-    valid_dataset = ImgDataSet(img_dir=VALID_IMG, img_fnames=valid_img_names, img_transform=val_tfms, mask_dir=VALID_MASK, mask_fnames=valid_mask_names, mask_transform=mask_tfms)
-    train_size = int(0.3*len(train_dataset))
+    train_dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=mask_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
+    valid_dataset = ImgDataSet(img_dir=VALID_IMG, img_fnames=valid_img_names, img_transform=mask_tfms, mask_dir=VALID_MASK, mask_fnames=valid_mask_names, mask_transform=mask_tfms)
+    train_size = int(0.25*len(train_dataset))
     rest_size = len(train_dataset) - train_size
     train_dataset, rest_dataset = torch.utils.data.random_split(train_dataset, [train_size, rest_size])
 
@@ -79,13 +79,13 @@ def main():
     # -------------------- build trainer --------------------- #
 
     device = torch.device("cuda")
-    # device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+    # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     num_gpu = torch.cuda.device_count()
 
     # model = DeepCrack(num_classes=1)
     initial = False
-    model = DeepCrackV2(pretrained_model=initial)
-    # model = DeepCrack()
+    # model = DeepCrackV2(pretrained_model=initial)
+    model = DeepCrack()
     model = torch.nn.DataParallel(model, device_ids=range(num_gpu))
     model.to(device)
 
@@ -101,7 +101,8 @@ def main():
         trainer.vis.log('load checkpoint: %s' % cfg.pretrained_model, 'train info')
         epoch_str = Path(cfg.pretrained_model).stem.split('_')[0]
         # print(epoch_str)
-        epoch = int(epoch_str[-3:-1])
+        epoch = int(epoch_str[-2:-1])
+        # epoch = 0
         # print(epoch)
     else:
         epoch = 0
@@ -152,7 +153,7 @@ def main():
                     })
                 if idx % cfg.vis_train_img_every == 0:
                     trainer.vis.img_many({
-                        # 'train_img': data.cpu(),
+                        'train_img': data.cpu(),
                         'train_output': torch.sigmoid(pred[0].contiguous().cpu()),
                         'train_lab': target.cpu(),
                         'train_fuse5': torch.sigmoid(pred[1].contiguous().cpu()),
@@ -209,7 +210,7 @@ def main():
                             bar1.update(cfg.val_batch_size)
                 else:
                             trainer.vis.img_many({
-                                # 'eval_img': val_data.cpu(),
+                                'eval_img': val_data.cpu(),
                                 'eval_output': torch.sigmoid(val_pred[0].contiguous().cpu()),
                                 'eval_lab': val_target.cpu(),
                                 'eval_fuse5': torch.sigmoid(val_pred[1].contiguous().cpu()),

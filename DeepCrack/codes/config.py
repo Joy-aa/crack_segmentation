@@ -10,8 +10,8 @@ class Config:
     setproctitle.setproctitle("%s" % name)
 
     # path
-    train_data_path = '/nfs/wj/DamCrack'
-    val_data_path = '/nfs/wj/DamCrack'
+    train_data_path = '/mnt/ningbo_nfs_36/wj/DamCrack'
+    val_data_path = '/mnt/ningbo_nfs_36/wj/DamCrack'
     checkpoint_path = 'checkpoints'
     log_path = 'log'
     saver_path = os.path.join(checkpoint_path, name)
@@ -27,13 +27,13 @@ class Config:
 
     # training
     epoch = 500
-    pretrained_model = 'checkpoints/DeepCrack_CT260_FT1/epoch(14)_acc(0.12132-0.99598).pth'
+    pretrained_model = 'checkpoints/DeepCrack_CT260_FT1/epoch(1)_acc(0.08527-0.99589).pth'
     weight_decay = 0.0000
     lr_decay = 0.5
     lr = 1e-4
     momentum = 0.9
     use_adam = True  # Use Adam optimizer
-    train_batch_size = 4
+    train_batch_size = 8
     val_batch_size = 4
     test_batch_size = 4
 

@@ -58,9 +58,8 @@ def main(model, device):
     train_mask_names = [path.name for path in Path(TRAIN_MASK).glob('*.bmp')]
     valid_img_names  = [path.name for path in Path(VALID_IMG).glob('*.jpg')]
     valid_mask_names = [path.name for path in Path(VALID_MASK).glob('*.bmp')]
-    train_img_names = train_img_names[:int(len(train_img_names)*0.25)]
-    train_mask_names = train_mask_names[:int(len(train_mask_names)*0.25)]
-
+    # train_img_names = train_img_names[:len(train_img_names)*0.1]
+    # train_mask_names = train_mask_names[:len(train_mask_names)*0.1]
     print(f'total train images = {len(train_img_names)}')
     print(f'total valid images = {len(valid_img_names)}')
     
@@ -77,9 +76,9 @@ def main(model, device):
 
     train_dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
     valid_dataset = ImgDataSet(img_dir=VALID_IMG, img_fnames=valid_img_names, img_transform=val_tfms, mask_dir=VALID_MASK, mask_fnames=valid_mask_names, mask_transform=mask_tfms)
-    # train_size = int(0.25*len(train_dataset))
-    # rest_size = len(train_dataset) - train_size
-    # train_dataset, rest_dataset = torch.utils.data.random_split(train_dataset, [train_size, rest_size])
+    train_size = int(0.2*len(train_dataset))
+    rest_size = len(train_dataset) - train_size
+    train_dataset, rest_dataset = torch.utils.data.random_split(train_dataset, [train_size, rest_size])
 
     train_loader = torch.utils.data.DataLoader(train_dataset, cfg.train_batch_size, shuffle=True, pin_memory=torch.cuda.is_available(), num_workers=4)
     val_loader = torch.utils.data.DataLoader(valid_dataset, cfg.val_batch_size, shuffle=True, pin_memory=torch.cuda.is_available(), num_workers=4)
