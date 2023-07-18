@@ -1,5 +1,8 @@
 from torch.nn.functional import sigmoid
 import torch.nn as nn
+import torch
+import numpy as np
+import torch.nn.functional as F
 
 def bce2d(input, target):
     n, c, h, w = input.size()
@@ -49,7 +52,7 @@ def cross_entropy_loss2d(inputs, targets, balance=1.1):
     weights = torch.Tensor(weights)
 
     weights = weights.cuda()
-    inputs = F.sigmoid(inputs)
+    inputs = torch.sigmoid(inputs)
 
     loss = nn.BCELoss(weights, size_average=False)(inputs, targets)
     return loss
@@ -64,7 +67,7 @@ def cross_entropy_loss_RCF(prediction, label):
     mask[mask == 1] = 1.0 * num_negative / (num_positive + num_negative)
     mask[mask == 0] = 1.1 * num_positive / (num_positive + num_negative)
     mask[mask == 2] = 0
-    prediction = sigmoid(prediction)
+    prediction = torch.sigmoid(prediction)
     # print(label.shape)
     cost = torch.nn.functional.binary_cross_entropy(
             prediction.float(),label.float(),weight = mask, reduce=False)
