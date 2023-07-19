@@ -11,7 +11,8 @@ class ConvRelu(nn.Module):
     def __init__(self, in_, out):
         super().__init__()
         self.conv = Conv3X3(in_, out)
-        self.activation = torch.nn.ReLU(inplace=True)
+        # self.activation = torch.nn.ReLU(inplace=True)
+        self.activation = torch.nn.GELU()
 
     def forward(self, x):
         x = self.conv(x)

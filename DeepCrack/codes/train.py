@@ -100,8 +100,7 @@ def main():
     # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     num_gpu = torch.cuda.device_count()
 
-    # model = DeepCrack(num_classes=1)
-    initial = True
+    initial = False
     # model = DeepCrackV2(pretrained_model=initial)
     model = DeepCrack()
     model = torch.nn.DataParallel(model, device_ids=range(num_gpu))
