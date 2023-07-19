@@ -5,11 +5,13 @@ import argparse
 import pandas as pd
 import csv
 import datetime
-import cv2
+import cv2 
+import cv2 as cv
 from PIL import Image, ImageEnhance
 import os
 from pathlib import Path
 from torch.utils.data import random_split
+from tqdm import tqdm
 
 def tensorWriter(metric, value, iter):
     writer = SummaryWriter()
@@ -260,5 +262,17 @@ if __name__ == "__main__":
         for path in valid_paths:
             str = os.path.join(VALID_IMG, path.name) + ' ' + os.path.join(VALID_MASK, path.stem+'.bmp')
             f.write(str + '\n')  
+    # img_paths  = [path for path in Path(DIR_MASK).glob('noncrack*.bmp')]
+    # # mask_paths = [path for path in Path(DIR_MASK).glob('Crack500*.jpg')]
+    # # print(len(img_paths))
+    # for img_path in tqdm(img_paths):
+    #     img = cv.imread(str(img_path), 0)
+    #     # print(img.shape)
+
+    #     cv.imwrite(os.path.join(str(img_path).split('.')[0] + '.bmp'), img)
+    #     os.remove(os.path.join(DIR_MASK, img_path.name))
+    #     # print(os.path.join(str(img_path).split('.')[0] + '.bmp'))
+    #     # print(os.path.join(DIR_MASK, img_path.name))
+
 
 

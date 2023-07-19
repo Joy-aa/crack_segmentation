@@ -1,0 +1,10 @@
+checkpoints/DeepCrack_CT260_FT1.pth
+threshold:1 | accuracy:0.98544 | precision:0.17690 | recall:0.33239 | f1:0.19295 
+threshold:2 | accuracy:0.99134 | precision:0.22865 | recall:0.20474 | f1:0.18420 
+threshold:3 | accuracy:0.99335 | precision:0.26689 | recall:0.11657 | f1:0.14397 
+threshold:4 | accuracy:0.99414 | precision:0.28840 | recall:0.05828 | f1:0.08854 
+threshold:5 | accuracy:0.99443 | precision:0.29589 | recall:0.03022 | f1:0.05064 
+threshold:6 | accuracy:0.99455 | precision:0.30510 | recall:0.01900 | f1:0.03352 
+threshold:7 | accuracy:0.99461 | precision:0.32505 | recall:0.01289 | f1:0.02346 
+threshold:8 | accuracy:0.99463 | precision:0.35366 | recall:0.00817 | f1:0.01522 
+threshold:9 | accuracy:0.99465 | precision:0.38995 | recall:0.00384 | f1:0.00730 

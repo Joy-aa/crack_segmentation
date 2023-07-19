@@ -9,6 +9,7 @@ import progressbar
 from PIL import ImageOps
 
 from dataset.make_bb_trans import *
+from PIL import ImageOps
 
 class OfflineDataset(Dataset):
     def __init__(self, root, in_memory=False, need_name=False, resize=False, do_crop=False):
@@ -25,9 +26,9 @@ class OfflineDataset(Dataset):
         """
         There are three kinds of files: _im.png, _seg.png, _gt.png
         """
-        # im_list = [im for im in imgs if 'creak' in im[-7:].lower()]
-        # im_list = [path.name for path in Path(root).glob('*.*')]
+        # im_list = [im for im in imgs if 'im' in im[-7:].lower()]
 
+        # self.im_list = [path.join(root, im) for im in im_list]
         self.im_list = [path.join(root, im) for im in imgs]
 
         print('%d images found' % len(self.im_list))
@@ -80,8 +81,8 @@ class OfflineDataset(Dataset):
         dirStr, _ = os.path.splitext(im)
         img_name = dirStr.split("/")[-1]
         print(img_name)
-        gt_path = os.path.join("/mnt/hangzhou_116_homes/DamDetection/data", "new_label", img_name+".png")
-        seg_path = os.path.join("/home/wj/local/crack_segmentation/unet/result3", img_name+".jpg" )
+        gt_path = os.path.join("/home/wj/dataset/crack", "new_label", img_name+".png")
+        seg_path = os.path.join("/home/wj/local/crack_segmentation/CrackFormer/CrackFormer-II/test_result", img_name+".jpg" )
         # print(im)
         # print(gt_path)
         # print(seg_path)

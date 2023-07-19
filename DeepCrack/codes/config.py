@@ -10,8 +10,8 @@ class Config:
     setproctitle.setproctitle("%s" % name)
 
     # path
-    train_data_path = '/mnt/hangzhou_116_homes/wj/DamCrack'
-    val_data_path = '/mnt/hangzhou_116_homes/wj/DamCrack'
+    train_data_path = '/mnt/ningbo_nfs_36/wj/DamCrack'
+    val_data_path = '/mnt/ningbo_nfs_36/wj/DamCrack'
     checkpoint_path = 'checkpoints'
     log_path = 'log'
     saver_path = os.path.join(checkpoint_path, name)
@@ -22,7 +22,7 @@ class Config:
     port = 8097
     vis_train_loss_every = 40
     vis_train_acc_every = 40
-    vis_train_img_every = 120
+    vis_train_img_every = 40
     val_every = 200
 
     # training
@@ -33,7 +33,7 @@ class Config:
     lr = 1e-4
     momentum = 0.9
     use_adam = True  # Use Adam optimizer
-    train_batch_size = 4
+    train_batch_size = 8
     val_batch_size = 4
     test_batch_size = 4
 

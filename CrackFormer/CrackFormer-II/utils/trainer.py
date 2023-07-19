@@ -1,5 +1,5 @@
 from torch import nn
-# from tools.visdom import Visualizer
+from utils.Visdom import Visualizer
 from utils.checkpointer import Checkpointer
 from config import Config as cfg
 import torch
@@ -16,6 +16,7 @@ def get_optimizer(model):
 class Trainer(nn.Module):
     def __init__(self, model):
         super(Trainer, self).__init__()
+        self.vis = Visualizer(env=cfg.vis_env)
         self.model = model
 
         self.saver = Checkpointer(cfg.name, cfg.checkpoint_path, overwrite=False, verbose=True, timestamp=True,
@@ -26,8 +27,7 @@ class Trainer(nn.Module):
         self.iter_counter = 0
 
         # -------------------- Loss --------------------- #
-        self.mask_loss = nn.BCEWithLogitsLoss(reduction='mean',
-                                              pos_weight=torch.cuda.FloatTensor([cfg.pos_pixel_weight]))
+        self.mask_loss = nn.BCEWithLogitsLoss()
         
 
         self.log_loss = {}
@@ -45,7 +45,7 @@ class Trainer(nn.Module):
         fuse2_loss = self.mask_loss(pred_fuse2.view(-1, 1), target.view(-1, 1)) / cfg.train_batch_size
         fuse1_loss = self.mask_loss(pred_fuse1.view(-1, 1), target.view(-1, 1)) / cfg.train_batch_size
 
-        total_loss = output_loss + fuse5_loss + fuse4_loss + fuse3_loss + fuse2_loss + fuse1_loss
+        total_loss = 5 * output_loss + fuse5_loss + fuse4_loss + fuse3_loss + fuse2_loss + fuse1_loss
         total_loss.backward()
         self.optimizer.step()
 
@@ -66,14 +66,14 @@ class Trainer(nn.Module):
     def val_op(self, input, target):
         pred_fuse5, pred_fuse4, pred_fuse3, pred_fuse2, pred_fuse1, pred_output, = self.model(input)
 
-        output_loss = self.mask_loss(pred_output.view(-1, 1), target.view(-1, 1)) / cfg.train_batch_size
-        fuse5_loss = self.mask_loss(pred_fuse5.view(-1, 1), target.view(-1, 1)) / cfg.train_batch_size
-        fuse4_loss = self.mask_loss(pred_fuse4.view(-1, 1), target.view(-1, 1)) / cfg.train_batch_size
-        fuse3_loss = self.mask_loss(pred_fuse3.view(-1, 1), target.view(-1, 1)) / cfg.train_batch_size
-        fuse2_loss = self.mask_loss(pred_fuse2.view(-1, 1), target.view(-1, 1)) / cfg.train_batch_size
-        fuse1_loss = self.mask_loss(pred_fuse1.view(-1, 1), target.view(-1, 1)) / cfg.train_batch_size
+        output_loss = self.mask_loss(pred_output.view(-1, 1), target.view(-1, 1)) / cfg.val_batch_size
+        fuse5_loss = self.mask_loss(pred_fuse5.view(-1, 1), target.view(-1, 1)) / cfg.val_batch_size
+        fuse4_loss = self.mask_loss(pred_fuse4.view(-1, 1), target.view(-1, 1)) / cfg.val_batch_size
+        fuse3_loss = self.mask_loss(pred_fuse3.view(-1, 1), target.view(-1, 1)) / cfg.val_batch_size
+        fuse2_loss = self.mask_loss(pred_fuse2.view(-1, 1), target.view(-1, 1)) / cfg.val_batch_size
+        fuse1_loss = self.mask_loss(pred_fuse1.view(-1, 1), target.view(-1, 1)) / cfg.val_batch_size
 
-        total_loss = output_loss + fuse5_loss + fuse4_loss + fuse3_loss + fuse2_loss + fuse1_loss
+        total_loss = 5 * output_loss + fuse5_loss + fuse4_loss + fuse3_loss + fuse2_loss + fuse1_loss
 
         self.log_loss = {
             'total_loss': total_loss.item(),

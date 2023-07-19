@@ -10,16 +10,17 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('--metric_mode', type=str, default='prf', help='[prf | sem]')
 parser.add_argument('--model_name', type=str, default='deepcrack')
-parser.add_argument('--results_dir', type=str, default='../results')
+parser.add_argument('--results_dir', type=str, default='./results')
 parser.add_argument('--suffix_gt', type=str, default='label_viz', help='Suffix of ground-truth file name')
 parser.add_argument('--suffix_pred', type=str, default='fused', help='Suffix of predicted file name')
-parser.add_argument('--output', type=str, default='')
+parser.add_argument('--output', default='./results/metric.txt', type=str)
 parser.add_argument('--thresh_step', type=float, default=0.01)
 args = parser.parse_args()
 
 if __name__ == '__main__':
     metric_mode = args.metric_mode
-    results_dir = os.path.join(args.results_dir, args.model_name, 'test_latest', 'images')
+    results_dir = os.path.join(args.results_dir, args.model_name, 'image_latest', 'images')
+    print(results_dir)
     src_img_list, tgt_img_list = data_io.get_image_pairs(results_dir, args.suffix_gt, args.suffix_pred)
 
     final_results = []

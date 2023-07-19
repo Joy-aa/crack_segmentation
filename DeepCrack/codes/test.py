@@ -1,7 +1,6 @@
 # from data.dataset import readIndex, dataReadPip, loadedDataset
 import sys
 sys.path.append("/home/wj/local/crack_segmentation")
-# sys.path.append("/home/wj/local/crack_segmentation/DeepCrack/codes")
 from model.deepcrack import DeepCrack
 from model.deepcrackv2 import DeepCrackV2
 from trainer import DeepCrackTrainer
@@ -17,13 +16,13 @@ from metric import *
 from data_loader import ImgDataSet
 from PIL import Image
 from torch.autograd import Variable
+import bisect
 
-os.environ["CUDA_VISIBLE_DEVICES"] = '0'
+# os.environ["CUDA_VISIBLE_DEVICES"] = '1'
 
-
-def test(test_data_path='/mnt/hangzhou_116_homes/DamDetection/data/',
+def test(test_data_path='/mnt/ningbo_nfs_36/wj/data/',
          save_path='deepcrack_results/',
-         pretrained_model='checkpoints/DeepCrack_CT260_FT1/epoch(14)_acc(0.12132-0.99598).pth', ):
+         pretrained_model='checkpoints/DeepCrack_CT260_FT1/epoch(73)_acc(0.32035-0.99489).pth', ):
     if not os.path.exists(save_path):
         os.mkdir(save_path)
 
@@ -44,7 +43,8 @@ def test(test_data_path='/mnt/hangzhou_116_homes/DamDetection/data/',
     channel_means = [0.485, 0.456, 0.406]
     channel_stds  = [0.229, 0.224, 0.225]
 
-    val_tfms = transforms.Compose([transforms.ToTensor(),transforms.Normalize(channel_means, channel_stds)])
+    # val_tfms = transforms.Compose([transforms.ToTensor(),transforms.Normalize(channel_means, channel_stds)])
+    val_tfms = transforms.Compose([transforms.ToTensor()])
 
     mask_tfms = transforms.Compose([transforms.ToTensor()])
 
@@ -57,12 +57,13 @@ def test(test_data_path='/mnt/hangzhou_116_homes/DamDetection/data/',
 
     # device = torch.device("cuda")
     # num_gpu = torch.cuda.device_count()
+    device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
 
-    # model = DeepCrack()
-    model = DeepCrackV2()
+    model = DeepCrack()
+    # model = DeepCrackV2()
 
     # model = torch.nn.DataParallel(model, device_ids=range(num_gpu))
-    # model.to(device)
+    model.to(device)
 
     trainer = DeepCrackTrainer(model)
     # checkpoint = trainer.saver.load(pretrained_model, multi_gpu=True)
@@ -125,7 +126,7 @@ def test(test_data_path='/mnt/hangzhou_116_homes/DamDetection/data/',
                         test_target = mask_tfms(Image.fromarray(mask_pat))
                         test_data, test_target = Variable(test_data.unsqueeze(0)).cuda(), Variable(test_target.unsqueeze(0)).cuda()
                         test_pred = trainer.val_op(test_data, test_target)
-                        test_pred = torch.sigmoid(test_pred[1].squeeze()).data.cpu().numpy()
+                        test_pred = torch.sigmoid(test_pred[0].squeeze()).data.cpu().numpy()
                         pred_list.append(test_pred)
                         gt_list.append(mask_pat)
 

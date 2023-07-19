@@ -10,7 +10,8 @@ class Config:
     setproctitle.setproctitle("%s" % name)
 
     # path
-    data_dir = '/home/wj/dataset/seg_dataset'
+    data_dir = '/mnt/nfs/wj/DamCrack'
+    # data_dir = '/nfs/wj/DamCrack'
     checkpoint_path = 'model'
     log_path = 'log'
     saver_path = os.path.join(checkpoint_path, name)
@@ -21,18 +22,18 @@ class Config:
     port = 8097
     vis_train_loss_every = 40
     vis_train_acc_every = 40
-    vis_train_img_every = 120
+    vis_train_img_every = 40
     val_every = 200
 
     # training
     epoch = 500
-    pretrained_model = 'model/epoch(3)_acc(0.28-0.98).pth'
+    pretrained_model = '/home/wj/local/crack_segmentation/CrackFormer/CrackFormer-II/model/crack260.pth'
     weight_decay = 0.0000
     lr_decay = 0.1
     lr = 1e-3
     momentum = 0.9
-    use_adam = True  # Use Adam optimizer
-    train_batch_size = 4
+    use_adam = False  # Use Adam optimizer
+    train_batch_size = 8
     val_batch_size = 4
     test_batch_size = 4
 
