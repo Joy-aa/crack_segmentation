@@ -10,8 +10,8 @@ class Config:
     setproctitle.setproctitle("%s" % name)
 
     # path
-    data_dir = '/mnt/nfs/wj/DamCrack'
-    # data_dir = '/nfs/wj/DamCrack'
+    # data_dir = '/mnt/nfs/wj/DamCrack'
+    data_dir = '/nfs/wj/DamCrack'
     checkpoint_path = 'model'
     log_path = 'log'
     saver_path = os.path.join(checkpoint_path, name)
@@ -33,9 +33,9 @@ class Config:
     lr = 1e-3
     momentum = 0.9
     use_adam = False  # Use Adam optimizer
-    train_batch_size = 8
-    val_batch_size = 4
-    test_batch_size = 4
+    train_batch_size = 2
+    val_batch_size = 2
+    test_batch_size = 2
 
     acc_sigmoid_th = 0.5
     pos_pixel_weight = 1

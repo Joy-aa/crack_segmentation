@@ -4,7 +4,10 @@ from utils.checkpointer import Checkpointer
 from config import Config as cfg
 import torch
 from torchvision import transforms
-
+import sys
+sys.path.append('/home/wj/local/crack_segmentation')
+from LossFunctions import dice_loss
+import torch.nn.functional as F
 
 def get_optimizer(model):
     if cfg.use_adam:
@@ -38,14 +41,14 @@ class Trainer(nn.Module):
 
         pred_fuse5, pred_fuse4, pred_fuse3, pred_fuse2, pred_fuse1, pred_output, = self.model(input)
 
-        output_loss = self.mask_loss(pred_output.view(-1, 1), target.view(-1, 1)) / cfg.train_batch_size
-        fuse5_loss = self.mask_loss(pred_fuse5.view(-1, 1), target.view(-1, 1)) / cfg.train_batch_size
-        fuse4_loss = self.mask_loss(pred_fuse4.view(-1, 1), target.view(-1, 1)) / cfg.train_batch_size
-        fuse3_loss = self.mask_loss(pred_fuse3.view(-1, 1), target.view(-1, 1)) / cfg.train_batch_size
-        fuse2_loss = self.mask_loss(pred_fuse2.view(-1, 1), target.view(-1, 1)) / cfg.train_batch_size
-        fuse1_loss = self.mask_loss(pred_fuse1.view(-1, 1), target.view(-1, 1)) / cfg.train_batch_size
+        output_loss = self.mask_loss(pred_output.view(-1, 1), target.view(-1, 1)) / cfg.train_batch_size + dice_loss(F.sigmoid(pred_output.squeeze(1)), target.squeeze(1).float(), multiclass=False)
+        fuse5_loss = self.mask_loss(pred_fuse5.view(-1, 1), target.view(-1, 1)) / cfg.train_batch_size + dice_loss(F.sigmoid(pred_fuse5.squeeze(1)), target.squeeze(1).float(), multiclass=False)
+        fuse4_loss = self.mask_loss(pred_fuse4.view(-1, 1), target.view(-1, 1)) / cfg.train_batch_size + dice_loss(F.sigmoid(pred_fuse4.squeeze(1)), target.squeeze(1).float(), multiclass=False)
+        fuse3_loss = self.mask_loss(pred_fuse3.view(-1, 1), target.view(-1, 1)) / cfg.train_batch_size + dice_loss(F.sigmoid(pred_fuse3.squeeze(1)), target.squeeze(1).float(), multiclass=False)
+        fuse2_loss = self.mask_loss(pred_fuse2.view(-1, 1), target.view(-1, 1)) / cfg.train_batch_size + dice_loss(F.sigmoid(pred_fuse2.squeeze(1)), target.squeeze(1).float(), multiclass=False)
+        fuse1_loss = self.mask_loss(pred_fuse1.view(-1, 1), target.view(-1, 1)) / cfg.train_batch_size + dice_loss(F.sigmoid(pred_fuse1.squeeze(1)), target.squeeze(1).float(), multiclass=False)
 
-        total_loss = 5 * output_loss + fuse5_loss + fuse4_loss + fuse3_loss + fuse2_loss + fuse1_loss
+        total_loss = output_loss + fuse5_loss + fuse4_loss + fuse3_loss + fuse2_loss + fuse1_loss
         total_loss.backward()
         self.optimizer.step()
 
@@ -66,14 +69,15 @@ class Trainer(nn.Module):
     def val_op(self, input, target):
         pred_fuse5, pred_fuse4, pred_fuse3, pred_fuse2, pred_fuse1, pred_output, = self.model(input)
 
-        output_loss = self.mask_loss(pred_output.view(-1, 1), target.view(-1, 1)) / cfg.val_batch_size
-        fuse5_loss = self.mask_loss(pred_fuse5.view(-1, 1), target.view(-1, 1)) / cfg.val_batch_size
-        fuse4_loss = self.mask_loss(pred_fuse4.view(-1, 1), target.view(-1, 1)) / cfg.val_batch_size
-        fuse3_loss = self.mask_loss(pred_fuse3.view(-1, 1), target.view(-1, 1)) / cfg.val_batch_size
-        fuse2_loss = self.mask_loss(pred_fuse2.view(-1, 1), target.view(-1, 1)) / cfg.val_batch_size
-        fuse1_loss = self.mask_loss(pred_fuse1.view(-1, 1), target.view(-1, 1)) / cfg.val_batch_size
+        output_loss = self.mask_loss(pred_output.view(-1, 1), target.view(-1, 1)) / cfg.val_batch_size + dice_loss(F.sigmoid(pred_output.squeeze(1)), target.squeeze(1).float(), multiclass=False)
+        fuse5_loss = self.mask_loss(pred_fuse5.view(-1, 1), target.view(-1, 1)) / cfg.val_batch_size + dice_loss(F.sigmoid(pred_fuse5.squeeze(1)), target.squeeze(1).float(), multiclass=False)
+        fuse4_loss = self.mask_loss(pred_fuse4.view(-1, 1), target.view(-1, 1)) / cfg.val_batch_size + dice_loss(F.sigmoid(pred_fuse4.squeeze(1)), target.squeeze(1).float(), multiclass=False)
+        fuse3_loss = self.mask_loss(pred_fuse3.view(-1, 1), target.view(-1, 1)) / cfg.val_batch_size + dice_loss(F.sigmoid(pred_fuse3.squeeze(1)), target.squeeze(1).float(), multiclass=False)
+        fuse2_loss = self.mask_loss(pred_fuse2.view(-1, 1), target.view(-1, 1)) / cfg.val_batch_size + dice_loss(F.sigmoid(pred_fuse2.squeeze(1)), target.squeeze(1).float(), multiclass=False)
+        fuse1_loss = self.mask_loss(pred_fuse1.view(-1, 1), target.view(-1, 1)) / cfg.val_batch_size + dice_loss(F.sigmoid(pred_fuse1.squeeze(1)), target.squeeze(1).float(), multiclass=False)
 
-        total_loss = 5 * output_loss + fuse5_loss + fuse4_loss + fuse3_loss + fuse2_loss + fuse1_loss
+
+        total_loss = output_loss + fuse5_loss + fuse4_loss + fuse3_loss + fuse2_loss + fuse1_loss
 
         self.log_loss = {
             'total_loss': total_loss.item(),

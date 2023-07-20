@@ -89,7 +89,7 @@ class Validator(object):
                 x = x.unsqueeze(0)
                 outs = self.net.forward(x)  # 前向传播，得到处理后的图像y（tensor形式）
                 y = outs[-1]
-                img_fused = F.sigmoid(y[0, 0]).data.cpu().numpy()
+                img_fused = torch.sigmoid(y[0, 0]).data.cpu().numpy()
                 # out_clone = output.clone()
                 # img_fused = np.squeeze(out_clone.cpu().detach().numpy(), axis=0)
 
