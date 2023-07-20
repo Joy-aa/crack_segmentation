@@ -11,12 +11,15 @@ import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 import os
 import datetime
-from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 import time
 import sys, time
 import torch.nn.functional as F
 from utils.metrics import compute_iou_batch
 import numpy as np
+import sys
+sys.path.append("/home/wj/local/crack_segmentation")
+from LossFunctions import dice_loss
 
 class Trainer(object):
     def __init__(self, mode, optim, scheduler, model, config, model_dir):
@@ -64,7 +67,7 @@ class Trainer(object):
                     #track history if only in train
                     with torch.set_grad_enabled(phase == 'train'):
                         outputs = self.model(inputs)
-                        loss = loss_function(outputs, labels)
+                        loss = loss_function(outputs, labels) + dice_loss(F.sigmoid(outputs.squeeze(1)), labels.squeeze(1).float(), multiclass=False)
                         #preds = F.interpolate(outputs[0], size=labels.size()[2:], mode='bilinear', align_corners=True)
                         preds_np=outputs.detach().cpu().numpy()
                         labels_np = labels.detach().cpu().numpy().squeeze()
