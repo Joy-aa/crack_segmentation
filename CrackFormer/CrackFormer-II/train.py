@@ -11,6 +11,7 @@ import sys
 from pathlib import Path
 sys.path.append('/home/wj/local/crack_segmentation')
 from data_loader import ImgDataSet
+from metric import calc_metric
 from torch.utils.data import DataLoader, random_split
 from torchvision import transforms
 import argparse
@@ -48,20 +49,30 @@ def adjust_learning_rate(optimizer, epoch, lr):
 def main(model, device):
     # ----------------------- dataset ----------------------- #
 
-    TRAIN_IMG  = os.path.join(cfg.data_dir, 'train_image')
-    TRAIN_MASK = os.path.join(cfg.data_dir, 'train_label')
-    VALID_IMG = os.path.join(cfg.data_dir, 'val_image')
-    VALID_MASK = os.path.join(cfg.data_dir, 'val_label')
+    # TRAIN_IMG  = os.path.join(cfg.data_dir, 'train_image')
+    # TRAIN_MASK = os.path.join(cfg.data_dir, 'train_label')
+    # VALID_IMG = os.path.join(cfg.data_dir, 'val_image')
+    # VALID_MASK = os.path.join(cfg.data_dir, 'val_label')
 
 
-    train_img_names  = [path.name for path in Path(TRAIN_IMG).glob('*.jpg')]
-    train_mask_names = [path.name for path in Path(TRAIN_MASK).glob('*.bmp')]
-    valid_img_names  = [path.name for path in Path(VALID_IMG).glob('*.jpg')]
-    valid_mask_names = [path.name for path in Path(VALID_MASK).glob('*.bmp')]
+    # train_img_names  = [path.name for path in Path(TRAIN_IMG).glob('*.jpg')]
+    # train_mask_names = [path.name for path in Path(TRAIN_MASK).glob('*.bmp')]
+    # valid_img_names  = [path.name for path in Path(VALID_IMG).glob('*.jpg')]
+    # valid_mask_names = [path.name for path in Path(VALID_MASK).glob('*.bmp')]
+    # # train_img_names = train_img_names[:len(train_img_names)*0.1]
+    # # train_mask_names = train_mask_names[:len(train_mask_names)*0.1]
+    # print(f'total train images = {len(train_img_names)}')
+    # print(f'total valid images = {len(valid_img_names)}')
+
+    TRAIN_IMG  = os.path.join(cfg.data_dir, 'imgs')
+    TRAIN_MASK = os.path.join(cfg.data_dir, 'masks')
+
+
+    train_img_names  = [path.name for path in Path(TRAIN_IMG).glob('*.png')]
+    train_mask_names = [path.name for path in Path(TRAIN_MASK).glob('*.png')]
     # train_img_names = train_img_names[:len(train_img_names)*0.1]
     # train_mask_names = train_mask_names[:len(train_mask_names)*0.1]
     print(f'total train images = {len(train_img_names)}')
-    print(f'total valid images = {len(valid_img_names)}')
     
     channel_means = [0.485, 0.456, 0.406]
     channel_stds  = [0.229, 0.224, 0.225]
@@ -75,13 +86,18 @@ def main(model, device):
 
 
     train_dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
-    valid_dataset = ImgDataSet(img_dir=VALID_IMG, img_fnames=valid_img_names, img_transform=val_tfms, mask_dir=VALID_MASK, mask_fnames=valid_mask_names, mask_transform=mask_tfms)
-    train_size = int(0.2*len(train_dataset))
-    rest_size = len(train_dataset) - train_size
-    train_dataset, rest_dataset = torch.utils.data.random_split(train_dataset, [train_size, rest_size])
+    # valid_dataset = ImgDataSet(img_dir=VALID_IMG, img_fnames=valid_img_names, img_transform=val_tfms, mask_dir=VALID_MASK, mask_fnames=valid_mask_names, mask_transform=mask_tfms)
+    # train_size = int(0.2*len(train_dataset))
+    # rest_size = len(train_dataset) - train_size
+    # train_dataset, rest_dataset = torch.utils.data.random_split(train_dataset, [train_size, rest_size])
+
+    _dataset, test_dataset = random_split(train_dataset, [0.9, 0.1],torch.Generator().manual_seed(42))
+    # _dataset, tmp_dataset = random_split(_dataset, [0.1, 0.9],torch.Generator().manual_seed(42))
+    train_dataset, valid_dataset = random_split(_dataset, [0.9, 0.1],torch.Generator().manual_seed(42))
 
     train_loader = torch.utils.data.DataLoader(train_dataset, cfg.train_batch_size, shuffle=True, pin_memory=torch.cuda.is_available(), num_workers=4)
-    val_loader = torch.utils.data.DataLoader(valid_dataset, cfg.val_batch_size, shuffle=True, pin_memory=torch.cuda.is_available(), num_workers=4)
+    val_loader = torch.utils.data.DataLoader(valid_dataset, cfg.val_batch_size, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=4)
+    test_loader = torch.utils.data.DataLoader(test_dataset, cfg.test_batch_size, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=4)
 
     # -------------------- build trainer --------------------- #
 
@@ -213,6 +229,29 @@ def main(model, device):
             bar1.close()
             if epoch != 0:
                 trainer.saver.save(model, tag='%s_epoch(%d)' % (cfg.name, epoch))
+            if epoch % 5 == 0:
+                metrics = {
+                'accuracy': 0,
+                'precision': 0,
+                'recall': 0,
+                'f1': 0,
+                }
+                with torch.no_grad():
+                    # print(len(test_loader))
+                    for idx, (img, lab) in enumerate(test_loader, 1):
+                        val_data  = Variable(img).cuda()
+                        val_target = Variable(lab).cuda()
+                        val_pred = trainer.val_op(val_data, val_target)
+                        metric = calc_metric(torch.sigmoid(val_pred[0].contiguous().cpu()), lab, mode='tensor', threshold=0.1, max_value=1)
+                        metrics['accuracy'] += metric['accuracy'] / len(test_loader)
+                        metrics['precision'] += metric['precision'] / len(test_loader)
+                        metrics['recall'] += metric['recall'] / len(test_loader)
+                        metrics['f1'] += metric['f1'] / len(test_loader)
+                print(metrics)
+                with open('result.txt', 'a', encoding='utf-8') as fout:
+                    line =  "epoch:{:2d}————accuracy:{:.5f} | precision:{:.5f} | recall:{:.5f} | f1:{:.5f} " \
+                        .format(epoch, metrics['accuracy'], metrics['precision'], metrics['recall'], metrics['f1']) + '\n'
+                    fout.write(line)
 
     except KeyboardInterrupt:
 
