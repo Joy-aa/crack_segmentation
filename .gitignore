@@ -13,3 +13,5 @@ notebooks/**
 log/**
 **.ipynb
 CascadePSP/checkpoints/**
+unet++/log/
+**.chkp
