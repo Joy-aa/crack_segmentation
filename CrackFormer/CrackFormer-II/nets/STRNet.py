@@ -68,7 +68,7 @@ class Swish(nn.Module):
         super(Swish,self).__init__()
         self.theta=torch.ones(1,requires_grad=True)
     def forward(self, x):
-        return x*F.sigmoid(self.theta*x)
+        return x*torch.sigmoid(self.theta*x)
 class STR_module1(nn.Module):
     def __init__(self, channel_in,A,B,fx,dwsize=3):
         super(STR_module1, self).__init__()

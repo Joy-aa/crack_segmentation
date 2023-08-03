@@ -11,7 +11,8 @@ import sys
 from pathlib import Path
 sys.path.append('/home/wj/local/crack_segmentation')
 from data_loader import ImgDataSet
-from metric import calc_metric
+from logger import BoardLogger
+import datetime
 from torch.utils.data import DataLoader, random_split
 from torchvision import transforms
 import argparse
@@ -100,6 +101,10 @@ def main(model, device):
     test_loader = torch.utils.data.DataLoader(test_dataset, cfg.test_batch_size, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=4)
 
     # -------------------- build trainer --------------------- #
+    long_id = '%s_%s' % (str(cfg.lr), datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S'))
+    logger = BoardLogger(long_id)
+
+    # -------------------- build trainer --------------------- #
 
     trainer = Trainer(model).to(device)
 
@@ -123,15 +128,6 @@ def main(model, device):
             # ---------------------  training ------------------- #
             bar = tqdm(total=(len(train_loader) * cfg.train_batch_size))
             bar.set_description('Epoch %d --- Training --- :' % epoch)
-            # train_loss = {
-            #             'total_loss': 0,
-            #             'output_loss': 0,
-            #             'eval_fuse5_loss': 0,
-            #             'eval_fuse4_loss': 0,
-            #             'eval_fuse3_loss': 0,
-            #             'eval_fuse2_loss': 0,
-            #             'eval_fuse1_loss': 0,
-            # }
             train_total_loss = AverageMeter()
             train_output_loss = AverageMeter()
             for idx, (img, lab) in enumerate(train_loader, 1):
@@ -229,29 +225,11 @@ def main(model, device):
             bar1.close()
             if epoch != 0:
                 trainer.saver.save(model, tag='%s_epoch(%d)' % (cfg.name, epoch))
-            if epoch % 5 == 0:
-                metrics = {
-                'accuracy': 0,
-                'precision': 0,
-                'recall': 0,
-                'f1': 0,
-                }
-                with torch.no_grad():
-                    # print(len(test_loader))
-                    for idx, (img, lab) in enumerate(test_loader, 1):
-                        val_data  = Variable(img).cuda()
-                        val_target = Variable(lab).cuda()
-                        val_pred = trainer.val_op(val_data, val_target)
-                        metric = calc_metric(torch.sigmoid(val_pred[0].contiguous().cpu()), lab, mode='tensor', threshold=0.1, max_value=1)
-                        metrics['accuracy'] += metric['accuracy'] / len(test_loader)
-                        metrics['precision'] += metric['precision'] / len(test_loader)
-                        metrics['recall'] += metric['recall'] / len(test_loader)
-                        metrics['f1'] += metric['f1'] / len(test_loader)
-                print(metrics)
-                with open('result.txt', 'a', encoding='utf-8') as fout:
-                    line =  "epoch:{:2d}————accuracy:{:.5f} | precision:{:.5f} | recall:{:.5f} | f1:{:.5f} " \
-                        .format(epoch, metrics['accuracy'], metrics['precision'], metrics['recall'], metrics['f1']) + '\n'
-                    fout.write(line)
+            logger.log_scalar('train/lr', trainer.optimizer.param_groups[0]['lr'], epoch)
+            logger.log_scalar('train/total_loss', train_total_loss.avg, epoch)
+            logger.log_scalar('train/output_loss', train_output_loss.avg, epoch)
+            logger.log_scalar('valid/total_loss', val_loss['eval_total_loss'], epoch)
+            logger.log_scalar('valid/output_loss', val_loss['eval_output_loss'], epoch)
 
     except KeyboardInterrupt:
 

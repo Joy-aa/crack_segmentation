@@ -116,8 +116,8 @@ def Test(valid_img_dir, valid_lab_dir, valid_result_dir, valid_log_dir, best_mod
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--img_dir',type=str, default='/mnt/ningbo_nfs_36/wj/data', help='input dataset directory')
-    parser.add_argument('--model_path', type=str, default='model/epoch(123)_acc(0.61-0.98).pth', help='trained model path')
+    parser.add_argument('--img_dir',type=str, default='/nfs/DamDetection/data', help='input dataset directory')
+    parser.add_argument('--model_path', type=str, default='model/crackformer_epoch(10).pth', help='trained model path')
     parser.add_argument('--model_type', type=str, default='crackformer', choices=['crackformer', 'SDDNet', 'STRNet'])
     parser.add_argument('--out_pred_dir', type=str, default='./test_result', required=False,  help='prediction output dir')
     parser.add_argument('--type', type=str, default='metric' , choices=['out', 'metric'])
