@@ -12,5 +12,4 @@ images/**
 notebooks/**
 log/**
 **.ipynb
-CascadePSP/checkpoints/**
-**.0
+CascadePSP/weights/**

@@ -48,7 +48,7 @@ class BasicBlock(nn.Module):
     def __init__(self, inplanes, planes, stride=1, downsample=None, dilation=1):
         super(BasicBlock, self).__init__()
         self.conv1 = conv3x3(inplanes, planes, stride=stride, dilation=dilation)
-        1 = Synchroself.bnnizedBatchNorm2d(planes)
+        self.bn1 = SynchronizedBatchNorm2d(planes)
         self.relu = nn.ReLU(inplace=True)
         self.conv2 = conv3x3(planes, planes, stride=1, dilation=dilation)
         self.bn2 = SynchronizedBatchNorm2d(planes)

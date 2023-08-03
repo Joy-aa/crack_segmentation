@@ -1,25 +1,24 @@
 import sys
-sys.path.append("/home/wj/local/crack_segmentation")
+sys.path.append('/home/wj/local/crack_segmentation')
+from metric import *
 import os
 import numpy as np
 from pathlib import Path
 import cv2 as cv
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 import torchvision.transforms as transforms
-import matplotlib.pyplot as plt
 import argparse
 from os.path import join
 from PIL import Image
 import gc
-from simple_Unetpp import UnetPlusPlus, load_model
 from tqdm import tqdm
-import datetime
-import csv
-from metric import calc_metric
+from model.dfanet import DFANet, load_backbone
+from config import Config
 
-input_size = (448, 448)
+input_size=[448,448]
 
 def evaluate_img(model, img, test_tfms):
     X = test_tfms(Image.fromarray(img))
@@ -32,23 +31,29 @@ def evaluate_img(model, img, test_tfms):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    # /nfs/DamDetection/data/  /mnt/hangzhou_116_homes/DamDetection/data/  /home/wj/dataset/crack/
-    parser.add_argument('--img_dir',type=str, default='/mnt/hangzhou_116_homes/DamDetection/data', help='input dataset directory')
-    parser.add_argument('--model_path', type=str, default='./checkpoints/Unet++_10.pth', help='trained model path')
-    parser.add_argument('--out_pred_dir', type=str, default='./result_images', required=False,  help='prediction output dir')
+    # /nfs/DamDetection/data/  /mnt/hangzhou_116_homes/DamDetection/data/  /home/wj/dataset/crack/ /mnt/ningbo_nfs_36/wj/data/ /mnt/nfs/wj/data
+    parser.add_argument('--img_dir',type=str, default='../images', help='input dataset directory')
+    parser.add_argument('--model_path', type=str, default='./log/dfanet20230719T1622/model_dfanet_0036.pt', help='trained model path')
+    parser.add_argument('--out_pred_dir', type=str, default='./result_img', required=False,  help='prediction output dir')
     parser.add_argument('--type', type=str, default='out' , choices=['out', 'metric'])
     args = parser.parse_args()
 
+    cfg=Config()
     if args.out_pred_dir != '':
         os.makedirs(args.out_pred_dir, exist_ok=True)
         for path in Path(args.out_pred_dir).glob('*.*'):
             os.remove(str(path))
-
-    model = UnetPlusPlus(num_classes=1)
-    model.load_state_dict(torch.load(args.model_path))
+    
+    model = DFANet(cfg.ENCODER_CHANNEL_CFG,decoder_channel=64,num_classes=1)
+    checkpoint = torch.load(args.model_path)
+    weights = checkpoint['model_state_dict']
+    weights_dict = {}
+    for k, v in weights.items():
+        new_k = k.replace('module.', '') if 'module' in k else k
+        weights_dict[new_k] = v
+    model.load_state_dict(weights_dict)
     model.cuda()
     model.eval()
-    # model = nn.DataParallel(model)
     if args.type == 'out':
         DIR_IMG = os.path.join(args.img_dir, 'image')
         DIR_GT = ''
@@ -126,6 +131,8 @@ if __name__ == '__main__':
         #     # img_1[img_1 > 0.3] = 1
         #     # img_1[img_1 <= 0.3] = 0
             cv.imwrite(filename=join(args.out_pred_dir, f'{path.stem}.jpg'), img=(img_1 * 255).astype(np.uint8))
+            # cv.imwrite(filename=join(args.out_pred_dir, f'{path.stem}.jpg'), img=lab)
+
 
         if args.type == 'metric':
             for i in range(1, 10):

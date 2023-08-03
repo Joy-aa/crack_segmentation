@@ -1,0 +1,10 @@
+./log/dfanet20230719T1622/model_dfanet_0002.pt
+threshold:1 | accuracy:0.92892 | precision:0.12994 | recall:0.24594 | f1:0.07413 
+threshold:2 | accuracy:0.98160 | precision:0.17716 | recall:0.10892 | f1:0.07070 
+threshold:3 | accuracy:0.99209 | precision:0.24795 | recall:0.05240 | f1:0.05810 
+threshold:4 | accuracy:0.99382 | precision:0.29798 | recall:0.02626 | f1:0.03669 
+threshold:5 | accuracy:0.99437 | precision:0.35235 | recall:0.01289 | f1:0.02091 
+threshold:6 | accuracy:0.99456 | precision:0.40190 | recall:0.00543 | f1:0.00974 
+threshold:7 | accuracy:0.99462 | precision:0.46332 | recall:0.00174 | f1:0.00333 
+threshold:8 | accuracy:0.99464 | precision:0.61180 | recall:0.00033 | f1:0.00065 
+threshold:9 | accuracy:0.99465 | precision:0.92517 | recall:0.00001 | f1:0.00002 

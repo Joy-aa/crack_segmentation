@@ -84,12 +84,6 @@ def test(test_data_path='/mnt/ningbo_nfs_36/wj/data/',
     w, h = int(cof * input_size[0]), int(cof * input_size[1])
     offset = 32
 
-    # metrics = {
-    #         'accuracy': 0,
-    #         'precision': 0,
-    #         'recall': 0,
-    #         'f1': 0,
-    # }
     metrics=[]
     with torch.no_grad():
         for path in tqdm(paths):

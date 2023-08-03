@@ -16,10 +16,9 @@ def getpred(mask, pred, threshold = 0, max_value = 1):
     pred[pred > threshold * max_value] = 1
     pred[pred <= threshold * max_value] = 0
     mask[mask > 0] = 1
-    pred_mask = mask
     # pred_mask = pred[:, 0, :, :].contiguous()
     # mask = mask[:, 0, :, :].contiguous()
-    return mask, pred_mask
+    return mask, pred
 
 def calc_accuracy(mask, pred_mask):
     mask_acc = pred_mask.eq(mask.view_as(pred_mask)).sum().item() / mask.numel()
@@ -76,7 +75,7 @@ def calc_metric(pred_list, gt_list, mode='list', threshold = 0, max_value = 1):
     elif mode == 'tensor':
         # print(pred_list.shape)
         # print(gt_list.shape)
-        mask, pred_mask = getpred(pred_list, gt_list, threshold, max_value)
+        mask, pred_mask = getpred(gt_list, pred_list, threshold, max_value)
 
     else:
         print("fault type")

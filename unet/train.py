@@ -230,7 +230,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size',  default=16, type=int,  help='weight decay (default: 1e-4)')
     parser.add_argument('--num_workers', default=4, type=int, help='output dataset directory')
     parser.add_argument('--data_dir',type=str, help='input dataset directory')
-    # /home/wj/dataset/seg_dataset /nfs/ymd/DamCrack
+    # /home/wj/dataset/seg_dataset /nfs/wj/DamCrack
     parser.add_argument('--model_dir', type=str, help='output dataset directory')
     parser.add_argument('--model_type', type=str, required=False, default='vgg16', choices=['vgg16', 'vgg16V2', 'resnet101', 'resnet34'])
 
