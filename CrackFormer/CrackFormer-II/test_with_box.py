@@ -1,5 +1,13 @@
+from utils.utils import *
+from utils.newValidator import *
+from utils.Crackloader import *
+from nets.crackformerII import crackformer
+from nets.SDDNet import SDDNet
+from nets.STRNet import STRNet
+
 import sys
-sys.path.append("/home/wj/local/crack_segmentation")
+sys.path.append('/home/wj/local/crack_segmentation')
+from metric import *
 import os
 import numpy as np
 from pathlib import Path
@@ -8,35 +16,22 @@ import torch
 import torch.nn.functional as F
 from torch.autograd import Variable
 import torchvision.transforms as transforms
-import matplotlib.pyplot as plt
 import argparse
 from os.path import join
 from PIL import Image
 import gc
-from simple_Unetpp import UnetPlusPlus, load_model
 from tqdm import tqdm
-import datetime
-import csv
-from metric import calc_metric
 
 input_size = (448, 448)
-
-def evaluate_img(model, img, test_tfms):
-    X = test_tfms(Image.fromarray(img))
-    X = Variable(X.unsqueeze(0)).cuda()  # [N, 1, H, W]
-
-    mask = model(X)
-
-    mask = F.sigmoid(mask[0, 0]).data.cpu().numpy()
-    return mask
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     # /nfs/DamDetection/data/  /mnt/hangzhou_116_homes/DamDetection/data/  /home/wj/dataset/crack/
-    parser.add_argument('--img_dir',type=str, default='/mnt/hangzhou_116_homes/DamDetection/data', help='input dataset directory')
-    parser.add_argument('--model_path', type=str, default='./checkpoints/Unet++_10.pth', help='trained model path')
-    parser.add_argument('--out_pred_dir', type=str, default='./result_images', required=False,  help='prediction output dir')
-    parser.add_argument('--type', type=str, default='out' , choices=['out', 'metric'])
+    parser.add_argument('--img_dir',type=str, default='/mnt/nfs/wj/data', help='input dataset directory')
+    parser.add_argument('--model_path', type=str, default='model/crackformer_epoch(54).pth', help='trained model path')
+    parser.add_argument('--model_type', type=str, default='crackformer', choices=['crackformer', 'SDDNet', 'STRNet'])
+    parser.add_argument('--out_pred_dir', type=str, default='./test_result', required=False,  help='prediction output dir')
+    parser.add_argument('--type', type=str, default='metric' , choices=['out', 'metric'])
     args = parser.parse_args()
 
     if args.out_pred_dir != '':
@@ -44,11 +39,19 @@ if __name__ == '__main__':
         for path in Path(args.out_pred_dir).glob('*.*'):
             os.remove(str(path))
 
-    model = UnetPlusPlus(num_classes=1)
+    if args.model_type == 'crackformer':
+        model = crackformer()
+    elif args.model_type  == 'SDDNet':
+        model = SDDNet(3, 1)
+    elif args.model_type  == 'STRNet':
+        model = STRNet(3, 1)
+    else:
+        print('undefind model name pattern')
+        exit()
     model.load_state_dict(torch.load(args.model_path))
-    model.cuda()
-    model.eval()
-    # model = nn.DataParallel(model)
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    model.to(device)
+
     if args.type == 'out':
         DIR_IMG = os.path.join(args.img_dir, 'image')
         DIR_GT = ''
@@ -64,8 +67,12 @@ if __name__ == '__main__':
 
     paths = [path for path in Path(DIR_IMG).glob('*.*')]
     metrics=[]
+    valid_log_dir = "./log/" + args.model_type + '/'
+    best_model_dir = "./model/" + args.model_type + "/"
+    validator = Validator(model, valid_log_dir, best_model_dir)
     for path in tqdm(paths):
         print(path)
+
         pred_list = []
         gt_list = []
         test_tfms = transforms.Compose([transforms.ToTensor(), transforms.Normalize(channel_means, channel_stds)])
@@ -82,14 +89,13 @@ if __name__ == '__main__':
             mask_path = os.path.join(DIR_GT, path.stem+'.png')
             lab = cv.imread(mask_path, 0)
         else:
-            lab = np.zeros((img_height, img_width))
+            lab = np.zeros(img_height, img_width)
 
         img_1 = np.zeros((img_height, img_width))
-
         cof = 1
         w, h = int(cof * input_size[0]), int(cof * input_size[1])
         offset = 32
-        
+
         for i in range(0, img_height+h, h):
             for j in range(0, img_width+w, w):
                     i1 = i
@@ -104,21 +110,15 @@ if __name__ == '__main__':
                         j2 = img_width
                     # print(i1, i2, j1, j2)
                     img_pat = img_0[i1:i2 + offset, j1:j2 + offset]
-                    mask_pat = lab[i1:i2 + offset, j1:j2 + offset]
-                    ori_shape = mask_pat.shape
+                    ori_shape = img_pat.shape
                     # print(ori_shape)
-                    if mask_pat.shape != (h+offset, w+offset):
+                    if img_pat.shape != (h+offset, w+offset):
                         img_pat = cv.resize(img_pat, (w+offset, h+offset), cv.INTER_AREA)
-                        mask_pat = cv.resize(mask_pat, (w+offset, h+offset), cv.INTER_AREA)
                         # print(img_pat.shape)
-                        prob_map_full = evaluate_img(model, img_pat, test_tfms)
-                        pred_list.append(prob_map_full)
-                        gt_list.append(mask_pat)
+                        prob_map_full = validator.validate(img_pat)
                         prob_map_full = cv.resize(prob_map_full, (ori_shape[1], ori_shape[0]), cv.INTER_AREA)
                     else:
-                        prob_map_full = evaluate_img(model, img_pat,test_tfms)
-                        pred_list.append(prob_map_full)
-                        gt_list.append(mask_pat)
+                        prob_map_full = validator.validate(img_pat)
                     # print(prob_map_full.shape)
                     img_1[i1:i2 + offset, j1:j2 + offset] += prob_map_full
         img_1[img_1 > 1] = 1
@@ -126,6 +126,28 @@ if __name__ == '__main__':
         #     # img_1[img_1 > 0.3] = 1
         #     # img_1[img_1 <= 0.3] = 0
             cv.imwrite(filename=join(args.out_pred_dir, f'{path.stem}.jpg'), img=(img_1 * 255).astype(np.uint8))
+
+        filepath = os.path.join('/mnt/hangzhou_116_homes/DamDetection/data/result-stride_0.7/Jun02_06_33_42/box', path.stem+'.txt')
+        boxes = []
+        with open(filepath, 'r', encoding='utf-8') as f:
+            for data in f.readlines():
+                box = data.split(' ')[:-1]
+                boxes.append(box)
+        for box in boxes:
+            x1, y1, x2, y2 = box
+            x1 = int(x1)
+            x2 = int(x2)
+            y1 = int(y1)
+            y2 = int(y2)
+            img_pat = img_1[y1:y2,x1:x2]
+            gt_pat = lab[y1:y2, x1:x2]
+            ori_shape = gt_pat.shape
+            img_pat = cv.resize(img_pat, (128, 128), cv.INTER_AREA)
+            gt_pat = cv.resize(gt_pat, (128, 128), cv.INTER_AREA)
+            pred_list.append(img_pat)
+            gt_list.append(gt_pat)
+
+
 
         if args.type == 'metric':
             for i in range(1, 10):
@@ -143,7 +165,6 @@ if __name__ == '__main__':
                     metrics[i-1]['precision'] += metric['precision']
                     metrics[i-1]['recall'] += metric['recall']
                     metrics[i-1]['f1'] += metric['f1']
-
         gc.collect()
     print(metrics)
     if args.type == 'metric':
@@ -156,3 +177,4 @@ if __name__ == '__main__':
                     line =  "threshold:{:d} | accuracy:{:.5f} | precision:{:.5f} | recall:{:.5f} | f1:{:.5f} " \
                         .format(i, metrics[i-1]['accuracy'],  metrics[i-1]['precision'],  metrics[i-1]['recall'],  metrics[i-1]['f1']) + '\n'
                     fout.write(line)
+

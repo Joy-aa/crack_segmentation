@@ -30,7 +30,7 @@ class Config:
     pretrained_model = '/home/wj/local/crack_segmentation/CrackFormer/CrackFormer-II/model/epoch(123)_acc(0.61-0.98).pth'
     weight_decay = 0.0000
     lr_decay = 0.1
-    lr = 1e-3
+    lr = 1e-4
     momentum = 0.9
     use_adam = False  # Use Adam optimizer
     train_batch_size = 8

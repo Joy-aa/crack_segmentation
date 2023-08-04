@@ -17,7 +17,7 @@ def safe_forward(model, im, seg, inter_s8=None, inter_s4=None):
 
         p_im[:,:,0:ph,0:pw] = im
         p_seg[:,:,0:ph,0:pw] = seg
-        im = p_im
+        im = p_im # 相当于一次padding，并且只对右边和下边进行
         seg = p_seg
 
         if inter_s8 is not None:
@@ -185,10 +185,12 @@ def process_im_single_pass(model, im, seg, min_size, para):
 
     _, _, h, w = im.shape
     if max(h, w) < min_size:
+        # 保持原比例上采样长边为min_size
         im = resize_max_side(im, min_size, 'bicubic')
         seg = resize_max_side(seg, min_size, 'bilinear')
 
     if max(h, w) > max_size:
+        # 保持原比例下采样长边为max_size
         im = resize_max_side(im, max_size, 'area')
         seg = resize_max_side(seg, max_size, 'area')
 

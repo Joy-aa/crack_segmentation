@@ -1,0 +1,10 @@
+model/crackformer_epoch(10).pth
+threshold:1 | accuracy:0.99203 | precision:0.29875 | recall:0.56456 | f1:0.36363 
+threshold:2 | accuracy:0.99255 | precision:0.31093 | recall:0.54362 | f1:0.36793 
+threshold:3 | accuracy:0.99286 | precision:0.31893 | recall:0.52941 | f1:0.37011 
+threshold:4 | accuracy:0.99309 | precision:0.32546 | recall:0.51736 | f1:0.37143 
+threshold:5 | accuracy:0.99330 | precision:0.33160 | recall:0.50606 | f1:0.37240 
+threshold:6 | accuracy:0.99349 | precision:0.33772 | recall:0.49414 | f1:0.37288 
+threshold:7 | accuracy:0.99370 | precision:0.34468 | recall:0.48064 | f1:0.37307 
+threshold:8 | accuracy:0.99394 | precision:0.35355 | recall:0.46263 | f1:0.37246 
+threshold:9 | accuracy:0.99428 | precision:0.36854 | recall:0.43154 | f1:0.36957 

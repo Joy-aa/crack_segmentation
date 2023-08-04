@@ -26,14 +26,14 @@ class Parser():
 
         parser = ArgumentParser()
 
-        parser.add_argument('--dir', default='/home/wj/dataset/crack/image', help='Directory with testing images')
-        parser.add_argument('--model',default='/home/wj/local/crack_segmentation/CascadePSP/checkpoints/model_44300', help='Pretrained model')
+        parser.add_argument('--dir', default='/mnt/nfs/wj/data/image', help='Directory with testing images')
+        parser.add_argument('--model',default='/home/wj/local/crack_segmentation/CascadePSP/weights/1_2023-06-01_14:28:32/model_44300', help='Pretrained model')
         parser.add_argument('--output', default='/home/wj/local/crack_segmentation/CascadePSP/results', help='Output directory')
 
         parser.add_argument('--global_only', help='Global step only', action='store_true')
 
-        parser.add_argument('--L', help='Parameter L used in the paper', type=int, default=900)
-        parser.add_argument('--stride', help='stride', type=int, default=450)
+        parser.add_argument('--L', help='Parameter L used in the paper', type=int, default=256)
+        parser.add_argument('--stride', help='stride', type=int, default=64)
 
         parser.add_argument('--clear', help='Clear pytorch cache?', action='store_true')
 
@@ -95,18 +95,18 @@ with torch.no_grad():
 
         images['im'] = im
         images['seg'] = seg
-        images['gt'] = gt
+        images['gt'] = gt.cuda()
 
         # Suppress close-to-zero segmentation input
         for b in range(seg.shape[0]):
             if (seg[b]+1).sum() < 2:
                 images['pred_224'][b] = 0
 
-        # Save output images
+       # Save output images
         for i in range(im.shape[0]):
-            print(torch.max(images['pred_224'][i]))
-            print(torch.max(gt[i]))
-            metric = calc_metric(images['pred_224'][i], gt[i], mode='tensor', threshold=0.5, max_value=1)
+            # print(torch.max(images['pred_224'][i]))
+            # print(torch.max(images['gt'][i]))
+            metric = calc_metric(images['pred_224'][i], images['gt'][i], mode='tensor', threshold=0.1, max_value=1)
             metrics['accuracy'] += metric['accuracy'] / len(val_loader)
             metrics['precision'] += metric['precision'] / len(val_loader)
             metrics['recall'] += metric['recall'] / len(val_loader)
@@ -118,7 +118,7 @@ with torch.no_grad():
             #     ,tensor_to_seg(images['seg'][i]))
             # cv2.imwrite(path.join(para['output'], '%s_gt.png' % (name[i]))
             #     ,tensor_to_gray_im(gt[i]))
-            cv2.imwrite(path.join(para['output'], '%s_mask.png' % (name[i]))
+            cv2.imwrite(path.join(para['output'], '%s.png' % (name[i]))
                 ,tensor_to_gray_im(images['pred_224'][i]))
 with open('result.txt', 'a', encoding='utf-8') as fout:
             print(metrics)
