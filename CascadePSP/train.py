@@ -66,9 +66,9 @@ optimizer = optim.Adam(model.parameters(), lr=para['lr'], weight_decay=para['wei
 
 # train_dataset = ConcatDataset([fss_dataset, duts_tr_dataset, duts_te_dataset, ecssd_dataset, msra_dataset])
 
-data_dir = '/mnt/hangzhou_116_homes/wj/192_255_segmentation/'
-DIR_IMG  = os.path.join(data_dir, 'imgs')
-DIR_MASK  = os.path.join(data_dir, 'masks')
+data_dir = '/mnt/hangzhou_116_homes/wj/DamCrack/'
+DIR_IMG  = os.path.join(data_dir, 'train_image')
+DIR_MASK  = os.path.join(data_dir, 'train_label')
 DIR_SEG = os.path.join(data_dir, "segs")
 dataset = OnlineTransformDataset(DIR_IMG, DIR_MASK, method=1, perturb=True)
 # val_dataset = OfflineDataset(DIR_IMG, need_name=True, resize=False, do_crop=False)
@@ -89,8 +89,8 @@ sobel_compute = SobelComputer()
 scheduler = optim.lr_scheduler.MultiStepLR(optimizer, para['steps'], para['gamma'])
 
 saver = ModelSaver(long_id)
-report_interval = 200
-save_im_interval = 800
+report_interval = 1000
+save_im_interval = 200
 
 total_epoch = int(para['iterations']/len(train_loader) + 0.5)
 print('Actual training epoch: ', total_epoch)

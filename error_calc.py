@@ -81,6 +81,7 @@ def crack_measure_single(img, xmin, ymin, xmax, ymax):
             endpoints.append((j, i))
 
     # cv.imwrite(f"./work_dir/{xmin}_{ymin}line-color-before.jpg", contour_img)
+    cv.imwrite('test.jpg', sub_image)
 
     directions = [
         (1, -1), (1, 0), (1, 1),
@@ -238,9 +239,8 @@ def denoise(image):
                     ]:
                         pt = (p[0] + dx, p[1] + dy)
                         # for k in range(2):
-
                         if pt[0] < 0 or pt[0] >= image.shape[0] or pt[1] < 0 or pt[1] >= image.shape[1]:
-                                continue
+                            continue
                         if image[pt[0]][pt[1]] == 255:
                             image[pt[0]][pt[1]] = 0
                             q.put((pt[0], pt[1]))
@@ -249,11 +249,39 @@ def denoise(image):
                     mx.clear()
                     for t in v:
                         mx.append(t)
+    for pt in mx:
+        image[pt[0]][pt[1]]=255
 
     return image
 
 
+def fill_in(image, maxValue=1):
+    directions = [
+        (1, 0), (-1, 0), (0, 1), (0, -1),
+        (1, -1), (1, 1), (-1, -1), (-1, 1)
+    ]
+    for i in range(image.shape[0]):
+        for j in range(image.shape[1]):
+            cnt = 0
+            for dire in directions:
+                if i + dire[0] < 0 or i + dire[0] >= image.shape[0] or j + dire[1] < 0 or j + dire[1] >= image.shape[1]:
+                    cnt += 1
+                    continue
+                if image[i + dire[0]][j + dire[1]] > 50:
+                    cnt += 1
+            if cnt >= 7:
+                image[i][j] = maxValue
+    return image
+    pass
+
+
 def error_calc(image, label):
+    image = np.pad(image, pad_width=1, mode='constant', constant_values=0)
+    label = np.pad(label, pad_width=1, mode='constant', constant_values=0)
+    _, image = cv.threshold(image, 50, 255, cv.THRESH_BINARY)
+    _, label = cv.threshold(label, 0, 255, cv.THRESH_BINARY)
+    image = fill_in(image, 255)
+    label = fill_in(label, 255)
     image = denoise(image)
     label = denoise(label)
     res = []
@@ -265,9 +293,12 @@ def error_calc(image, label):
     res.append(a)
     res.append(b)
     res.append(c)
+    cnt=0
     for i in range(3):
-        if(res[i] == 0):
-            res.append(1)
+        if res[i] == 0:
+            cv.imwrite('label'+str(cnt)+'.png', label)
+            cv.imwrite('image'+str(cnt)+'.jpg', image)
+            res.append(0)
         else:
             res.append(res[i + 3] / res[i])
     return res
@@ -275,24 +306,25 @@ def error_calc(image, label):
 
 if __name__ == '__main__':
     label_dir = '/mnt/nfs/wj/data/new_label'
-    mask_dir = '/home/wj/local/crack_segmentation/CrackFormer/CrackFormer-II/test_result'
+    # label_dir = '/nfs/wj/data/new_label'
+    # mask_dir = '/home/wj/local/crack_segmentation/CrackFormer/CrackFormer-II/test_result'
+    mask_dir = '/mnt/nfs/wj/test_result'
 
     paths = [path for path in Path(mask_dir).glob('*.*')]
     path = paths[0]
     print(path)
-    label_path = os.path.join(label_dir, path.stem+'.png')
+    label_path = os.path.join(label_dir, path.stem + '.png')
     mask_path = os.path.join(mask_dir, path.name)
     filepath = os.path.join('/mnt/nfs/wj/result-stride_0.7/Jun02_06_33_42/box', path.stem+'.txt')
+    # filepath = os.path.join('/nfs/wj/result-stride_0.7/Jun02_06_33_42/box', path.stem + '.txt')
     boxes = []
     with open(filepath, 'r', encoding='utf-8') as f:
-            for data in f.readlines():
-                box = data.split(' ')[:-1]
-                boxes.append(box)
+        for data in f.readlines():
+            box = data.split(' ')[:-1]
+            boxes.append(box)
     label = cv.imread(label_path, 0)
     mask = cv.imread(mask_path, 0)
-    # mask[mask>125] = 255
-    # mask[mask<=125] = 0
-    length_error = 0
+    length = 0
     for box in boxes:
         x1, y1, x2, y2 = box
         x1 = int(x1)
@@ -303,8 +335,7 @@ if __name__ == '__main__':
         mask_pat = mask[y1:y2, x1:x2]
         res = error_calc(mask_pat, label_pat)
         print(res)
-        length_error += res[-1] / len(boxes)
+        length += res[-1] / len(boxes)
+        # print(length)
 
-    print(length_error)
-
-
+    print(length)
