@@ -19,7 +19,7 @@ def get_optimizer(model):
 class Trainer(nn.Module):
     def __init__(self, model):
         super(Trainer, self).__init__()
-        self.vis = Visualizer(env=cfg.vis_env)
+        # self.vis = Visualizer(env=cfg.vis_env)
         self.model = model
 
         self.saver = Checkpointer(cfg.name, cfg.checkpoint_path, overwrite=False, verbose=True, timestamp=True,
@@ -48,7 +48,7 @@ class Trainer(nn.Module):
         fuse2_loss = self.mask_loss(pred_fuse2.view(-1, 1), target.view(-1, 1)) / cfg.train_batch_size + dice_loss(F.sigmoid(pred_fuse2.squeeze(1)), target.squeeze(1).float(), multiclass=False)
         fuse1_loss = self.mask_loss(pred_fuse1.view(-1, 1), target.view(-1, 1)) / cfg.train_batch_size + dice_loss(F.sigmoid(pred_fuse1.squeeze(1)), target.squeeze(1).float(), multiclass=False)
 
-        total_loss = output_loss + fuse5_loss + fuse4_loss + fuse3_loss + fuse2_loss + fuse1_loss
+        total_loss = 5*output_loss + fuse5_loss + fuse4_loss + fuse3_loss + fuse2_loss + fuse1_loss
         total_loss.backward()
         self.optimizer.step()
 
@@ -77,7 +77,7 @@ class Trainer(nn.Module):
         fuse1_loss = self.mask_loss(pred_fuse1.view(-1, 1), target.view(-1, 1)) / cfg.val_batch_size + dice_loss(F.sigmoid(pred_fuse1.squeeze(1)), target.squeeze(1).float(), multiclass=False)
 
 
-        total_loss = output_loss + fuse5_loss + fuse4_loss + fuse3_loss + fuse2_loss + fuse1_loss
+        total_loss = 5*output_loss + fuse5_loss + fuse4_loss + fuse3_loss + fuse2_loss + fuse1_loss
 
         self.log_loss = {
             'total_loss': total_loss.item(),

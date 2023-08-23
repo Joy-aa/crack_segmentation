@@ -87,37 +87,40 @@ def Test(valid_img_dir, valid_lab_dir, valid_result_dir, valid_log_dir, best_mod
         pred_mask = (img_1 * 255).astype(np.uint8)
         cv.imwrite(filename=os.path.join(valid_result_dir, f'{path.stem}.jpg'), img=pred_mask)
 
-        for i in range(1, 10):
-                threshold = i / 10
-                metric = calc_metric(pred_list, gt_list, mode='list', threshold=threshold)
-                print(metric)
-                metric['accuracy'] = metric['accuracy'] / len(paths)
-                metric['precision'] = metric['precision'] / len(paths)
-                metric['recall'] = metric['recall'] / len(paths)
-                metric['f1'] = metric['f1'] / len(paths)
-                if len(metrics) < i:
-                    metrics.append(metric)
-                else:
-                    metrics[i-1]['accuracy'] += metric['accuracy']
-                    metrics[i-1]['precision'] += metric['precision']
-                    metrics[i-1]['recall'] += metric['recall']
-                    metrics[i-1]['f1'] += metric['f1']
-    print(metrics)
-    d = datetime.today()
-    datetime.strftime(d,'%Y-%m-%d %H-%M-%S')
-    os.makedirs('./result_dir', exist_ok=True)
-    with open(os.path.join('./result_dir', str(d)+'.txt'), 'a', encoding='utf-8') as fout:
-                fout.write(pretrained_model+'\n')
-                for i in range(1, 10): 
-                    line =  "threshold:{:d} | accuracy:{:.5f} | precision:{:.5f} | recall:{:.5f} | f1:{:.5f} " \
-                        .format(i, metrics[i-1]['accuracy'],  metrics[i-1]['precision'],  metrics[i-1]['recall'],  metrics[i-1]['f1']) + '\n'
-                    fout.write(line)
+        if valid_lab_dir != '':
+            for i in range(1, 10):
+                    threshold = i / 10
+                    metric = calc_metric(pred_list, gt_list, mode='list', threshold=threshold)
+                    print(metric)
+                    metric['accuracy'] = metric['accuracy'] / len(paths)
+                    metric['precision'] = metric['precision'] / len(paths)
+                    metric['recall'] = metric['recall'] / len(paths)
+                    metric['f1'] = metric['f1'] / len(paths)
+                    if len(metrics) < i:
+                        metrics.append(metric)
+                    else:
+                        metrics[i-1]['accuracy'] += metric['accuracy']
+                        metrics[i-1]['precision'] += metric['precision']
+                        metrics[i-1]['recall'] += metric['recall']
+                        metrics[i-1]['f1'] += metric['f1']
+    if valid_lab_dir != '':
+        print(metrics)
+        d = datetime.today()
+        datetime.strftime(d,'%Y-%m-%d %H-%M-%S')
+        os.makedirs('./result_dir', exist_ok=True)
+        with open(os.path.join('./result_dir', str(d)+'.txt'), 'a', encoding='utf-8') as fout:
+                    fout.write(pretrained_model+'\n')
+                    for i in range(1, 10): 
+                        line =  "threshold:{:d} | accuracy:{:.5f} | precision:{:.5f} | recall:{:.5f} | f1:{:.5f} " \
+                            .format(i, metrics[i-1]['accuracy'],  metrics[i-1]['precision'],  metrics[i-1]['recall'],  metrics[i-1]['f1']) + '\n'
+                        fout.write(line)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--img_dir',type=str, default='/nfs/DamDetection/data', help='input dataset directory')
-    parser.add_argument('--model_path', type=str, default='model/crackformer_epoch(10).pth', help='trained model path')
+    # /mnt/nfs/wj/data/ /mnt/ningbo_nfs_36/wj/data/ /mnt/hangzhou_116_homes/DamDetection/data/dataV2
+    parser.add_argument('--img_dir',type=str, default='/mnt/nfs/wj/data/', help='input dataset directory')
+    parser.add_argument('--model_path', type=str, default='model/crackformer_epoch(36).pth', help='trained model path')
     parser.add_argument('--model_type', type=str, default='crackformer', choices=['crackformer', 'SDDNet', 'STRNet'])
     parser.add_argument('--out_pred_dir', type=str, default='./test_result', required=False,  help='prediction output dir')
     parser.add_argument('--type', type=str, default='metric' , choices=['out', 'metric'])
@@ -155,5 +158,8 @@ if __name__ == '__main__':
     valid_log_dir = "./log/" + args.model_type + '/'
     best_model_dir = "./model/" + args.model_type + "/"
     # image_format = "jpg"
+
+    torch.set_num_threads(1)
+    torch.backends.cudnn.benchmark = True
 
     Test(DIR_IMG, DIR_GT, args.out_pred_dir, valid_log_dir, best_model_dir, model, args.model_path)

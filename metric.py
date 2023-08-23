@@ -92,21 +92,37 @@ if __name__ == "__main__":
     from tqdm import tqdm
     import cv2 as cv
     import os
-    DIR_PRED = '/nfs/ymd/result/preprocess'
-    DIR_GT = '/nfs/DamDetection/data/new_label'
+    DIR_PRED = '/home/wj/local/crack_segmentation/CascadePSP/results_box'
+    DIR_GT = '/mnt/nfs/wj/data/new_label'
     paths = [path for path in Path(DIR_PRED).glob('*.*')]
-    metrics = {
-                'accuracy': 0,
-                'neg_accuracy': 0,
-                'precision': 0,
-                'recall': 0,
-                'f1': 0,}
+    metrics=[]
     for path in tqdm(paths):
+        print(str(path))
         mask = cv.imread(str(path), 0)
-        gt = cv.imread(os.path.join(DIR_GT, path.name), 0)
-        metric = calc_metric(mask, gt, 'list')
-        metrics['accuracy'] += metric['accuracy'] / len(paths)
-        metrics['precision'] += metric['precision'] / len(paths)
-        metrics['recall'] += metric['recall'] / len(paths)
-        metrics['f1'] += metric['f1'] / len(paths)
+        mask = mask / 255.0
+        gt = cv.imread(os.path.join(DIR_GT, path.stem+'.png'), 0)
+        for i in range(1, 10):
+                    threshold = i / 10
+                    metric = calc_metric(mask, gt, mode='list', threshold=threshold)
+                    print(metric)
+                    metric['accuracy'] = metric['accuracy'] / len(paths)
+                    metric['precision'] = metric['precision'] / len(paths)
+                    metric['recall'] = metric['recall'] / len(paths)
+                    metric['f1'] = metric['f1'] / len(paths)
+                    if len(metrics) < i:
+                        metrics.append(metric)
+                    else:
+                        metrics[i-1]['accuracy'] += metric['accuracy']
+                        metrics[i-1]['precision'] += metric['precision']
+                        metrics[i-1]['recall'] += metric['recall']
+                        metrics[i-1]['f1'] += metric['f1']
     print(metrics)
+    d = datetime.today()
+    datetime.strftime(d,'%Y-%m-%d %H-%M-%S')
+    os.makedirs('./result_dir', exist_ok=True)
+    with open(os.path.join('./result_dir', str(d)+'.txt'), 'a', encoding='utf-8') as fout:
+            # fout.write(para['model']+'\n')
+            for i in range(1, 10): 
+                    line =  "threshold:{:d} | accuracy:{:.5f} | precision:{:.5f} | recall:{:.5f} | f1:{:.5f} " \
+                        .format(i, metrics[i-1]['accuracy'],  metrics[i-1]['precision'],  metrics[i-1]['recall'],  metrics[i-1]['f1']) + '\n'
+                    fout.write(line)

@@ -5,7 +5,7 @@ class HyperParameters():
         parser = ArgumentParser()
 
         # Generic learning parameters
-        parser.add_argument('-i', '--iterations', help='Number of training iterations', default=4.5e4, type=int)
+        parser.add_argument('-i', '--iterations', help='Number of training iterations', default=2.5e5, type=int)
         parser.add_argument('-b', '--batch_size', help='Batch size', default=12, type=int)
         parser.add_argument('--lr', help='Initial learning rate', default=2.25e-4, type=float)
         parser.add_argument('--steps', help='Iteration at which learning rate is decayed by gamma', default=[22500, 37500], type=int, nargs='*')

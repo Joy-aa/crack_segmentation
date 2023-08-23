@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader, ConcatDataset
 
 from models.psp.pspnet import PSPNet
 from models.sobel_op import SobelComputer
-from dataset import OnlineTransformDataset
+from dataset import OnlineTransformDataset, OfflineDataset
 from util.logger import BoardLogger
 from util.model_saver import ModelSaver
 from util.hyper_para import HyperParameters
@@ -39,6 +39,8 @@ model = PSPNet(sizes=(1, 2, 3, 6), psp_size=2048, deep_features_size=1024, backe
 model = nn.DataParallel(
         model.cuda(), device_ids=[0,1]
     )
+# device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+# model.to(device)
 
 if para['load'] is not None:
     model.load_state_dict(torch.load(para['load']))
@@ -64,9 +66,12 @@ optimizer = optim.Adam(model.parameters(), lr=para['lr'], weight_decay=para['wei
 
 # train_dataset = ConcatDataset([fss_dataset, duts_tr_dataset, duts_te_dataset, ecssd_dataset, msra_dataset])
 
-DIR_IMG  = os.path.join("/mnt/nfs/wj/DamCrack/", 'image1')
-DIR_MASK  = os.path.join("/mnt/nfs/wj/DamCrack/", 'label1')
+data_dir = '/mnt/hangzhou_116_homes/wj/DamCrack/'
+DIR_IMG  = os.path.join(data_dir, 'train_image')
+DIR_MASK  = os.path.join(data_dir, 'train_label')
+DIR_SEG = os.path.join(data_dir, "segs")
 dataset = OnlineTransformDataset(DIR_IMG, DIR_MASK, method=1, perturb=True)
+# val_dataset = OfflineDataset(DIR_IMG, need_name=True, resize=False, do_crop=False)
 train_dataset = ConcatDataset([dataset])
 print('Total training size: ', len(train_dataset))
 
@@ -87,8 +92,8 @@ torch.set_num_threads(1)
 torch.backends.cudnn.benchmark = True
 
 saver = ModelSaver(long_id)
-report_interval = 200
-save_im_interval = 800
+report_interval = 1000
+save_im_interval = 200
 
 total_epoch = int(para['iterations']/len(train_loader) + 0.5)
 print('Actual training epoch: ', total_epoch)

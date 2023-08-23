@@ -27,7 +27,7 @@ class Config:
 
     # training
     epoch = 500
-    pretrained_model = 'checkpoints/DeepCrack_CT260_FT1/epoch(1)_acc(0.08527-0.99589).pth'
+    pretrained_model = 'checkpoints/DeepCrack_CT260_FT1/epoch(12)_acc(0.32637-0.99587).pth'
     weight_decay = 0.0000
     lr_decay = 0.5
     lr = 1e-4

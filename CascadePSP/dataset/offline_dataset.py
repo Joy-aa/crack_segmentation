@@ -81,7 +81,7 @@ class OfflineDataset(Dataset):
         dirStr, _ = os.path.splitext(im)
         img_name = dirStr.split("/")[-1]
         print(img_name)
-        gt_path = os.path.join("/home/wj/dataset/crack", "new_label", img_name+".png")
+        gt_path = os.path.join("/mnt/nfs/wj/data", "new_label", img_name+".png")
         seg_path = os.path.join("/home/wj/local/crack_segmentation/CrackFormer/CrackFormer-II/test_result", img_name+".jpg" )
         # print(im)
         # print(gt_path)
