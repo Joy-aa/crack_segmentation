@@ -95,7 +95,7 @@ with torch.no_grad():
 
         images['im'] = im
         images['seg'] = seg
-        images['gt'] = gt
+        images['gt'] = gt.cuda(1)
 
         # Suppress close-to-zero segmentation input
         for b in range(seg.shape[0]):
@@ -104,9 +104,9 @@ with torch.no_grad():
 
         # Save output images
         for i in range(im.shape[0]):
-            print(torch.max(images['pred_224'][i]))
-            print(torch.max(gt[i]))
-            metric = calc_metric(images['pred_224'][i], gt[i], mode='tensor', threshold=0.5, max_value=1)
+            # print(torch.max(images['pred_224'][i]))
+            # print(torch.max(images['gt'][i]))
+            metric = calc_metric(images['pred_224'][i], images['gt'][i], mode='tensor', threshold=0.1, max_value=1)
             metrics['accuracy'] += metric['accuracy'] / len(val_loader)
             metrics['precision'] += metric['precision'] / len(val_loader)
             metrics['recall'] += metric['recall'] / len(val_loader)
@@ -118,7 +118,7 @@ with torch.no_grad():
             #     ,tensor_to_seg(images['seg'][i]))
             # cv2.imwrite(path.join(para['output'], '%s_gt.png' % (name[i]))
             #     ,tensor_to_gray_im(gt[i]))
-            cv2.imwrite(path.join(para['output'], '%s_mask.png' % (name[i]))
+            cv2.imwrite(path.join(para['output'], '%s.png' % (name[i]))
                 ,tensor_to_gray_im(images['pred_224'][i]))
 with open('result.txt', 'a', encoding='utf-8') as fout:
             print(metrics)

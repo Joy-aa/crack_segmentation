@@ -64,8 +64,8 @@ optimizer = optim.Adam(model.parameters(), lr=para['lr'], weight_decay=para['wei
 
 # train_dataset = ConcatDataset([fss_dataset, duts_tr_dataset, duts_te_dataset, ecssd_dataset, msra_dataset])
 
-DIR_IMG  = os.path.join("/mnt/hangzhou_116_homes/ymd/DamCrack/", 'image')
-DIR_MASK  = os.path.join("/mnt/hangzhou_116_homes/ymd/DamCrack/", 'label')
+DIR_IMG  = os.path.join("/mnt/nfs/wj/DamCrack/", 'image1')
+DIR_MASK  = os.path.join("/mnt/nfs/wj/DamCrack/", 'label1')
 dataset = OnlineTransformDataset(DIR_IMG, DIR_MASK, method=1, perturb=True)
 train_dataset = ConcatDataset([dataset])
 print('Total training size: ', len(train_dataset))
@@ -83,8 +83,11 @@ sobel_compute = SobelComputer()
 # Learning rate decay scheduling
 scheduler = optim.lr_scheduler.MultiStepLR(optimizer, para['steps'], para['gamma'])
 
+torch.set_num_threads(1)
+torch.backends.cudnn.benchmark = True
+
 saver = ModelSaver(long_id)
-report_interval = 50
+report_interval = 200
 save_im_interval = 800
 
 total_epoch = int(para['iterations']/len(train_loader) + 0.5)

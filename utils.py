@@ -239,7 +239,7 @@ if __name__ == "__main__":
     # save_img_path = 'cut_data/img'
     # save_label_path = 'cut_data/label'
 
-    data_dir = '/mnt/hangzhou_116_homes/ymd/DamCrack'
+    data_dir = '/mnt/ningbo_nfs_36/wj/DamCrack'
     TRAIN_IMG  = os.path.join(data_dir, 'train_image')
     TRAIN_MASK = os.path.join(data_dir, 'train_label')
     VALID_IMG = os.path.join(data_dir, 'val_image')
@@ -249,19 +249,19 @@ if __name__ == "__main__":
     train_paths  = [path for path in Path(TRAIN_IMG).glob('*.jpg')]
     valid_paths  = [path for path in Path(VALID_IMG).glob('*.jpg')]
 
-    # print(f'total train images = {len(train_img_names)}')
+    print(f'total train images = {len(train_paths)}')
     # print(f'total valid images = {len(valid_img_names)}')
     
-    with open('/home/wj/local/crack_segmentation/DeepCrack/codes/data/train_example.txt','w') as f:    #设置文件对象
-        for path in train_paths:
-            str = os.path.join(TRAIN_IMG, path.name) + ' ' + os.path.join(TRAIN_MASK, path.stem+'.bmp')
-            f.write(str + '\n')  
+    # with open('/home/wj/local/crack_segmentation/DeepCrack/codes/data/train_example.txt','w') as f:    #设置文件对象
+    #     for path in train_paths:
+    #         str = os.path.join(TRAIN_IMG, path.name) + ' ' + os.path.join(TRAIN_MASK, path.stem+'.bmp')
+    #         f.write(str + '\n')  
 
 
-    with open('/home/wj/local/crack_segmentation/DeepCrack/codes/data/val_example.txt','w') as f:    #设置文件对象
-        for path in valid_paths:
-            str = os.path.join(VALID_IMG, path.name) + ' ' + os.path.join(VALID_MASK, path.stem+'.bmp')
-            f.write(str + '\n')  
+    # with open('/home/wj/local/crack_segmentation/DeepCrack/codes/data/val_example.txt','w') as f:    #设置文件对象
+    #     for path in valid_paths:
+    #         str = os.path.join(VALID_IMG, path.name) + ' ' + os.path.join(VALID_MASK, path.stem+'.bmp')
+    #         f.write(str + '\n')  
     # img_paths  = [path for path in Path(DIR_MASK).glob('noncrack*.bmp')]
     # # mask_paths = [path for path in Path(DIR_MASK).glob('Crack500*.jpg')]
     # # print(len(img_paths))

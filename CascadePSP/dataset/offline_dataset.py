@@ -91,8 +91,8 @@ class OfflineDataset(Dataset):
         image = ImageOps.exif_transpose(image)
         gt = ImageOps.exif_transpose(gt)
         seg = ImageOps.exif_transpose(seg)
-        print(image.size)
-        print(seg.size)
+        # print(image.size)
+        # print(seg.size)
 
         return image, seg, gt
 
