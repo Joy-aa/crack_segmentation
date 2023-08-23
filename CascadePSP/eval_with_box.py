@@ -31,7 +31,7 @@ class Parser():
 
         parser.add_argument('--dir', default='/mnt/nfs/wj/data', help='Directory with testing images')
         parser.add_argument('--model',default='/home/wj/local/crack_segmentation/CascadePSP/weights/1_2023-08-03_15:28:58/model_246720', help='Pretrained model')
-        parser.add_argument('--output', default='/home/wj/local/crack_segmentation/CascadePSP/results', help='Output directory')
+        parser.add_argument('--output', default='/home/wj/local/crack_segmentation/CascadePSP/results_box', help='Output directory')
 
         parser.add_argument('--global_only', help='Global step only', action='store_true')
 
@@ -117,55 +117,48 @@ for path in paths:
     if DIR_GT != '':
             mask_path = os.path.join(DIR_GT, path.stem+'.png')
             lab = cv2.imread(mask_path, 0)
-            lab = np.reshape(lab, (img_height, img_width))
     else:
             lab = np.zeros((img_height, img_width))
 
     if DIR_PRED != '':
             seg_path = os.path.join(DIR_PRED, path.stem+'.jpg')
             seg = cv2.imread(seg_path, 0)
-            # seg = np.reshape(seg, (1, 1, img_height, img_width))
     else:
             seg = np.zeros((img_height, img_width))
-    img_0 = im_transform(img_0).unsqueeze(0).cuda()
+    # img_0 = im_transform(img_0).unsqueeze(0).cuda()
     # print(img_0.shape)
-    seg = seg_transform(seg).unsqueeze(0).cuda()
+    # seg = seg_transform(seg).unsqueeze(0).cuda()
     # print(seg.shape)
-    with torch.no_grad():
-        for i in range(0, img_height+h, h):
-                    for j in range(0, img_width+w, w):
-                        i1 = i
-                        j1 = j
-                        i2 = i + h
-                        j2 = j + w
-                        if i2>img_height:
-                            i1 = max(0, img_height - h)
-                            i2 = img_height
-                        if j2>img_width:
-                            j1 = max(0, img_width - w)
-                            j2 = img_width
-                        img_pat = img_0[:,:, i1:i2 + offset, j1:j2 + offset]
-                        mask_pat = lab[i1:i2 + offset, j1:j2 + offset]
-                        seg_pat = seg[:,:, i1:i2 + offset, j1:j2 + offset]
-                        ori_shape = mask_pat.shape
-                        if i2-i1 != h+offset or j2-j1 != w+offset:
-                            img_pat = F.interpolate(img_pat, size= (h+offset, w+offset), mode='bilinear', align_corners=False)
-                            mask_pat = cv2.resize(mask_pat, (w+offset, h+offset), cv2.INTER_AREA)
-                            seg_pat = F.interpolate(seg_pat, size=(h+offset, w+offset), mode='bilinear', align_corners=False)
-                            images = model(img_pat, seg_pat)
-                            prob_map_full = images['pred_224'].data.cpu().numpy()[0,0]
-                            pred_list.append(prob_map_full)
-                            gt_list.append(mask_pat)
-                            prob_map_full = cv2.resize(prob_map_full, (ori_shape[1], ori_shape[0]), cv2.INTER_AREA)
-                        else:
-                            images = model(img_pat, seg_pat)
-                            prob_map_full = images['pred_224'].data.cpu().numpy()[0,0]
-                            pred_list.append(prob_map_full)
-                            gt_list.append(mask_pat)
-                        # print(seg_pat.shape)
-                        # print(prob_map_full.shape)
-                        img_1[i1:i2 + offset, j1:j2 + offset] += prob_map_full
-    img_1[img_1 > 1] = 1
+    filepath = os.path.join('/mnt/hangzhou_116_homes/DamDetection/data/result-stride_0.7/Jun02_06_33_42/box', path.stem+'.txt')
+    boxes = []
+    with open(filepath, 'r', encoding='utf-8') as f:
+            for data in f.readlines():
+                box = data.split(' ')[:-1]
+                boxes.append(box)
+    for box in boxes:
+            x1, y1, x2, y2 = box
+            x1 = int(x1)
+            x2 = int(x2)
+            y1 = int(y1)
+            y2 = int(y2)
+            img_pat = img_0[y1:y2,x1:x2]
+            mask_pat = lab[y1:y2,x1:x2]
+            seg_pat = seg[y1:y2,x1:x2]
+            ori_shape = seg_pat.shape
+            if y2-y1 != 64 or x2 -x1 != 64:
+                            img_pat = cv2.resize(img_pat, (64, 64), cv2.INTER_AREA)
+                            mask_pat = cv2.resize(mask_pat, (64, 64), cv2.INTER_AREA)
+                            seg_pat = cv2.resize(seg_pat, (64, 64), cv2.INTER_AREA)
+            with torch.no_grad():
+                input_img = im_transform(img_pat).unsqueeze(0).cuda()
+                input_seg = seg_transform(seg_pat).unsqueeze(0).cuda()
+                images = model(input_img, input_seg)
+                prob_map_full = images['pred_224'].data.cpu().numpy()[0,0]
+                pred_list.append(prob_map_full)
+                gt_list.append(mask_pat)
+            if prob_map_full.shape != ori_shape:
+                prob_map_full = cv2.resize(prob_map_full, (ori_shape[1], ori_shape[0]), cv2.INTER_AREA)
+            img_1[y1:y2,x1:x2] = prob_map_full
     pred_mask = (img_1 * 255).astype(np.uint8)
     cv2.imwrite(filename=os.path.join(para['output'], f'{path.stem}.png'), img=pred_mask)
 

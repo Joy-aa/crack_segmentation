@@ -13,3 +13,5 @@ notebooks/**
 log/**
 **.ipynb
 CascadePSP/weights/**
+work_dir/**
+result_dir/**

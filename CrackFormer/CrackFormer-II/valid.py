@@ -120,7 +120,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     # /mnt/nfs/wj/data/ /mnt/ningbo_nfs_36/wj/data/ /mnt/hangzhou_116_homes/DamDetection/data/dataV2
     parser.add_argument('--img_dir',type=str, default='/mnt/nfs/wj/data/', help='input dataset directory')
-    parser.add_argument('--model_path', type=str, default='model/crackformer_epoch(68).pth', help='trained model path')
+    parser.add_argument('--model_path', type=str, default='model/crackformer_epoch(36).pth', help='trained model path')
     parser.add_argument('--model_type', type=str, default='crackformer', choices=['crackformer', 'SDDNet', 'STRNet'])
     parser.add_argument('--out_pred_dir', type=str, default='./test_result', required=False,  help='prediction output dir')
     parser.add_argument('--type', type=str, default='metric' , choices=['out', 'metric'])
