@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torch.utils.data import DataLoader
 import progressbar
 import cv2
@@ -8,16 +9,18 @@ from models.psp.pspnet import PSPNet
 from dataset import OfflineDataset, SplitTransformDataset
 from util.image_saver import tensor_to_im, tensor_to_gray_im, tensor_to_seg
 from util.hyper_para import HyperParameters
-from eval_helper import process_high_res_im, process_im_single_pass
+from eval_helper import process_high_res_im, process_im_single_pass, safe_forward
 
 import os
 from os import path
+from pathlib import Path
 from argparse import ArgumentParser
 import time
 
 import sys
 sys.path.append("/home/wj/local/crack_segmentation")
 from metric import *
+input_size=[160,160]
 
 class Parser():
     def parse(self):
@@ -26,8 +29,8 @@ class Parser():
 
         parser = ArgumentParser()
 
-        parser.add_argument('--dir', default='/mnt/nfs/wj/data/image', help='Directory with testing images')
-        parser.add_argument('--model',default='/home/wj/local/crack_segmentation/CascadePSP/weights/1_2023-06-01_14:28:32/model_44300', help='Pretrained model')
+        parser.add_argument('--dir', default='/nfs/wj/data', help='Directory with testing images')
+        parser.add_argument('--model',default='/home/wj/local/crack_segmentation/CascadePSP/weights/1_2023-08-04_00:07:51/model_250390', help='Pretrained model')
         parser.add_argument('--output', default='/home/wj/local/crack_segmentation/CascadePSP/results', help='Output directory')
 
         parser.add_argument('--global_only', help='Global step only', action='store_true')
@@ -37,7 +40,7 @@ class Parser():
 
         parser.add_argument('--clear', help='Clear pytorch cache?', action='store_true')
 
-        parser.add_argument('--ade', help='Test on ADE dataset?', action='store_true')
+        parser.add_argument('--type', type=str, default='out', choices=['metric', 'out'])
 
         args, _ = parser.parse_known_args()
         self.args = vars(args)
@@ -59,71 +62,141 @@ print('Hyperparameters: ', para)
 # Construct model
 model = nn.DataParallel(PSPNet(sizes=(1, 2, 3, 6), psp_size=2048, deep_features_size=1024, backend='resnet50').cuda())
 model.load_state_dict(torch.load(para['model']))
-
-batch_size = 1
-
-if para['ade']:
-    val_dataset = SplitTransformDataset(para['dir'], need_name=True, perturb=False, img_suffix='_im.jpg')
-else:
-    # print('val')
-    val_dataset = OfflineDataset(para['dir'], need_name=True, resize=False, do_crop=False)
-val_loader = DataLoader(val_dataset, batch_size, shuffle=False, num_workers=2)
-
-os.makedirs(para['output'], exist_ok=True)
-
 epoch_start_time = time.time()
 model = model.eval()
-metrics = {
-            'accuracy': 0,
-            'precision': 0,
-            'recall': 0,
-            'f1': 0,
-    }
 
-with torch.no_grad():
-    for im, seg, gt, name in progressbar.progressbar(val_loader):
-        im, seg, gt = im, seg, gt
+if  para['type'] == 'out':
+        DIR_IMG = os.path.join(para['dir'], 'image')
+        DIR_PRED = os.path.join(para['dir'], 'test_result')
+        DIR_GT = ''
+elif para['type']  == 'metric':
+        DIR_IMG = os.path.join(para['dir'], 'image')
+        DIR_PRED = os.path.join(para['dir'], 'test_result')
+        DIR_GT = os.path.join(para['dir'], 'new_label')
+else:
+        print('undefind test pattern')
+        exit()
 
-        if para['global_only']:
-            if para['ade']:
-                # GTs of small objects in ADE are too coarse -- less upsampling is better
-                images = process_im_single_pass(model, im, seg, 224, para)
-            else:
-                images = process_im_single_pass(model, im, seg, para['L'], para)
-        else:
-            images = process_high_res_im(model, im, seg, para, name, aggre_device='cuda:1')
+os.makedirs(para['output'], exist_ok=True)
+im_transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize(
+                mean=[0.485, 0.456, 0.406],
+                std=[0.229, 0.224, 0.225]
+            ),
+        ])
+seg_transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize(
+                mean=[0.5],
+                std=[0.5]
+            ),
+        ])
+cof = 1
+w, h = int(cof * input_size[0]), int(cof * input_size[1])
+offset = 32
+paths = [path for path in Path(DIR_IMG).glob('*.*')]
+metrics = []
 
-        images['im'] = im
-        images['seg'] = seg
-        images['gt'] = gt.cuda()
+for path in paths:
+    pred_list=[]
+    gt_list = []
+    print(str(path))
+    img_0 = cv2.imread(str(path), 1)
+    img_0 = np.asarray(img_0)
+    if len(img_0.shape) != 3:
+            print(f'incorrect image shape: {path.name}{img_0.shape}')
+            continue
+    img_0 = img_0[:,:,:3]
 
-        # Suppress close-to-zero segmentation input
-        for b in range(seg.shape[0]):
-            if (seg[b]+1).sum() < 2:
-                images['pred_224'][b] = 0
+    img_height, img_width, *img_channels = img_0.shape
+    # print(img_0.shape)
+    # img_0 = np.reshape(img_0, (1, img_channels, img_height, img_width))
+    img_1 = np.zeros((img_height, img_width)) # 生成结果
 
-       # Save output images
-        for i in range(im.shape[0]):
-            # print(torch.max(images['pred_224'][i]))
-            # print(torch.max(images['gt'][i]))
-            metric = calc_metric(images['pred_224'][i], images['gt'][i], mode='tensor', threshold=0.1, max_value=1)
-            metrics['accuracy'] += metric['accuracy'] / len(val_loader)
-            metrics['precision'] += metric['precision'] / len(val_loader)
-            metrics['recall'] += metric['recall'] / len(val_loader)
-            metrics['f1'] += metric['f1'] / len(val_loader)
-            print(metric)
-            # cv2.imwrite(path.join(para['output'], '%s_im.png' % (name[i]))
-            #     ,cv2.cvtColor(tensor_to_im(im[i]), cv2.COLOR_RGB2BGR))
-            # cv2.imwrite(path.join(para['output'], '%s_seg.png' % (name[i]))
-            #     ,tensor_to_seg(images['seg'][i]))
-            # cv2.imwrite(path.join(para['output'], '%s_gt.png' % (name[i]))
-            #     ,tensor_to_gray_im(gt[i]))
-            cv2.imwrite(path.join(para['output'], '%s.png' % (name[i]))
-                ,tensor_to_gray_im(images['pred_224'][i]))
-with open('result.txt', 'a', encoding='utf-8') as fout:
-            print(metrics)
-            line =  "accuracy:{:.5f} | precision:{:.5f} | recall:{:.5f} | f1:{:.5f} " \
-                .format(metrics['accuracy'], metrics['precision'], metrics['recall'], metrics['f1']) + '\n'
-            fout.write(line)
+    if DIR_GT != '':
+            mask_path = os.path.join(DIR_GT, path.stem+'.png')
+            lab = cv2.imread(mask_path, 0)
+            lab = np.reshape(lab, (img_height, img_width))
+    else:
+            lab = np.zeros((img_height, img_width))
+
+    if DIR_PRED != '':
+            seg_path = os.path.join(DIR_PRED, path.stem+'.jpg')
+            seg = cv2.imread(seg_path, 0)
+            # seg = np.reshape(seg, (1, 1, img_height, img_width))
+    else:
+            seg = np.zeros((img_height, img_width))
+    img_0 = im_transform(img_0).unsqueeze(0).cuda()
+    # print(img_0.shape)
+    seg = seg_transform(seg).unsqueeze(0).cuda()
+    # print(seg.shape)
+    with torch.no_grad():
+        for i in range(0, img_height+h, h):
+                    for j in range(0, img_width+w, w):
+                        i1 = i
+                        j1 = j
+                        i2 = i + h
+                        j2 = j + w
+                        if i2>img_height:
+                            i1 = max(0, img_height - h)
+                            i2 = img_height
+                        if j2>img_width:
+                            j1 = max(0, img_width - w)
+                            j2 = img_width
+                        img_pat = img_0[:,:, i1:i2 + offset, j1:j2 + offset]
+                        mask_pat = lab[i1:i2 + offset, j1:j2 + offset]
+                        seg_pat = seg[:,:, i1:i2 + offset, j1:j2 + offset]
+                        ori_shape = mask_pat.shape
+                        if i2-i1 != h+offset or j2-j1 != w+offset:
+                            img_pat = F.interpolate(img_pat, size= (h+offset, w+offset), mode='bilinear', align_corners=False)
+                            mask_pat = cv2.resize(mask_pat, (w+offset, h+offset), cv2.INTER_AREA)
+                            seg_pat = F.interpolate(seg_pat, size=(h+offset, w+offset), mode='bilinear', align_corners=False)
+                            images = model(img_pat, seg_pat)
+                            prob_map_full = images['pred_224'].data.cpu().numpy()[0,0]
+                            pred_list.append(prob_map_full)
+                            gt_list.append(mask_pat)
+                            prob_map_full = cv2.resize(prob_map_full, (ori_shape[1], ori_shape[0]), cv2.INTER_AREA)
+                        else:
+                            images = model(img_pat, seg_pat)
+                            prob_map_full = images['pred_224'].data.cpu().numpy()[0,0]
+                            pred_list.append(prob_map_full)
+                            gt_list.append(mask_pat)
+                        # print(seg_pat.shape)
+                        # print(prob_map_full.shape)
+                        img_1[i1:i2 + offset, j1:j2 + offset] += prob_map_full
+    img_1[img_1 > 1] = 1
+    pred_mask = (img_1 * 255).astype(np.uint8)
+    cv2.imwrite(filename=os.path.join(para['output'], f'{path.stem}.png'), img=pred_mask)
+
+    if para['type'] == 'metric':
+        for i in range(1, 10):
+                threshold = i / 10
+                metric = calc_metric(pred_list, gt_list, mode='list', threshold=threshold)
+                print(metric)
+                metric['accuracy'] = metric['accuracy'] / len(paths)
+                metric['precision'] = metric['precision'] / len(paths)
+                metric['recall'] = metric['recall'] / len(paths)
+                metric['f1'] = metric['f1'] / len(paths)
+                if len(metrics) < i:
+                    metrics.append(metric)
+                else:
+                    metrics[i-1]['accuracy'] += metric['accuracy']
+                    metrics[i-1]['precision'] += metric['precision']
+                    metrics[i-1]['recall'] += metric['recall']
+                    metrics[i-1]['f1'] += metric['f1']
+
+if para['type'] == 'metric':
+    print(metrics)
+    d = datetime.today()
+    datetime.strftime(d,'%Y-%m-%d %H-%M-%S')
+    os.makedirs('./result_dir', exist_ok=True)
+    with open(os.path.join('./result_dir', str(d)+'.txt'), 'a', encoding='utf-8') as fout:
+            fout.write(para['model']+'\n')
+            for i in range(1, 10): 
+                    line =  "threshold:{:d} | accuracy:{:.5f} | precision:{:.5f} | recall:{:.5f} | f1:{:.5f} " \
+                        .format(i, metrics[i-1]['accuracy'],  metrics[i-1]['precision'],  metrics[i-1]['recall'],  metrics[i-1]['f1']) + '\n'
+                    fout.write(line)
+
 
 print('Time taken: %.1f s' % (time.time() - epoch_start_time))

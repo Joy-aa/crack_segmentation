@@ -1,0 +1,10 @@
+./checkpoints/model_best.pt
+threshold:1 | accuracy:0.78905 | precision:0.11423 | recall:0.54270 | f1:0.13425 
+threshold:2 | accuracy:0.79029 | precision:0.11586 | recall:0.53802 | f1:0.13432 
+threshold:3 | accuracy:0.79111 | precision:0.11696 | recall:0.53487 | f1:0.13432 
+threshold:4 | accuracy:0.79178 | precision:0.11783 | recall:0.53227 | f1:0.13428 
+threshold:5 | accuracy:0.79240 | precision:0.11867 | recall:0.52985 | f1:0.13425 
+threshold:6 | accuracy:0.79303 | precision:0.11948 | recall:0.52743 | f1:0.13418 
+threshold:7 | accuracy:0.79371 | precision:0.12038 | recall:0.52479 | f1:0.13411 
+threshold:8 | accuracy:0.79458 | precision:0.12150 | recall:0.52152 | f1:0.13400 
+threshold:9 | accuracy:0.79615 | precision:0.12331 | recall:0.51625 | f1:0.13384 
