@@ -6,6 +6,7 @@ from PIL import Image
 import matplotlib.pyplot as plt
 
 class ImgDataSet(Dataset):
+
     def __init__(self, img_dir, img_fnames, img_transform, mask_dir, mask_fnames, mask_transform):
         self.img_dir = img_dir
         self.img_fnames = img_fnames
@@ -36,6 +37,12 @@ class ImgDataSet(Dataset):
             #print('khanh2', np.min(test[:]), np.max(test[:]))
 
         return img, mask #torch.from_numpy(np.array(mask, dtype=np.int64))
+    
+    # @classmethod
+    # def decode_target(cls, target):
+    #     target[target == 255] = 19
+    #     #target = target.astype('uint8') + 1
+    #     return cls.train_id_to_color[target]
 
     def __len__(self):
         return len(self.img_fnames)

@@ -29,12 +29,12 @@ class ConvRelu(nn.Module):
     def __init__(self, in_, out):
         super().__init__()
         self.conv = conv3x3(in_, out)
-        self.bn = SynchronizedBatchNorm2d(out)
+        # self.bn = SynchronizedBatchNorm2d(out)
         self.activation = nn.ReLU(inplace=True)
 
     def forward(self, x):
         x = self.conv(x)
-        x = self.bn(x)
+        # x = self.bn(x)
         x = self.activation(x)
         return x
 

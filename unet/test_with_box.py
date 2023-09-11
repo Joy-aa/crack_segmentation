@@ -10,7 +10,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 import torchvision.transforms as transforms
-from unet_transfer import UNet16, input_size
+from unet_transfer import UNet16
 import argparse
 from os.path import join
 from PIL import Image
@@ -34,7 +34,7 @@ if __name__ == '__main__':
     parser.add_argument('--img_dir',type=str, default='../image', help='input dataset directory')
     parser.add_argument('--model_path', type=str, default='./checkpoints/model_epoch_49.pt', help='trained model path')
     parser.add_argument('--model_type', type=str, default='vgg16', choices=['vgg16', 'resnet101', 'resnet34'])
-    parser.add_argument('--out_pred_dir', type=str, default='./result_img', required=False,  help='prediction output dir')
+    parser.add_argument('--out_pred_dir', type=str, default='', required=False,  help='prediction output dir')
     parser.add_argument('--type', type=str, default='out' , choices=['out', 'metric'])
     args = parser.parse_args()
 
@@ -104,6 +104,7 @@ if __name__ == '__main__':
 
         img_1 = np.zeros((img_height, img_width))
         cof = 1
+        input_size = (416, 416)
         w, h = int(cof * input_size[0]), int(cof * input_size[1])
         offset = 32
 
@@ -122,23 +123,18 @@ if __name__ == '__main__':
                     # print(i1, i2, j1, j2)
                     img_pat = img_0[i1:i2 + offset, j1:j2 + offset]
                     ori_shape = img_pat.shape
-                    # print(ori_shape)
                     if img_pat.shape != (h+offset, w+offset):
                         img_pat = cv.resize(img_pat, (w+offset, h+offset), cv.INTER_AREA)
-                        # print(img_pat.shape)
                         prob_map_full = evaluate_img(model, img_pat, test_tfms)
                         prob_map_full = cv.resize(prob_map_full, (ori_shape[1], ori_shape[0]), cv.INTER_AREA)
                     else:
                         prob_map_full = evaluate_img(model, img_pat,test_tfms)
-                    # print(prob_map_full.shape)
                     img_1[i1:i2 + offset, j1:j2 + offset] += prob_map_full
         img_1[img_1 > 1] = 1
         if args.out_pred_dir != '':
-        #     # img_1[img_1 > 0.3] = 1
-        #     # img_1[img_1 <= 0.3] = 0
-            cv.imwrite(filename=join(args.out_pred_dir, f'{path.stem}.jpg'), img=(img_1 * 255).astype(np.uint8))
+            cv.imwrite(filename=join(args.out_pred_dir, f'{path.stem}.png'), img=(img_1 * 255).astype(np.uint8))
 
-        filepath = os.path.join('/nfs/DamDetection/data/result-stride_0.7/Jun02_06_33_42/box', path.stem+'.txt')
+        filepath = os.path.join('/mnt/nfs/wj/result-stride_0.7/Jun02_06_33_42/box', path.stem+'.txt')
         boxes = []
         with open(filepath, 'r', encoding='utf-8') as f:
             for data in f.readlines():

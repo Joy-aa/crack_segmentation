@@ -4,7 +4,7 @@ import warnings
 warnings.filterwarnings("ignore")
 import numpy as np
 # from d2l import torch as d2l
-import tqdm
+from tqdm import tqdm
 from simple_Unetpp import UnetPlusPlus
 # import pandas as pd
 import torchvision.transforms as transforms
@@ -13,12 +13,15 @@ import sys
 sys.path.append("/home/wj/local/crack_segmentation")
 from logger import BoardLogger
 from data_loader import ImgDataSet
+from LossFunctions import BinaryFocalLoss, dice_loss
+from metric import calc_metric
 import numpy as np
 import os
 import argparse
 from pathlib import Path
 from torch.autograd import Variable
 import datetime
+import torch.nn.functional as F
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
@@ -96,25 +99,53 @@ class AverageMeter(object):
 
 def adjust_learning_rate(optimizer, epoch, lr):
     """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
-    lr = lr * (0.1 ** (epoch // 30))
+    lr = lr * (0.1 ** (epoch // 10))
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
-def train(train_loader, model, criterion, optimizer, validation, args):
+def train(train_loader, valid_loader, model, criterion, optimizer, validation, args):
 
-    print('Started training model from epoch 0')
-    epoch = 0
+    # latest_model_path = find_latest_model_path(args.model_dir)
+    # latest_model_path = os.path.join(*[args.model_dir, 'model_start.pt'])
+    latest_model_path = None
+    best_model_path = os.path.join(*[args.model_dir, 'model_best.pt'])
+
+    if latest_model_path is not None:
+        state = torch.load(latest_model_path)
+        epoch = state['epoch']
+        model.load_state_dict(state['model'])
+        # weights = state['model']
+        # weights_dict = {}
+        # for k, v in weights.items():
+        #     new_k = k.replace('module.', '') if 'module' in k else k
+        #     weights_dict[new_k] = v
+        # model.load_state_dict(weights_dict)
+
+        #if latest model path does exist, best_model_path should exists as well
+        assert Path(best_model_path).exists() == True, f'best model path {best_model_path} does not exist'
+        #load the min loss so far
+        best_state = torch.load(latest_model_path)
+        min_val_los = best_state['valid_loss']
+
+        print(f'Restored model at epoch {epoch}. Min validation loss so far is : {min_val_los}')
+        epoch += 1
+        print(f'Started training model from epoch {epoch}')
+    else:
+        print('Started training model from epoch 0')
+        epoch = 0
+        min_val_los = 9999
 
     valid_losses = []
+    total_iter = 0
     for epoch in range(epoch, args.n_epoch + 1):
 
         adjust_learning_rate(optimizer, epoch, args.lr)
 
-        tq = tqdm.tqdm(total=(len(train_loader) * args.batch_size))
+        tq = tqdm(total=(len(train_loader) * args.batch_size))
         tq.set_description(f'Epoch {epoch}')
 
         losses = AverageMeter()
-
+        report_interval = 100
         model.train()
         for i, (input, target) in enumerate(train_loader):
             input_var  = Variable(input).cuda()
@@ -126,7 +157,13 @@ def train(train_loader, model, criterion, optimizer, validation, args):
             true_masks_flat  = target_var.view(-1)
 
             loss = criterion(masks_probs_flat, true_masks_flat)
+            loss += dice_loss(F.sigmoid(masks_pred.squeeze(1)), target_var.squeeze(1).float(), multiclass=False)
             losses.update(loss)
+
+            if (i+total_iter) % report_interval == 0:
+                logger.log_scalar('train/lr', optimizer.param_groups[0]['lr'], i+total_iter)
+                logger.log_scalar('train/loss', losses.avg, i+total_iter)
+
             tq.set_postfix(loss='{:.5f}'.format(losses.avg))
             tq.update(args.batch_size)
 
@@ -135,9 +172,11 @@ def train(train_loader, model, criterion, optimizer, validation, args):
             loss.backward()
             optimizer.step()
 
+        total_iter += len(train_loader)
         valid_metrics = validation(model, valid_loader, criterion)
         valid_loss = valid_metrics['valid_loss']
         valid_losses.append(valid_loss)
+        logger.log_scalar('valid/loss', valid_loss, epoch)
         print(f'\tvalid_loss = {valid_loss:.5f}')
         tq.close()
 
@@ -164,10 +203,48 @@ def validate(model, val_loader, criterion):
 
             output = model(input_var)
             loss = criterion(output, target_var)
-
+            loss += dice_loss(F.sigmoid(output.squeeze(1)), target_var.squeeze(1).float(), multiclass=False)
             losses.update(loss.item(), input_var.size(0))
 
     return {'valid_loss': losses.avg}
+
+def predict(test_loader, model, latest_model_path):
+    model.eval()
+    metrics=[]
+    pred_list = []
+    gt_list = []
+    bar = tqdm(total=len(test_loader))
+    with torch.no_grad():
+        for idx, (img, lab) in enumerate(test_loader, 1):
+            val_data  = Variable(img).cuda()
+            pred = model(val_data)
+            pred_list.append(torch.sigmoid(pred.contiguous().cpu()).numpy())
+            gt_list.append(lab.numpy())
+            bar.update(1)
+    bar.close
+
+    for i in range(1, 10):
+                threshold = i / 10
+                metric = calc_metric(pred_list, gt_list, mode='list', threshold=threshold)
+                print(metric)
+                if len(metrics) < i:
+                    metrics.append(metric)
+                else:
+                    metrics[i-1]['accuracy'] += metric['accuracy']
+                    metrics[i-1]['precision'] += metric['precision']
+                    metrics[i-1]['recall'] += metric['recall']
+                    metrics[i-1]['f1'] += metric['f1']
+    print(metrics)
+    d = datetime.datetime.today()
+    datetime.datetime.strftime(d,'%Y-%m-%d %H-%M-%S')
+    os.makedirs('./result_dir', exist_ok=True)
+    with open(os.path.join('./result_dir', str(d)+'.txt'), 'a', encoding='utf-8') as fout:
+                fout.write(latest_model_path+'\n')
+                for i in range(1, 10): 
+                    line =  "threshold:{:d} | accuracy:{:.5f} | precision:{:.5f} | recall:{:.5f} | f1:{:.5f} " \
+                        .format(i, metrics[i-1]['accuracy'],  metrics[i-1]['precision'],  metrics[i-1]['recall'],  metrics[i-1]['f1']) + '\n'
+                    fout.write(line)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
@@ -176,31 +253,24 @@ if __name__ == '__main__':
     parser.add_argument('--momentum', default=0.9, type=float, metavar='M', help='momentum')
     parser.add_argument('--print_freq', default=20, type=int, metavar='N', help='print frequency (default: 10)')
     parser.add_argument('--weight_decay', default=1e-4, type=float, metavar='W', help='weight decay (default: 1e-4)')
-    parser.add_argument('--batch_size',  default=2, type=int,  help='weight decay (default: 1e-4)')
+    parser.add_argument('--batch_size',  default=8, type=int,  help='weight decay (default: 1e-4)')
     parser.add_argument('--num_workers', default=4, type=int, help='output dataset directory')
     parser.add_argument('--data_dir',type=str, help='input dataset directory')
-    # /mnt/hangzhou_116_homes/ymd/seg_dataset /mnt/nfs/wj/DamCrack
+    # /mnt/hangzhou_116_homes/wj/192_255_segmentation/
     parser.add_argument('--model_dir', type=str, help='output dataset directory')
 
     args = parser.parse_args()
     os.makedirs(args.model_dir, exist_ok=True)
 
-    TRAIN_IMG  = os.path.join(args.data_dir, 'val_image')
-    TRAIN_MASK = os.path.join(args.data_dir, 'val_label')
-    VALID_IMG = os.path.join(args.data_dir, 'val_image')
-    VALID_MASK = os.path.join(args.data_dir, 'val_label')
+    TRAIN_IMG  = os.path.join(args.data_dir, 'imgs')
+    TRAIN_MASK = os.path.join(args.data_dir, 'masks')
 
 
-    train_img_names  = [path.name for path in Path(TRAIN_IMG).glob('*.jpg')]
-    train_mask_names = [path.name for path in Path(TRAIN_MASK).glob('*.bmp')]
-    valid_img_names  = [path.name for path in Path(VALID_IMG).glob('*.jpg')]
-    valid_mask_names = [path.name for path in Path(VALID_MASK).glob('*.bmp')]
-
+    train_img_names  = [path.name for path in Path(TRAIN_IMG).glob('*.png')]
+    train_mask_names = [path.name for path in Path(TRAIN_MASK).glob('*.png')]
+    # train_img_names = train_img_names[:len(train_img_names)*0.1]
+    # train_mask_names = train_mask_names[:len(train_mask_names)*0.1]
     print(f'total train images = {len(train_img_names)}')
-    print(f'total valid images = {len(valid_img_names)}')
-
-    long_id = '%s_%s' % (str(args.lr), datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S'))
-    logger = BoardLogger(long_id)
 
     channel_means = [0.485, 0.456, 0.406]
     channel_stds  = [0.229, 0.224, 0.225]
@@ -211,13 +281,17 @@ if __name__ == '__main__':
                                    transforms.Normalize(channel_means, channel_stds)])
 
     mask_tfms = transforms.Compose([transforms.ToTensor()])
-    print("before ImaDataSet")
+
     train_dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
-    valid_dataset = ImgDataSet(img_dir=VALID_IMG, img_fnames=valid_img_names, img_transform=train_tfms, mask_dir=VALID_MASK, mask_fnames=valid_mask_names, mask_transform=mask_tfms)
-    
-    print("Before DataLoader")
-    train_loader = DataLoader(train_dataset, args.batch_size, shuffle=True, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
-    valid_loader = DataLoader(valid_dataset, args.batch_size, shuffle=True, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
+    _dataset, test_dataset = random_split(train_dataset, [0.9, 0.1],torch.Generator().manual_seed(42))
+    train_dataset, valid_dataset = random_split(_dataset, [0.9, 0.1],torch.Generator().manual_seed(42))
+    train_loader = torch.utils.data.DataLoader(train_dataset, args.batch_size, shuffle=True, pin_memory=torch.cuda.is_available(), num_workers=4)
+    val_loader = torch.utils.data.DataLoader(valid_dataset, 1, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=4)
+    test_loader = torch.utils.data.DataLoader(test_dataset, 1, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=4)
+
+
+    long_id = '%s_%s' % (str(args.lr), datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S'))
+    logger = BoardLogger(long_id)
 
     device = torch.device("cuda")
     # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -225,17 +299,23 @@ if __name__ == '__main__':
     model = UnetPlusPlus(num_classes=1)
     model = torch.nn.DataParallel(model, device_ids=range(num_gpu))
     model.to(device)
-    # model.cuda()
-    lossf = nn.BCEWithLogitsLoss()
+    # lossf = nn.BCEWithLogitsLoss()
     #选用adam优化器来训练
     optimizer = torch.optim.SGD(model.parameters(), args.lr,
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay)
-    
-    #训练50轮
-    # train_ch13(model, train_loader, valid_loader, lossf, optimizer, args.n_epoch, validate)
+    criterion = BinaryFocalLoss().to(device)
 
-    # train(train_loader, model, lossf, optimizer, validate, args)
+    # train(train_loader, val_loader, model, criterion, optimizer, validate, args)
 
-    validate(model, valid_loader, lossf)
+    latest_model_path = '/home/wj/local/crack_segmentation/unet++/checkpoints/Unet++_20.pth'
+    state = torch.load(latest_model_path)
+    model.load_state_dict(state['model'])
+    # weights = state['model']
+    # weights_dict = {}
+    # for k, v in weights.items():
+    #     new_k = k.replace('module.', '') if 'module' in k else k
+    #     weights_dict[new_k] = v
+    # model.load_state_dict(weights_dict)
+    predict(test_loader, model, latest_model_path)
     

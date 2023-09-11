@@ -12,10 +12,7 @@ images/**
 notebooks/**
 log/**
 **.ipynb
-<<<<<<< HEAD
 CascadePSP/checkpoints/**
 unet++/log/
 **.chkp
-=======
 CascadePSP/weights/**
->>>>>>> 4c2823633d986d92bca2dd046cafdbba522f2e50

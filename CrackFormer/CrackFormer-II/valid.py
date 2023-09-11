@@ -14,23 +14,15 @@ sys.path.append("/home/wj/local/crack_segmentation")
 from metric import *
 import bisect
 
-input_size = (448, 448)
-
 def Test(valid_img_dir, valid_lab_dir, valid_result_dir, valid_log_dir, best_model_dir, model, pretrained_model):
     
     validator = Validator(model, valid_log_dir, best_model_dir)
     cof = 1
+    input_size = (56, 56)
     w, h = int(cof * input_size[0]), int(cof * input_size[1])
+    offset = 8
     paths = [path for path in Path(valid_img_dir).glob('*.*')]
-    # pred_list= []
-    # gt_list=[]
 
-    # metrics = {
-    #         'accuracy': 0,
-    #         'precision': 0,
-    #         'recall': 0,
-    #         'f1': 0,
-    # }
     metrics=[]
     for path in tqdm(paths):
         pred_list=[]
@@ -67,25 +59,26 @@ def Test(valid_img_dir, valid_lab_dir, valid_result_dir, valid_log_dir, best_mod
                     if j2>img_width:
                         j1 = max(0, img_width - w)
                         j2 = img_width
-                    img_pat = img_0[i1:i2, j1:j2]
-                    mask_pat = lab[i1:i2, j1:j2]
-                    if i2-i1 != h or j2-j1 != w:
-                        img_pat = cv.resize(img_pat, (w, h), cv.INTER_AREA)
-                        mask_pat = cv2.resize(mask_pat, (w, h), cv2.INTER_AREA)
+                    img_pat = img_0[i1:i2 + offset, j1:j2 + offset]
+                    mask_pat = lab[i1:i2 + offset, j1:j2 + offset]
+                    ori_shape = mask_pat.shape
+                    if mask_pat.shape != (h+offset, w+offset):
+                        img_pat = cv.resize(img_pat, (w+offset, h+offset), cv.INTER_AREA)
+                        mask_pat = cv.resize(mask_pat, (w+offset, h+offset), cv.INTER_AREA)
                         prob_map_full = validator.validate(img_pat)
                         pred_list.append(prob_map_full)
                         gt_list.append(mask_pat)
-                        prob_map_full = cv.resize(prob_map_full, (j2-j1, i2-i1), cv.INTER_AREA)
+                        prob_map_full = cv.resize(prob_map_full, (ori_shape[1], ori_shape[0]), cv.INTER_AREA)
                     else:
                         prob_map_full = validator.validate(img_pat)
                         pred_list.append(prob_map_full)
                         gt_list.append(mask_pat)
-                    img_1[i1:i2, j1:j2] += prob_map_full
+                    img_1[i1:i2 + offset, j1:j2 + offset] += prob_map_full
         img_1[img_1 > 1] = 1
         # img_1[img_1 > threshold] = 1
         # img_1[img_1 <= threshold] = 0
         pred_mask = (img_1 * 255).astype(np.uint8)
-        cv.imwrite(filename=os.path.join(valid_result_dir, f'{path.stem}.jpg'), img=pred_mask)
+        cv.imwrite(filename=os.path.join(valid_result_dir, f'{path.stem}.png'), img=pred_mask)
 
         if valid_lab_dir != '':
             for i in range(1, 10):
@@ -120,9 +113,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     # /mnt/nfs/wj/data/ /mnt/ningbo_nfs_36/wj/data/ /mnt/hangzhou_116_homes/DamDetection/data/dataV2
     parser.add_argument('--img_dir',type=str, default='/mnt/nfs/wj/data/', help='input dataset directory')
-    parser.add_argument('--model_path', type=str, default='model/crackformer_epoch(68).pth', help='trained model path')
+    parser.add_argument('--model_path', type=str, default='/mnt/hangzhou_116_homes/wj/model/crackformer1/crackformer_epoch(68).pth', help='trained model path')
     parser.add_argument('--model_type', type=str, default='crackformer', choices=['crackformer', 'SDDNet', 'STRNet'])
-    parser.add_argument('--out_pred_dir', type=str, default='./test_result', required=False,  help='prediction output dir')
+    parser.add_argument('--out_pred_dir', type=str, default='./test_result448', required=False,  help='prediction output dir')
     parser.add_argument('--type', type=str, default='metric' , choices=['out', 'metric'])
     args = parser.parse_args()
 
@@ -159,7 +152,7 @@ if __name__ == '__main__':
     best_model_dir = "./model/" + args.model_type + "/"
     # image_format = "jpg"
 
-    torch.set_num_threads(1)
-    torch.backends.cudnn.benchmark = True
+    # torch.set_num_threads(1)
+    # torch.backends.cudnn.benchmark = True
 
     Test(DIR_IMG, DIR_GT, args.out_pred_dir, valid_log_dir, best_model_dir, model, args.model_path)

@@ -11,8 +11,10 @@ from tqdm import tqdm
 import cv2 as cv
 import sys
 sys.path.append("/home/wj/local/crack_segmentation")
+from data_loader import ImgDataSet
 from metric import *
 import bisect
+from torch.utils.data import DataLoader, random_split
 
 def Test(valid_img_dir, valid_lab_dir, valid_result_dir, valid_log_dir, best_model_dir, model, input_size = (512, 1024, 2048)):
     
@@ -90,16 +92,10 @@ def Test(valid_img_dir, valid_lab_dir, valid_result_dir, valid_log_dir, best_mod
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--img_dir',type=str, default='/home/wj/dataset/crack', help='input dataset directory')
-    parser.add_argument('--model_path', type=str, default='/home/wj/local/crack_segmentation/CrackFormer/CrackFormer-II/model/crackformer_epoch(14).pth', help='trained model path')
+    parser.add_argument('--img_dir',type=str, default='/mnt/nfs/wj/192_255_segmentation', help='input dataset directory')
+    parser.add_argument('--model_path', type=str, default='/home/wj/local/crack_segmentation/model/crackformer_epoch(15).pth', help='trained model path')
     parser.add_argument('--model_type', type=str, default='crackformer', choices=['crackformer', 'SDDNet', 'STRNet'])
-    parser.add_argument('--out_pred_dir', type=str, default='./test_result', required=False,  help='prediction output dir')
     args = parser.parse_args()
-
-    if args.out_pred_dir != '':
-        os.makedirs(args.out_pred_dir, exist_ok=True)
-        for path in Path(args.out_pred_dir).glob('*.*'):
-            os.remove(str(path))
 
     if args.model_type == 'crackformer':
         model = crackformer()
@@ -112,10 +108,62 @@ if __name__ == '__main__':
         exit()
     model.load_state_dict(torch.load(args.model_path))
     model.cuda()
-    DIR_IMG  = os.path.join(args.img_dir, 'image')
-    DIR_MASK = os.path.join(args.img_dir, 'new_label')
+    TRAIN_IMG  = os.path.join(args.img_dir, 'imgs')
+    TRAIN_MASK = os.path.join(args.img_dir, 'masks')
+    train_img_names  = [path.name for path in Path(TRAIN_IMG).glob('*.png')]
+    train_mask_names = [path.name for path in Path(TRAIN_MASK).glob('*.png')]
+    
+    channel_means = [0.485, 0.456, 0.406]
+    channel_stds  = [0.229, 0.224, 0.225]
+    train_tfms = transforms.Compose([transforms.ToTensor()])
+                                    #  transforms.Normalize(channel_means, channel_stds)])
+    val_tfms = transforms.Compose([transforms.ToTensor()])
+                                #    transforms.Normalize(channel_means, channel_stds)])
+    mask_tfms = transforms.Compose([transforms.ToTensor()])
+    train_dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
+    _dataset, test_dataset = random_split(train_dataset, [0.9, 0.1],torch.Generator().manual_seed(42))
+    test_loader = torch.utils.data.DataLoader(test_dataset, 1, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=4)
+    print(f'total test images = {len(test_loader)}')
+
     valid_log_dir = "./log/" + args.model_type + '/'
     best_model_dir = "./model/" + args.model_type + "/"
-    # image_format = "jpg"
+    validator = Validator(model, valid_log_dir, best_model_dir)
 
-    Test(DIR_IMG, DIR_MASK, args.out_pred_dir, valid_log_dir, best_model_dir, model)
+    metrics=[]
+    pred_list = []
+    gt_list = []
+    bar = tqdm(total=len(test_loader))
+    with torch.no_grad():
+        for idx, (img, lab) in enumerate(test_loader, 1):
+            val_data  = Variable(img).cuda()
+            _,_,_,_,_, pred = model(val_data)
+            pred_list.append(torch.sigmoid(pred.contiguous().cpu()).numpy())
+            gt_list.append(lab.numpy())
+            bar.update(1)
+    bar.close
+    for i in range(1, 10):
+            threshold = i / 10
+            metric = calc_metric(pred_list, gt_list, mode='list', threshold=threshold)
+            print(metric)
+            # metric['accuracy'] = metric['accuracy'] / len(test_loader)
+            # metric['precision'] = metric['precision'] / len(test_loader)
+            # metric['recall'] = metric['recall'] / len(test_loader)
+            # metric['f1'] = metric['f1'] / len(test_loader)
+            if len(metrics) < i:
+                metrics.append(metric)
+            else:
+                metrics[i-1]['accuracy'] += metric['accuracy']
+                metrics[i-1]['precision'] += metric['precision']
+                metrics[i-1]['recall'] += metric['recall']
+                metrics[i-1]['f1'] += metric['f1']
+    print(metrics)
+    d = datetime.today()
+    datetime.strftime(d,'%Y-%m-%d %H-%M-%S')
+    os.makedirs('./result_dir', exist_ok=True)
+    with open(os.path.join('./result_dir', str(d)+'.txt'), 'a', encoding='utf-8') as fout:
+            fout.write(args.model_path+'\n')
+            for i in range(1, 10): 
+                        line =  "threshold:{:d} | accuracy:{:.5f} | precision:{:.5f} | recall:{:.5f} | f1:{:.5f} " \
+                            .format(i, metrics[i-1]['accuracy'],  metrics[i-1]['precision'],  metrics[i-1]['recall'],  metrics[i-1]['f1']) + '\n'
+                        fout.write(line)
+
