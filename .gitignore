@@ -12,4 +12,9 @@ images/**
 notebooks/**
 log/**
 **.ipynb
+CascadePSP/checkpoints/**
+unet++/log/
+**.chkp
 CascadePSP/weights/**
+work_dir/**
+result_dir/**

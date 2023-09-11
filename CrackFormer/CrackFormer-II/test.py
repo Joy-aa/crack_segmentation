@@ -95,13 +95,7 @@ if __name__ == '__main__':
     parser.add_argument('--img_dir',type=str, default='/nfs/wj/192_255_segmentation', help='input dataset directory')
     parser.add_argument('--model_path', type=str, default='/home/wj/local/crack_segmentation/CrackFormer/CrackFormer-II/model/crackformer_epoch(48).pth', help='trained model path')
     parser.add_argument('--model_type', type=str, default='crackformer', choices=['crackformer', 'SDDNet', 'STRNet'])
-    parser.add_argument('--out_pred_dir', type=str, default='./test_result', required=False,  help='prediction output dir')
     args = parser.parse_args()
-
-    if args.out_pred_dir != '':
-        os.makedirs(args.out_pred_dir, exist_ok=True)
-        for path in Path(args.out_pred_dir).glob('*.*'):
-            os.remove(str(path))
 
     if args.model_type == 'crackformer':
         model = crackformer()

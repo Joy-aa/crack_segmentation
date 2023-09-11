@@ -20,10 +20,10 @@ class Config:
     # visdom
     vis_env = 'Crack'
     port = 8097
-    vis_train_loss_every = 40
-    vis_train_acc_every = 40
-    vis_train_img_every = 40
-    val_every = 200
+    vis_train_loss_every = 200
+    vis_train_acc_every = 200
+    vis_train_img_every = 200
+    val_every = 400
 
     # training
     epoch = 500

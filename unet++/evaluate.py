@@ -34,7 +34,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     # /nfs/DamDetection/data/  /mnt/hangzhou_116_homes/DamDetection/data/  /home/wj/dataset/crack/
     parser.add_argument('--img_dir',type=str, default='/mnt/hangzhou_116_homes/DamDetection/data', help='input dataset directory')
-    parser.add_argument('--model_path', type=str, default='./checkpoints/Unet++_10.pth', help='trained model path')
+    parser.add_argument('--model_path', type=str, default='./checkpoints/Unet++_20.pth', help='trained model path')
     parser.add_argument('--out_pred_dir', type=str, default='./result_images', required=False,  help='prediction output dir')
     parser.add_argument('--type', type=str, default='out' , choices=['out', 'metric'])
     args = parser.parse_args()
@@ -45,7 +45,14 @@ if __name__ == '__main__':
             os.remove(str(path))
 
     model = UnetPlusPlus(num_classes=1)
-    model.load_state_dict(torch.load(args.model_path))
+    state = torch.load(args.model_path)
+    # model.load_state_dict(state['model'])
+    weights = state['model']
+    weights_dict = {}
+    for k, v in weights.items():
+        new_k = k.replace('module.', '') if 'module' in k else k
+        weights_dict[new_k] = v
+    model.load_state_dict(weights_dict)
     model.cuda()
     model.eval()
     # model = nn.DataParallel(model)
@@ -147,8 +154,8 @@ if __name__ == '__main__':
         gc.collect()
     print(metrics)
     if args.type == 'metric':
-        d = datetime.today()
-        datetime.strftime(d,'%Y-%m-%d %H-%M-%S')
+        d = datetime.datetime.today()
+        datetime.datetime.strftime(d,'%Y-%m-%d %H-%M-%S')
         os.makedirs('./result_dir', exist_ok=True)
         with open(os.path.join('./result_dir', str(d)+'.txt'), 'a', encoding='utf-8') as fout:
                 fout.write(args.model_path+'\n')
