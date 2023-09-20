@@ -25,7 +25,7 @@ def evaluate_img(model, img, test_tfms):
 
     mask = model(X)
 
-    mask = F.sigmoid(mask[0, 0]).data.cpu().numpy()
+    mask = torch.sigmoid(mask[0, 0]).data.cpu().numpy()
     return mask
 
 if __name__ == '__main__':
@@ -34,7 +34,7 @@ if __name__ == '__main__':
     parser.add_argument('--img_dir',type=str, default='../images', help='input dataset directory')
     parser.add_argument('--model_path', type=str, default='./checkpoints/model_best.pt', help='trained model path')
     parser.add_argument('--model_type', type=str, default='vgg16', choices=['vgg16', 'vgg16V2', 'resnet101', 'resnet34'])
-    parser.add_argument('--out_pred_dir', type=str, default='./result_img192', required=False,  help='prediction output dir')
+    parser.add_argument('--out_pred_dir', type=str, default='./result_img128', required=False,  help='prediction output dir')
     parser.add_argument('--type', type=str, default='out' , choices=['out', 'metric'])
     args = parser.parse_args()
 
@@ -113,9 +113,12 @@ if __name__ == '__main__':
         img_1 = np.zeros((img_height, img_width))
 
         cof = 1
-        input_size = (176, 176)
+        input_size = (112, 112)
         w, h = int(cof * input_size[0]), int(cof * input_size[1])
         offset = 16
+
+        torch.set_num_threads(1)
+        torch.backends.cudnn.benchmark = True
         
         for i in range(0, img_height+h, h):
             for j in range(0, img_width+w, w):
