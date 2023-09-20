@@ -92,7 +92,7 @@ if __name__ == "__main__":
     from tqdm import tqdm
     import cv2 as cv
     import os
-    DIR_PRED = '/home/wj/local/crack_segmentation/CrackFormer/CrackFormer-II/test_result_box448'
+    DIR_PRED = '/home/wj/local/crack_segmentation/unet++/result_images'
     DIR_GT = '/mnt/nfs/wj/data/new_label'
     paths = [path for path in Path(DIR_PRED).glob('*.*')]
     metrics=[]
