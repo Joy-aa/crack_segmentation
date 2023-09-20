@@ -46,24 +46,6 @@ if para['load'] is not None:
     model.load_state_dict(torch.load(para['load']))
 optimizer = optim.Adam(model.parameters(), lr=para['lr'], weight_decay=para['weight_decay'])
 
-
-# duts_tr_dir = os.path.join('data', 'DUTS-TR')
-# duts_te_dir = os.path.join('data', 'DUTS-TE')
-# ecssd_dir = os.path.join('data', 'ecssd')
-# msra_dir = os.path.join('data', 'MSRA_10K')
-
-# fss_dataset = OnlineTransformDataset(os.path.join('data', 'fss'), method=0, perturb=True)
-# duts_tr_dataset = OnlineTransformDataset(duts_tr_dir, method=1, perturb=True)
-# duts_te_dataset = OnlineTransformDataset(duts_te_dir, method=1, perturb=True)
-# ecssd_dataset = OnlineTransformDataset(ecssd_dir, method=1, perturb=True)
-# msra_dataset = OnlineTransformDataset(msra_dir, method=1, perturb=True)
-
-# print('FSS dataset size: ', len(fss_dataset))
-# print('DUTS-TR dataset size: ', len(duts_tr_dataset))
-# print('DUTS-TE dataset size: ', len(duts_te_dataset))
-# print('ECSSD dataset size: ', len(ecssd_dataset))
-# print('MSRA-10K dataset size: ', len(msra_dataset))
-
 # train_dataset = ConcatDataset([fss_dataset, duts_tr_dataset, duts_te_dataset, ecssd_dataset, msra_dataset])
 
 data_dir = '/mnt/hangzhou_116_homes/wj/DamCrack/'

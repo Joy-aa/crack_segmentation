@@ -10,7 +10,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 import torchvision.transforms as transforms
-from unet_transfer import UNet16, input_size, UNet16V2
+from unet_transfer import UNet16, UNet16V2
 import argparse
 from os.path import join
 from PIL import Image
@@ -119,8 +119,9 @@ if __name__ == '__main__':
         img_1 = np.zeros((img_height, img_width))
 
         cof = 1
+        input_size = (960, 960)
         w, h = int(cof * input_size[0]), int(cof * input_size[1])
-        offset = 32
+        offset = 64
         
         for i in range(0, img_height+h, h):
             for j in range(0, img_width+w, w):
