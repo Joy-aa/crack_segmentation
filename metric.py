@@ -41,9 +41,13 @@ def calc_recall(mask, pred_mask):
             recall = 1
     return recall
 
-def calc_f1(mask, pred_mask):
-    precision = calc_precision(mask, pred_mask)
-    recall = calc_recall(mask, pred_mask)
+def calc_f1(mask, pred_mask, tmp_precision = None, tmp_recall = None):
+    if tmp_precision is not None and tmp_recall is not None:
+        precision = tmp_precision
+        recall = tmp_recall
+    else:
+        precision = calc_precision(mask, pred_mask)
+        recall = calc_recall(mask, pred_mask)
     if precision == 0 and recall == 0:
         f1 = 0
     else:
@@ -84,7 +88,7 @@ def calc_metric(pred_list, gt_list, mode='list', threshold = 0, max_value = 1):
     metric['accuracy'], metric['neg_accuracy'] = calc_accuracy(mask, pred_mask)
     metric['precision'] = calc_precision(mask, pred_mask)
     metric['recall'] = calc_recall(mask, pred_mask)
-    metric['f1'] = calc_f1(mask, pred_mask)
+    metric['f1'] = calc_f1(mask, pred_mask, metric['precision'], metric['recall'])
     return metric
 
 if __name__ == "__main__":

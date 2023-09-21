@@ -29,7 +29,7 @@ from data_loader import ImgDataSet
 from LossFunctions import BinaryFocalLoss, dice_loss
 from metric import calc_metric
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '0,1'
+# os.environ['CUDA_VISIBLE_DEVICES'] = '0,1,2'
 
 def get_argparser():
     parser = argparse.ArgumentParser()
@@ -78,13 +78,13 @@ def get_argparser():
 
     parser.add_argument("--loss_type", type=str, default='cross_entropy',
                         choices=['cross_entropy', 'focal_loss'], help="loss type (default: False)")
-    # parser.add_argument("--gpu_id", type=str, default='0,1',
-    #                     help="GPU ID")
+    parser.add_argument("--gpu_id", type=str, default='1,2',
+                        help="GPU ID")
     parser.add_argument("--weight_decay", type=float, default=1e-4,
                         help='weight decay (default: 1e-4)')
     parser.add_argument("--random_seed", type=int, default=42,
                         help="random seed (default: 1)")
-    parser.add_argument("--print_interval", type=int, default=10,
+    parser.add_argument("--print_interval", type=int, default=100,
                         help="print interval of loss (default: 10)")
     parser.add_argument("--val_interval", type=int, default=1000,
                         help="epoch interval for eval (default: 100)")
@@ -111,41 +111,13 @@ def get_dataset(opts):
     """ Dataset And Augmentation
     """
     if opts.dataset == 'crack':
-        # TRAIN_IMG  = os.path.join(opts.data_root, 'imgs')
-        # TRAIN_MASK = os.path.join(opts.data_root, 'masks')
+        TRAIN_IMG  = os.path.join(opts.data_root, 'imgs')
+        TRAIN_MASK = os.path.join(opts.data_root, 'masks')
 
 
-        # train_img_names  = [path.name for path in Path(TRAIN_IMG).glob('*.png')]
-        # train_mask_names = [path.name for path in Path(TRAIN_MASK).glob('*.png')]
+        train_img_names  = [path.name for path in Path(TRAIN_IMG).glob('*.png')]
+        train_mask_names = [path.name for path in Path(TRAIN_MASK).glob('*.png')]
 
-        # channel_means = [0.485, 0.456, 0.406]
-        # channel_stds  = [0.229, 0.224, 0.225]
-        # train_tfms = transforms.Compose([transforms.ToTensor(),
-        #                                 transforms.Normalize(channel_means, channel_stds)])
-
-        # val_tfms = transforms.Compose([transforms.ToTensor(),
-        #                             transforms.Normalize(channel_means, channel_stds)])
-
-        # mask_tfms = transforms.Compose([transforms.ToTensor()])
-
-        # train_dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
-        # _dataset, test_dataset = random_split(train_dataset, [0.1, 0.9],torch.Generator().manual_seed(42))
-        # train_dst, val_dst = random_split(_dataset, [0.9, 0.1],torch.Generator().manual_seed(42))
-
-        TRAIN_IMG  = os.path.join(opts.data_root, 'train_image')
-        TRAIN_MASK = os.path.join(opts.data_root, 'train_label')
-        VALID_IMG = os.path.join(opts.data_root, 'val_image')
-        VALID_MASK = os.path.join(opts.data_root, 'val_label')
-
-
-        train_img_names  = [path.name for path in Path(TRAIN_IMG).glob('*.jpg')]
-        train_mask_names = [path.name for path in Path(TRAIN_MASK).glob('*.bmp')]
-        valid_img_names  = [path.name for path in Path(VALID_IMG).glob('*.jpg')]
-        valid_mask_names = [path.name for path in Path(VALID_MASK).glob('*.bmp')]
-
-        print(f'total train images = {len(train_img_names)}')
-        print(f'total valid images = {len(valid_img_names)}')
-        
         channel_means = [0.485, 0.456, 0.406]
         channel_stds  = [0.229, 0.224, 0.225]
         train_tfms = transforms.Compose([transforms.ToTensor(),
@@ -153,14 +125,44 @@ def get_dataset(opts):
 
         val_tfms = transforms.Compose([transforms.ToTensor(),
                                     transforms.Normalize(channel_means, channel_stds)])
-        
+
         mask_tfms = transforms.Compose([transforms.ToTensor()])
+
+        train_dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
+        _size = int(len(train_dataset) * 0.9)
+        _dataset, test_dataset = random_split(train_dataset, [_size, len(train_dataset) - _size],torch.Generator().manual_seed(42))
+        train_size = int(_size * 0.9)
+        train_dst, val_dst = random_split(_dataset, [train_size, _size - train_size],torch.Generator().manual_seed(42))
+
+        # TRAIN_IMG  = os.path.join(opts.data_root, 'train_image')
+        # TRAIN_MASK = os.path.join(opts.data_root, 'train_label')
+        # VALID_IMG = os.path.join(opts.data_root, 'val_image')
+        # VALID_MASK = os.path.join(opts.data_root, 'val_label')
+
+
+        # train_img_names  = [path.name for path in Path(TRAIN_IMG).glob('*.jpg')]
+        # train_mask_names = [path.name for path in Path(TRAIN_MASK).glob('*.bmp')]
+        # valid_img_names  = [path.name for path in Path(VALID_IMG).glob('*.jpg')]
+        # valid_mask_names = [path.name for path in Path(VALID_MASK).glob('*.bmp')]
+
+        # print(f'total train images = {len(train_img_names)}')
+        # print(f'total valid images = {len(valid_img_names)}')
         
-        train_dst = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
-        val_dst = ImgDataSet(img_dir=VALID_IMG, img_fnames=valid_img_names, img_transform=val_tfms, mask_dir=VALID_MASK, mask_fnames=valid_mask_names, mask_transform=mask_tfms)
-        train_size = int(0.6*len(train_dst))
-        rest_size = len(train_dst) - train_size
-        train_dst, rest_dataset = torch.utils.data.random_split(train_dst, [train_size, rest_size])
+        # channel_means = [0.485, 0.456, 0.406]
+        # channel_stds  = [0.229, 0.224, 0.225]
+        # train_tfms = transforms.Compose([transforms.ToTensor(),
+        #                                 transforms.Normalize(channel_means, channel_stds)])
+
+        # val_tfms = transforms.Compose([transforms.ToTensor(),
+        #                             transforms.Normalize(channel_means, channel_stds)])
+        
+        # mask_tfms = transforms.Compose([transforms.ToTensor()])
+        
+        # train_dst = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
+        # val_dst = ImgDataSet(img_dir=VALID_IMG, img_fnames=valid_img_names, img_transform=val_tfms, mask_dir=VALID_MASK, mask_fnames=valid_mask_names, mask_transform=mask_tfms)
+        # # train_size = int(0.6*len(train_dst))
+        # # rest_size = len(train_dst) - train_size
+        # # train_dst, rest_dataset = torch.utils.data.random_split(train_dst, [train_size, rest_size])
 
     if opts.dataset == 'voc':
         train_transform = et.ExtCompose([
@@ -266,14 +268,14 @@ def validate(opts, model, loader, device, criterion, ret_samples_ids=None, thres
             # targets = labels
             loss = criterion(outputs, targets).item()
             dloss = dice_loss(outputs.squeeze(1), targets.squeeze(1), multiclass=False).item()
-            metrics = calc_metric((outputs).cpu(), targets.cpu(), mode='tensor', threshold=threshold)
+            metrics = calc_metric(torch.sigmoid(outputs).cpu(), targets.cpu(), mode='tensor', threshold=threshold)
             loss += dloss
             losses.update(loss=loss,metrics=metrics,n=images.size(0))
             
 
             if ret_samples_ids is not None and i in ret_samples_ids:  # get vis samples
                 ret_samples.append(
-                    (images[0].detach().cpu().numpy(), targets[0].detach().cpu().numpy(), outputs[0].detach().cpu().numpy()))
+                    (images[0].detach().cpu().numpy(), targets[0].detach().cpu().numpy(), torch.sigmoid(outputs[0]).detach().cpu().numpy()))
 
             if opts.save_val_results:
                 for i in range(len(images)):
@@ -319,7 +321,7 @@ def main():
     if vis is not None:  # display options
         vis.vis_table("Options", vars(opts))
 
-    # os.environ['CUDA_VISIBLE_DEVICES'] = opts.gpu_id
+    os.environ['CUDA_VISIBLE_DEVICES'] = opts.gpu_id
     device = torch.device("cuda")
     # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     num_gpu = torch.cuda.device_count()
@@ -392,7 +394,7 @@ def main():
         # https://github.com/VainF/DeepLabV3Plus-Pytorch/issues/8#issuecomment-605601402, @PytaichukBohdan
         checkpoint = torch.load(opts.ckpt, map_location=torch.device('cpu'))
         model.load_state_dict(checkpoint["model_state"])
-        model = nn.DataParallel(model,device_ids=range(num_gpu))
+        model = nn.DataParallel(model)
         model.to(device)
         if opts.continue_training:
             optimizer.load_state_dict(checkpoint["optimizer_state"])
@@ -404,7 +406,7 @@ def main():
         del checkpoint  # free memory
     else:
         print("[!] Retrain")
-        model = nn.DataParallel(model,device_ids=range(num_gpu))
+        model = nn.DataParallel(model)
         model.to(device)
 
     # ==========   Train Loop   ==========#
@@ -435,7 +437,7 @@ def main():
             # print(outputs.shape)
             # print(labels.shape)
             loss = criterion(outputs, labels)
-            loss += dice_loss(F.sigmoid(outputs.squeeze(1)), labels.squeeze(1).float(), multiclass=False)
+            loss += dice_loss(torch.sigmoid(outputs.squeeze(1)), labels.squeeze(1).float(), multiclass=False)
             loss.backward()
             optimizer.step()
 
@@ -471,10 +473,11 @@ def main():
                     vis.vis_scalar("[Val] f1", cur_itrs, val_score['dice_score'])
 
                     for k, (img, target, lbl) in enumerate(ret_samples):
-                        # img = (denorm(img) * 255).astype(np.uint8)
-                        target = np.stack([target, target, target], axis=-1)
-                        lbl = np.stack([lbl,lbl,lbl],axis=-1)
-                        concat_img = np.concatenate((img, target, lbl), axis=2)  # concat along width
+                        img = (denorm(img) * 255).astype(np.uint8)
+                        target = np.concatenate([target, target, target], axis=0)
+                        lbl = np.concatenate([lbl,lbl,lbl],axis=0)
+                        # print(np.max(lbl))
+                        concat_img = np.concatenate((img, (target*255).astype('uint8'), (lbl*255).astype('uint8')), axis=2)  # concat along width
                         # vis.vis_image('Sample %d' % k, img)
                         vis.vis_image('Sample %d' % k, concat_img)
                 model.train()

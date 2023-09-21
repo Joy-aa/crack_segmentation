@@ -14,6 +14,8 @@ sys.path.append("/home/wj/local/crack_segmentation")
 from metric import *
 import bisect
 
+input_size = (192, 192)
+
 def Test(valid_img_dir, valid_lab_dir, valid_result_dir, valid_log_dir, best_model_dir, model, pretrained_model):
     
     validator = Validator(model, valid_log_dir, best_model_dir)
@@ -111,11 +113,11 @@ def Test(valid_img_dir, valid_lab_dir, valid_result_dir, valid_log_dir, best_mod
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    # /mnt/nfs/wj/data/ /mnt/ningbo_nfs_36/wj/data/ /mnt/hangzhou_116_homes/DamDetection/data/dataV2
-    parser.add_argument('--img_dir',type=str, default='/mnt/nfs/wj/data/', help='input dataset directory')
-    parser.add_argument('--model_path', type=str, default='/mnt/hangzhou_116_homes/wj/model/crackformer1/crackformer_epoch(68).pth', help='trained model path')
+    # /mnt/nfs/wj/data/ /mnt/ningbo_nfs_36/wj/data/
+    parser.add_argument('--img_dir',type=str, default='/nfs/DamDetection/data', help='input dataset directory')
+    parser.add_argument('--model_path', type=str, default='model/crackformer_epoch(48).pth', help='trained model path')
     parser.add_argument('--model_type', type=str, default='crackformer', choices=['crackformer', 'SDDNet', 'STRNet'])
-    parser.add_argument('--out_pred_dir', type=str, default='./test_result448', required=False,  help='prediction output dir')
+    parser.add_argument('--out_pred_dir', type=str, default='./test_result', required=False,  help='prediction output dir')
     parser.add_argument('--type', type=str, default='metric' , choices=['out', 'metric'])
     args = parser.parse_args()
 
@@ -146,8 +148,6 @@ if __name__ == '__main__':
     else:
         print('undefind test pattern')
         exit()
-    # DIR_IMG  = os.path.join(args.img_dir, 'image')
-    # DIR_MASK = os.path.join(args.img_dir, 'new_label')
     valid_log_dir = "./log/" + args.model_type + '/'
     best_model_dir = "./model/" + args.model_type + "/"
     # image_format = "jpg"

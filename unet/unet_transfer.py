@@ -87,8 +87,8 @@ class UNet16(nn.Module):
 
         self.encoder = torchvision.models.vgg16(weights=torchvision.models.VGG16_Weights.IMAGENET1K_V1).features
 
-        # self.relu = nn.ReLU(inplace=True)
-        self.relu = nn.GELU()
+        self.relu = nn.ReLU(inplace=True)
+        # self.relu = nn.GELU()
 
         self.conv1 = nn.Sequential(self.encoder[0],
                                    self.relu,

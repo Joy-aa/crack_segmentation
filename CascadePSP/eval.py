@@ -20,7 +20,7 @@ import time
 import sys
 sys.path.append("/home/wj/local/crack_segmentation")
 from metric import *
-input_size=[448, 448]
+input_size=[160,160]
 
 class Parser():
     def parse(self):
@@ -29,8 +29,8 @@ class Parser():
 
         parser = ArgumentParser()
 
-        parser.add_argument('--dir', default='/mnt/nfs/wj/data', help='Directory with testing images')
-        parser.add_argument('--model',default='/home/wj/local/crack_segmentation/CascadePSP/weights/1_2023-08-03_15:28:58/model_246720', help='Pretrained model')
+        parser.add_argument('--dir', default='/nfs/wj/data', help='Directory with testing images')
+        parser.add_argument('--model',default='/home/wj/local/crack_segmentation/CascadePSP/weights/1_2023-08-04_00:07:51/model_250390', help='Pretrained model')
         parser.add_argument('--output', default='/home/wj/local/crack_segmentation/CascadePSP/results', help='Output directory')
 
         parser.add_argument('--global_only', help='Global step only', action='store_true')
