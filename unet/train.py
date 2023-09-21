@@ -8,7 +8,7 @@ from torch.autograd import Variable
 from torch.utils.tensorboard import SummaryWriter
 import shutil
 import sys
-sys.path.append("/home/wj/pycharmProjects/crack_segmentation")
+sys.path.append("/home/wj/local/crack_segmentation")
 from logger import BoardLogger
 from data_loader import ImgDataSet
 import os
@@ -84,7 +84,15 @@ def find_latest_model_path(dir):
     else:
         return None
 
-def train(train_loader, valid_loader, model, criterion, optimizer, validation, args, logger):
+def calc_loss(masks_pred, target_var, r=1):
+    masks_probs_flat = masks_pred.view(-1)
+    true_masks_flat  = target_var.view(-1)
+    
+    loss = r * criterion(masks_probs_flat, true_masks_flat)
+    loss += dice_loss(torch.sigmoid(masks_pred.squeeze(1)), target_var.squeeze(1).float(), multiclass=False)
+    return loss
+
+def train(dataset, model, criterion, optimizer, validation, args, logger):
 
     # latest_model_path = find_latest_model_path(args.model_dir)
     # latest_model_path = os.path.join(*[args.model_dir, 'model_start.pt'])
@@ -113,14 +121,17 @@ def train(train_loader, valid_loader, model, criterion, optimizer, validation, a
         print(f'Started training model from epoch {epoch}')
     else:
         print('Started training model from epoch 0')
-        epoch = 0
+        epoch = 1
         min_val_los = 9999
 
     valid_losses = []
-    # scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, para['steps'], para['gamma'])
     total_iter = 0
-    # for epoch in range(0, args.n_epoch + 1):
     for epoch in range(epoch, args.n_epoch + 1):
+
+        train_size = int(len(dataset)*0.9)
+        train_dataset, valid_dataset = random_split(dataset, [train_size, len(dataset) - train_size])
+        train_loader = torch.utils.data.DataLoader(train_dataset, args.batch_size, shuffle=True, pin_memory=torch.cuda.is_available(), num_workers=4)
+        valid_loader = torch.utils.data.DataLoader(valid_dataset, 1, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=4)
 
         adjust_learning_rate(optimizer, epoch, args.lr)
 
@@ -128,7 +139,6 @@ def train(train_loader, valid_loader, model, criterion, optimizer, validation, a
         tq.set_description(f'Epoch {epoch}')
 
         losses = AverageMeter()
-        report_interval = 100
         model.train()
         for i, (input, target) in enumerate(train_loader):
             input_var  = Variable(input).cuda()
@@ -136,15 +146,10 @@ def train(train_loader, valid_loader, model, criterion, optimizer, validation, a
 
             masks_pred = model(input_var)
 
-            masks_probs_flat = masks_pred.view(-1)
-            true_masks_flat  = target_var.view(-1)
-
-            loss = criterion(masks_probs_flat, true_masks_flat)
-            # loss += criterion1(masks_probs_flat, true_masks_flat)
-            loss += dice_loss(F.sigmoid(masks_pred.squeeze(1)), target_var.squeeze(1).float(), multiclass=False)
+            loss = calc_loss(masks_pred, target_var, 10)
             losses.update(loss)
             # total_iter = 
-            if (i+total_iter) % report_interval == 0:
+            if (i+total_iter) % args.print_freq == 0:
                 logger.log_scalar('train/lr', optimizer.param_groups[0]['lr'], i+total_iter)
                 logger.log_scalar('train/loss', losses.avg, i+total_iter)
             tq.set_postfix(loss='{:.5f}'.format(losses.avg))
@@ -158,19 +163,20 @@ def train(train_loader, valid_loader, model, criterion, optimizer, validation, a
         valid_metrics = validation(model, valid_loader, criterion)
         valid_loss = valid_metrics['valid_loss']
         valid_losses.append(valid_loss)
-        # logger.log_scalar('train/lr', optimizer.get_lr()[0], i)
+        logger.log_scalar('train/lr', optimizer.get_lr()[0], i)
         logger.log_scalar('valid/loss', valid_loss, epoch)
         print(f'\tvalid_loss = {valid_loss:.5f}')
         tq.close()
 
         #save the model of the current epoch
         epoch_model_path = os.path.join(*[args.model_dir, f'model_epoch_{epoch}.pt'])
-        torch.save({
-            'model': model.state_dict(),
-            'epoch': epoch,
-            'valid_loss': valid_loss,
-            'train_loss': losses.avg
-        }, epoch_model_path)
+        if(epoch % 5 == 0):
+            torch.save({
+                'model': model.state_dict(),
+                'epoch': epoch,
+                'valid_loss': valid_loss,
+                'train_loss': losses.avg
+            }, epoch_model_path)
 
         if valid_loss < min_val_los:
             min_val_los = valid_loss
@@ -186,48 +192,25 @@ def validate(model, val_loader, criterion):
     losses = AverageMeter()
     model.eval()
     with torch.no_grad():
-
         for i, (input, target) in enumerate(val_loader):
             input_var = Variable(input).cuda()
             target_var = Variable(target).cuda()
 
             output = model(input_var)
-            loss = criterion(output, target_var)
-            # loss += criterion1(output, target_var)
-            loss += dice_loss(F.sigmoid(output.squeeze(1)), target_var.squeeze(1).float(), multiclass=False)
+            loss = calc_loss(output, target_var, 10)
 
-            losses.update(loss.item(), input_var.size(0))
+            losses.update(loss.item())
 
     return {'valid_loss': losses.avg}
 
-def save_check_point(state, is_best, file_name = 'checkpoint.pth.tar'):
-    torch.save(state, file_name)
-    if is_best:
-        shutil.copy(file_name, 'model_best.pth.tar')
-
-def calc_crack_pixel_weight(mask_dir):
-    avg_w = 0.0
-    n_files = 0
-    for path in Path(mask_dir).glob('*.*'):
-        n_files += 1
-        m = ndimage.imread(path)
-        ncrack = np.sum((m > 0)[:])
-        w = float(ncrack)/(m.shape[0]*m.shape[1])
-        avg_w = avg_w + (1-w)
-
-    avg_w /= float(n_files)
-
-    return avg_w / (1.0 - avg_w)
-
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
-    parser.add_argument('--n_epoch', default=100, type=int, metavar='N', help='number of total epochs to run')
+    parser.add_argument('--n_epoch', default=50, type=int, metavar='N', help='number of total epochs to run')
     parser.add_argument('--lr', default=0.001, type=float, metavar='LR', help='initial learning rate')
     parser.add_argument('--momentum', default=0.9, type=float, metavar='M', help='momentum')
-    parser.add_argument('--print_freq', default=20, type=int, metavar='N', help='print frequency (default: 10)')
+    parser.add_argument('--print_freq', default=100, type=int, metavar='N', help='print frequency (default: 10)')
     parser.add_argument('--weight_decay', default=5e-4, type=float, metavar='W', help='weight decay (default: 1e-4)')
-    parser.add_argument('--batch_size',  default=16, type=int,  help='weight decay (default: 1e-4)')
+    parser.add_argument('--batch_size',  default=8, type=int,  help='weight decay (default: 1e-4)')
     parser.add_argument('--num_workers', default=4, type=int, help='output dataset directory')
     parser.add_argument('--data_dir',type=str, help='input dataset directory')
     # /home/wj/dataset/seg_dataset /nfs/wj/DamCrack
@@ -237,20 +220,23 @@ if __name__ == '__main__':
     args = parser.parse_args()
     os.makedirs(args.model_dir, exist_ok=True)
 
-    TRAIN_IMG  = os.path.join(args.data_dir, 'train_image')
-    TRAIN_MASK = os.path.join(args.data_dir, 'train_label')
-    VALID_IMG = os.path.join(args.data_dir, 'val_image')
-    VALID_MASK = os.path.join(args.data_dir, 'val_label')
-
-
+    TRAIN_IMG  = os.path.join(args.data_dir, 'image')
+    TRAIN_MASK = os.path.join(args.data_dir, 'label')
     train_img_names  = [path.name for path in Path(TRAIN_IMG).glob('*.jpg')]
-    train_mask_names = [path.name for path in Path(TRAIN_MASK).glob('*.bmp')]
-    valid_img_names  = [path.name for path in Path(VALID_IMG).glob('*.jpg')]
-    valid_mask_names = [path.name for path in Path(VALID_MASK).glob('*.bmp')]
-
+    train_mask_names = [path.name for path in Path(TRAIN_MASK).glob('*.png')]
     print(f'total train images = {len(train_img_names)}')
-    print(f'total valid images = {len(valid_img_names)}')
 
+    channel_means = [0.485, 0.456, 0.406]
+    channel_stds  = [0.229, 0.224, 0.225]
+    train_tfms = transforms.Compose([transforms.ToTensor(),
+                                     transforms.Normalize(channel_means, channel_stds)])
+    val_tfms = transforms.Compose([transforms.ToTensor(),
+                                   transforms.Normalize(channel_means, channel_stds)])
+    mask_tfms = transforms.Compose([transforms.ToTensor()])
+
+    train_dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
+
+    os.environ["CUDA_VISIBLE_DEVICES"] = "1,2"
     device = torch.device("cuda")
     # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     num_gpu = torch.cuda.device_count()
@@ -268,27 +254,8 @@ if __name__ == '__main__':
                                 weight_decay=args.weight_decay)
     # optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     
-    # criterion = torch.nn.BCEWithLogitsLoss().to(device)
-    criterion = BinaryFocalLoss().to(device)
+    criterion = torch.nn.BCEWithLogitsLoss()
+    # criterion = BinaryFocalLoss()
 
-    channel_means = [0.485, 0.456, 0.406]
-    channel_stds  = [0.229, 0.224, 0.225]
-    train_tfms = transforms.Compose([transforms.ToTensor(),
-                                     transforms.Normalize(channel_means, channel_stds)])
-
-    val_tfms = transforms.Compose([transforms.ToTensor(),
-                                   transforms.Normalize(channel_means, channel_stds)])
-
-    mask_tfms = transforms.Compose([transforms.ToTensor()])
-
-    train_dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
-    valid_dataset = ImgDataSet(img_dir=VALID_IMG, img_fnames=valid_img_names, img_transform=train_tfms, mask_dir=VALID_MASK, mask_fnames=valid_mask_names, mask_transform=mask_tfms)
-    
-
-    train_loader = DataLoader(train_dataset, args.batch_size, shuffle=True, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
-    valid_loader = DataLoader(valid_dataset, args.batch_size, shuffle=True, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
-
-    model.cuda()
-
-    train(train_loader, valid_loader, model, criterion, optimizer, validate, args, logger)
+    train(train_dataset, model, criterion, optimizer, validate, args, logger)
 
