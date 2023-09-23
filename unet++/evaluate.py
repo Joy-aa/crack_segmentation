@@ -19,8 +19,6 @@ import datetime
 import csv
 from metric import calc_metric
 
-input_size = (448, 448)
-
 def evaluate_img(model, img, test_tfms):
     X = test_tfms(Image.fromarray(img))
     X = Variable(X.unsqueeze(0)).cuda()  # [N, 1, H, W]
@@ -35,7 +33,7 @@ if __name__ == '__main__':
     # /nfs/DamDetection/data/  /mnt/hangzhou_116_homes/DamDetection/data/  /home/wj/dataset/crack/
     parser.add_argument('--img_dir',type=str, default='/mnt/hangzhou_116_homes/DamDetection/data', help='input dataset directory')
     parser.add_argument('--model_path', type=str, default='./checkpoints/Unet++_20.pth', help='trained model path')
-    parser.add_argument('--out_pred_dir', type=str, default='./result_images', required=False,  help='prediction output dir')
+    parser.add_argument('--out_pred_dir', type=str, default='./result_images192', required=False,  help='prediction output dir')
     parser.add_argument('--type', type=str, default='out' , choices=['out', 'metric'])
     args = parser.parse_args()
 
@@ -94,8 +92,9 @@ if __name__ == '__main__':
         img_1 = np.zeros((img_height, img_width))
 
         cof = 1
+        input_size = (176, 176)
         w, h = int(cof * input_size[0]), int(cof * input_size[1])
-        offset = 32
+        offset = 16
         
         for i in range(0, img_height+h, h):
             for j in range(0, img_width+w, w):
