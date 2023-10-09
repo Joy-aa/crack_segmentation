@@ -10,9 +10,9 @@ class Config:
     setproctitle.setproctitle("%s" % name)
 
     # path
-    data_dir = '/nfs/wj/192_255_segmentation'
-    # data_dir = '/nfs/wj/DamCrack'
-    checkpoint_path = 'model'
+    # data_dir = '/nfs/wj/192_255_segmentation'
+    data_dir = '/mnt/nfs/wj/DamCrack'
+    checkpoint_path = 'checkpoints/stage1'
     log_path = 'log'
     saver_path = os.path.join(checkpoint_path, name)
     max_save = 20
@@ -26,14 +26,14 @@ class Config:
     val_every = 400
 
     # training
-    epoch = 500
-    pretrained_model = '/home/wj/local/crack_segmentation/CrackFormer/CrackFormer-II/model/crackformer_epoch(15).pth'
+    epoch = 50
+    pretrained_model = '/home/wj/local/crack_segmentation/CrackFormer/CrackFormer-II/checkpoints/stage1/crackformer_20.pth'
     weight_decay = 0.0000
     lr_decay = 0.1
     lr = 1e-3
     momentum = 0.9
     use_adam = False  # Use Adam optimizer
-    train_batch_size = 8
+    train_batch_size = 4
     val_batch_size = 4
     test_batch_size = 1
 
