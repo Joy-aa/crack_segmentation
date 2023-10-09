@@ -48,6 +48,24 @@ def adjust_learning_rate(optimizer, epoch, lr):
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
+def find_latest_model_path(dir):
+    model_paths = []
+    epochs = []
+    for path in Path(dir).glob('*.pth'):
+        # if 'epoch' not in path.stem:
+        #     continue
+        model_paths.append(path)
+        parts = path.stem.split('_')
+        epoch = int(parts[-1])
+        epochs.append(epoch)
+        
+    if len(epochs) > 0:
+        epochs = np.array(epochs)
+        max_idx = np.argmax(epochs)
+        return model_paths[max_idx]
+    else:
+        return None
+
 def calc_loss(masks_pred, target_var, criterion, r=1):
     masks_probs_flat = masks_pred.view(-1)
     true_masks_flat  = target_var.view(-1)
@@ -56,16 +74,17 @@ def calc_loss(masks_pred, target_var, criterion, r=1):
     loss += dice_loss(torch.sigmoid(masks_pred.squeeze(1)), target_var.squeeze(1).float(), multiclass=False)
     return loss
 
-def train(dataset, model, criterion, optimizer, validation, args):
+def train(dataset, model, criterion, optimizer, validation, args, logger):
 
-    # latest_model_path = find_latest_model_path(args.model_dir)
+    latest_model_path = find_latest_model_path(args.model_dir)
     # latest_model_path = os.path.join(*[args.model_dir, 'model_start.pt'])
-    latest_model_path = None
+    # latest_model_path = None
     best_model_path = os.path.join(*[args.model_dir, 'model_best.pt'])
 
     if latest_model_path is not None:
         state = torch.load(latest_model_path)
-        epoch = state['epoch']
+        # epoch = state['epoch']
+        epoch = 0
         model.load_state_dict(state['model'])
         # weights = state['model']
         # weights_dict = {}
@@ -94,8 +113,8 @@ def train(dataset, model, criterion, optimizer, validation, args):
 
         train_size = int(len(dataset)*0.9)
         train_dataset, valid_dataset = random_split(dataset, [train_size, len(dataset) - train_size])
-        train_loader = torch.utils.data.DataLoader(train_dataset, args.batch_size, shuffle=True, pin_memory=torch.cuda.is_available(), num_workers=4)
-        valid_loader = torch.utils.data.DataLoader(valid_dataset, 1, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=4)
+        train_loader = torch.utils.data.DataLoader(train_dataset, args.batch_size, shuffle=True, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
+        valid_loader = torch.utils.data.DataLoader(valid_dataset, 1, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
 
         adjust_learning_rate(optimizer, epoch, args.lr)
 
@@ -141,7 +160,7 @@ def train(dataset, model, criterion, optimizer, validation, args):
                 'epoch': epoch,
                 'valid_loss': valid_loss,
                 'train_loss': losses.avg
-            }, f'checkpoints/Unet++_{epoch}.pth')
+            }, f'checkpoints/Unet++_step2_{epoch}.pth')
 
         if valid_loss < min_val_los:
             min_val_los = valid_loss
@@ -170,7 +189,7 @@ def validate(model, val_loader, criterion):
 
     return {'valid_loss': losses.avg}
 
-def predict(test_loader, model, latest_model_path):
+def predict(test_loader, model, latest_model_path, eval_type = 'test_loader'):
     model.eval()
     metrics=[]
     pred_list = []
@@ -206,6 +225,7 @@ def predict(test_loader, model, latest_model_path):
     os.makedirs('./result_dir', exist_ok=True)
     with open(os.path.join('./result_dir', str(d)+'.txt'), 'a', encoding='utf-8') as fout:
                 fout.write(latest_model_path+'\n')
+                fout.write(eval_type+'\n')
                 for i in range(1, 10): 
                     line =  "threshold:{:d} | accuracy:{:.5f} | precision:{:.5f} | recall:{:.5f} | f1:{:.5f} " \
                         .format(i, metrics[i-1]['accuracy'],  metrics[i-1]['precision'],  metrics[i-1]['recall'],  metrics[i-1]['f1']) + '\n'
@@ -224,31 +244,13 @@ if __name__ == '__main__':
     parser.add_argument('--data_dir',type=str, help='input dataset directory')
     # /mnt/hangzhou_116_homes/wj/192_255_segmentation/
     parser.add_argument('--model_dir', type=str, help='output dataset directory')
+    parser.add_argument('--eval_type', type=str, default='test_loader' , choices=['test_loader', '512x512', '192_with_box'])
 
     args = parser.parse_args()
     os.makedirs(args.model_dir, exist_ok=True)
 # 第一阶段训练
-    TRAIN_IMG  = os.path.join(args.data_dir, 'image')
-    TRAIN_MASK = os.path.join(args.data_dir, 'label')
-    train_img_names  = [path.name for path in Path(TRAIN_IMG).glob('*.jpg')]
-    train_mask_names = [path.name for path in Path(TRAIN_MASK).glob('*.png')]
-    print(f'total train images = {len(train_img_names)}')
-
-    channel_means = [0.485, 0.456, 0.406]
-    channel_stds  = [0.229, 0.224, 0.225]
-    train_tfms = transforms.Compose([transforms.ToTensor(),
-                                     transforms.Normalize(channel_means, channel_stds)])
-    val_tfms = transforms.Compose([transforms.ToTensor(),
-                                   transforms.Normalize(channel_means, channel_stds)])
-    mask_tfms = transforms.Compose([transforms.ToTensor()])
-
-    train_dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
-
-# 第二阶段训练
-    # TRAIN_IMG  = os.path.join(args.data_dir, 'imgs')
-    # TRAIN_MASK = os.path.join(args.data_dir, 'masks')
-
-
+    # TRAIN_IMG  = os.path.join(args.data_dir, 'image')
+    # TRAIN_MASK = os.path.join(args.data_dir, 'label')
     # train_img_names  = [path.name for path in Path(TRAIN_IMG).glob('*.jpg')]
     # train_mask_names = [path.name for path in Path(TRAIN_MASK).glob('*.png')]
     # print(f'total train images = {len(train_img_names)}')
@@ -257,18 +259,36 @@ if __name__ == '__main__':
     # channel_stds  = [0.229, 0.224, 0.225]
     # train_tfms = transforms.Compose([transforms.ToTensor(),
     #                                  transforms.Normalize(channel_means, channel_stds)])
-
     # val_tfms = transforms.Compose([transforms.ToTensor(),
     #                                transforms.Normalize(channel_means, channel_stds)])
-
     # mask_tfms = transforms.Compose([transforms.ToTensor()])
 
     # train_dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
-    # _dataset, test_dataset = random_split(train_dataset, [0.9, 0.1],torch.Generator().manual_seed(42))
+
+# 第二阶段训练
+    TRAIN_IMG  = os.path.join(args.data_dir, 'imgs')
+    TRAIN_MASK = os.path.join(args.data_dir, 'masks')
+    print(args.data_dir)
+    train_img_names  = [path.name for path in Path(TRAIN_IMG).glob('*.png')]
+    train_mask_names = [path.name for path in Path(TRAIN_MASK).glob('*.png')]
+    print(f'total train images = {len(train_img_names)}')
+
+    channel_means = [0.485, 0.456, 0.406]
+    channel_stds  = [0.229, 0.224, 0.225]
+    train_tfms = transforms.Compose([transforms.ToTensor(),
+                                     transforms.Normalize(channel_means, channel_stds)])
+
+    val_tfms = transforms.Compose([transforms.ToTensor(),
+                                   transforms.Normalize(channel_means, channel_stds)])
+
+    mask_tfms = transforms.Compose([transforms.ToTensor()])
+
+    train_dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
+    _dataset, test_dataset = random_split(train_dataset, [0.9, 0.1],torch.Generator().manual_seed(42))
     # train_dataset, valid_dataset = random_split(_dataset, [0.9, 0.1],torch.Generator().manual_seed(42))
-    # train_loader = torch.utils.data.DataLoader(train_dataset, args.batch_size, shuffle=True, pin_memory=torch.cuda.is_available(), num_workers=4)
-    # val_loader = torch.utils.data.DataLoader(valid_dataset, 1, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=4)
-    # test_loader = torch.utils.data.DataLoader(test_dataset, 1, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=4)
+    # train_loader = torch.utils.data.DataLoader(train_dataset, args.batch_size, shuffle=True, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
+    # val_loader = torch.utils.data.DataLoader(valid_dataset, 1, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
+    test_loader = torch.utils.data.DataLoader(test_dataset, 1, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
 
 
     long_id = '%s_%s' % (str(args.lr), datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S'))
@@ -287,16 +307,16 @@ if __name__ == '__main__':
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay)
 
-    train(train_dataset, model, criterion, optimizer, validate, args)
+    # train(_dataset, model, criterion, optimizer, validate, args, logger)
 
-    # latest_model_path = '/home/wj/local/crack_segmentation/unet++/checkpoints/Unet++_20.pth'
-    # state = torch.load(latest_model_path)
-    # model.load_state_dict(state['model'])
-    # # weights = state['model']
-    # # weights_dict = {}
-    # # for k, v in weights.items():
-    # #     new_k = k.replace('module.', '') if 'module' in k else k
-    # #     weights_dict[new_k] = v
-    # # model.load_state_dict(weights_dict)
-    # predict(test_loader, model, latest_model_path)
+    latest_model_path = '/home/wj/local/crack_segmentation/unet++/checkpoints/stage2/model_best.pt'
+    state = torch.load(latest_model_path)
+    model.load_state_dict(state['model'])
+    # weights = state['model']
+    # weights_dict = {}
+    # for k, v in weights.items():
+    #     new_k = k.replace('module.', '') if 'module' in k else k
+    #     weights_dict[new_k] = v
+    # model.load_state_dict(weights_dict)
+    predict(test_loader, model, latest_model_path, args.eval_type)
     
