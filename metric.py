@@ -67,14 +67,15 @@ def calc_metric(pred_list, gt_list, mode='list', threshold = 0, max_value = 1):
         # print(pred_arr.shape)
         # print(gt_arr.shape)
         th = threshold * max_value
-        pred_arr[pred_arr > th] = 1
-        pred_arr[pred_arr <= th] = 0
+        mask_arr = pred_arr.copy()
+        mask_arr[pred_arr > th] = 1
+        mask_arr[pred_arr <= th] = 0
         # print(np.sum(pred_arr == 0))
         # print(np.sum(pred_arr == 1))
         gt_arr[gt_arr > 0] = 1
         # print(np.sum(gt_arr == 0))
         # print(np.sum(gt_arr == 1))
-        pred_mask = torch.tensor(pred_arr)
+        pred_mask = torch.tensor(mask_arr)
         mask = torch.tensor(gt_arr)
     elif mode == 'tensor':
         # print(pred_list.shape)
@@ -96,7 +97,7 @@ if __name__ == "__main__":
     from tqdm import tqdm
     import cv2 as cv
     import os
-    DIR_PRED = '/home/wj/local/crack_segmentation/CrackFormer/CrackFormer-II/test_result_box448'
+    DIR_PRED = '/home/wj/local/crack_segmentation/unet++/result_images'
     DIR_GT = '/mnt/nfs/wj/data/new_label'
     paths = [path for path in Path(DIR_PRED).glob('*.*')]
     metrics=[]
