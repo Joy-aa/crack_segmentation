@@ -19,8 +19,6 @@ import datetime
 import csv
 from metric import calc_metric
 
-input_size = (448, 448)
-
 def evaluate_img(model, img, test_tfms):
     X = test_tfms(Image.fromarray(img))
     X = Variable(X.unsqueeze(0)).cuda()  # [N, 1, H, W]
@@ -37,6 +35,7 @@ if __name__ == '__main__':
     parser.add_argument('--model_path', type=str, default='./checkpoints/Unet++_20.pth', help='trained model path')
     parser.add_argument('--out_pred_dir', type=str, default='./result_images', required=False,  help='prediction output dir')
     parser.add_argument('--type', type=str, default='out' , choices=['out', 'metric'])
+    parser.add_argument('--eval_type', type=str, default='512x512' , choices=['test_loader', '512x512', 'test_with_box_192'])
     args = parser.parse_args()
 
     if args.out_pred_dir != '':
@@ -94,6 +93,7 @@ if __name__ == '__main__':
         img_1 = np.zeros((img_height, img_width))
 
         cof = 1
+        input_size = (480, 480)
         w, h = int(cof * input_size[0]), int(cof * input_size[1])
         offset = 32
         
@@ -158,6 +158,7 @@ if __name__ == '__main__':
         datetime.datetime.strftime(d,'%Y-%m-%d %H-%M-%S')
         os.makedirs('./result_dir', exist_ok=True)
         with open(os.path.join('./result_dir', str(d)+'.txt'), 'a', encoding='utf-8') as fout:
+                fout.write(args.eval_type+'\n')
                 fout.write(args.model_path+'\n')
                 for i in range(1, 10): 
                     line =  "threshold:{:d} | accuracy:{:.5f} | precision:{:.5f} | recall:{:.5f} | f1:{:.5f} " \
