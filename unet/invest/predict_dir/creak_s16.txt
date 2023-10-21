@@ -1,0 +1,10 @@
+/nfs/wj/data/image/creak_s16.jpg
+threshold:1 | accuracy:0.99377 | precision:0.72377 | recall:0.81958 | f1:0.76870 
+threshold:2 | accuracy:0.99398 | precision:0.74372 | recall:0.79910 | f1:0.77041 
+threshold:3 | accuracy:0.99408 | precision:0.75409 | recall:0.78850 | f1:0.77091 
+threshold:4 | accuracy:0.99417 | precision:0.76379 | recall:0.78031 | f1:0.77196 
+threshold:5 | accuracy:0.99425 | precision:0.77107 | recall:0.77564 | f1:0.77335 
+threshold:6 | accuracy:0.99430 | precision:0.77684 | recall:0.76971 | f1:0.77326 
+threshold:7 | accuracy:0.99435 | precision:0.78258 | recall:0.76533 | f1:0.77386 
+threshold:8 | accuracy:0.99440 | precision:0.78912 | recall:0.76024 | f1:0.77441 
+threshold:9 | accuracy:0.99444 | precision:0.79579 | recall:0.75318 | f1:0.77390 

@@ -1,0 +1,10 @@
+/nfs/wj/data/image/creak_s44.jpg
+threshold:1 | accuracy:0.98061 | precision:0.63211 | recall:0.55850 | f1:0.59303 
+threshold:2 | accuracy:0.98085 | precision:0.64239 | recall:0.54779 | f1:0.59133 
+threshold:3 | accuracy:0.98097 | precision:0.64867 | recall:0.54032 | f1:0.58956 
+threshold:4 | accuracy:0.98108 | precision:0.65440 | recall:0.53419 | f1:0.58821 
+threshold:5 | accuracy:0.98118 | precision:0.65970 | recall:0.52861 | f1:0.58692 
+threshold:6 | accuracy:0.98127 | precision:0.66485 | recall:0.52306 | f1:0.58549 
+threshold:7 | accuracy:0.98134 | precision:0.67013 | recall:0.51651 | f1:0.58338 
+threshold:8 | accuracy:0.98143 | precision:0.67671 | recall:0.50891 | f1:0.58094 
+threshold:9 | accuracy:0.98153 | precision:0.68719 | recall:0.49532 | f1:0.57569 
