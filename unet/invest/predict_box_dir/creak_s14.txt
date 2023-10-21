@@ -1,0 +1,10 @@
+/nfs/wj/data/image/creak_s14.jpg
+threshold:1 | accuracy:0.98592 | precision:0.36124 | recall:0.52871 | f1:0.42922 
+threshold:2 | accuracy:0.98628 | precision:0.36777 | recall:0.51407 | f1:0.42879 
+threshold:3 | accuracy:0.98650 | precision:0.37142 | recall:0.50270 | f1:0.42720 
+threshold:4 | accuracy:0.98669 | precision:0.37499 | recall:0.49394 | f1:0.42633 
+threshold:5 | accuracy:0.98686 | precision:0.37861 | recall:0.48643 | f1:0.42580 
+threshold:6 | accuracy:0.98701 | precision:0.38152 | recall:0.47850 | f1:0.42454 
+threshold:7 | accuracy:0.98718 | precision:0.38540 | recall:0.47037 | f1:0.42367 
+threshold:8 | accuracy:0.98738 | precision:0.38991 | recall:0.45974 | f1:0.42196 
+threshold:9 | accuracy:0.98769 | precision:0.39735 | recall:0.44403 | f1:0.41940 

@@ -1,0 +1,10 @@
+/nfs/wj/data/image/creak_s85.JPG
+threshold:1 | accuracy:0.98957 | precision:0.75726 | recall:0.67742 | f1:0.71512 
+threshold:2 | accuracy:0.98975 | precision:0.77628 | recall:0.65917 | f1:0.71295 
+threshold:3 | accuracy:0.98982 | precision:0.78842 | recall:0.64635 | f1:0.71035 
+threshold:4 | accuracy:0.98985 | precision:0.79796 | recall:0.63517 | f1:0.70732 
+threshold:5 | accuracy:0.98986 | precision:0.80676 | recall:0.62478 | f1:0.70420 
+threshold:6 | accuracy:0.98986 | precision:0.81542 | recall:0.61396 | f1:0.70050 
+threshold:7 | accuracy:0.98983 | precision:0.82432 | recall:0.60199 | f1:0.69583 
+threshold:8 | accuracy:0.98978 | precision:0.83504 | recall:0.58683 | f1:0.68927 
+threshold:9 | accuracy:0.98965 | precision:0.85094 | recall:0.56249 | f1:0.67728 
