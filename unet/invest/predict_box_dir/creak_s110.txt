@@ -1,0 +1,20 @@
+/nfs/wj/data/image/creak_s110.jpg
+threshold:1 | accuracy:0.99249 | precision:0.76398 | recall:0.80477 | f1:0.78385 
+threshold:2 | accuracy:0.99256 | precision:0.77809 | recall:0.78392 | f1:0.78099 
+threshold:3 | accuracy:0.99260 | precision:0.78741 | recall:0.77072 | f1:0.77898 
+threshold:4 | accuracy:0.99260 | precision:0.79466 | recall:0.75884 | f1:0.77634 
+threshold:5 | accuracy:0.99258 | precision:0.80126 | recall:0.74687 | f1:0.77311 
+threshold:6 | accuracy:0.99255 | precision:0.80793 | recall:0.73465 | f1:0.76955 
+threshold:7 | accuracy:0.99253 | precision:0.81623 | recall:0.72101 | f1:0.76567 
+threshold:8 | accuracy:0.99251 | precision:0.82654 | recall:0.70563 | f1:0.76131 
+threshold:9 | accuracy:0.99236 | precision:0.84108 | recall:0.67660 | f1:0.74992 
+/nfs/wj/data/image/creak_s110.jpg
+threshold:1 | accuracy:0.99249 | precision:0.76398 | recall:0.80477 | f1:0.78385 
+threshold:2 | accuracy:0.99256 | precision:0.77809 | recall:0.78392 | f1:0.78099 
+threshold:3 | accuracy:0.99260 | precision:0.78741 | recall:0.77072 | f1:0.77898 
+threshold:4 | accuracy:0.99260 | precision:0.79466 | recall:0.75884 | f1:0.77634 
+threshold:5 | accuracy:0.99258 | precision:0.80126 | recall:0.74687 | f1:0.77311 
+threshold:6 | accuracy:0.99255 | precision:0.80793 | recall:0.73465 | f1:0.76955 
+threshold:7 | accuracy:0.99253 | precision:0.81623 | recall:0.72101 | f1:0.76567 
+threshold:8 | accuracy:0.99251 | precision:0.82654 | recall:0.70563 | f1:0.76131 
+threshold:9 | accuracy:0.99236 | precision:0.84108 | recall:0.67660 | f1:0.74992 

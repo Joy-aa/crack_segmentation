@@ -6,6 +6,7 @@ from torch.utils.data import DataLoader, Dataset, random_split
 import torch.nn.functional as F
 from torch.autograd import Variable
 from torch.utils.tensorboard import SummaryWriter
+from torchvision.transforms.functional import normalize
 import shutil
 import sys
 sys.path.append("/home/wj/local/crack_segmentation")
@@ -19,8 +20,21 @@ import numpy as np
 import scipy.ndimage as ndimage
 from build_unet import BinaryFocalLoss, dice_loss
 from metric import calc_metric
+import cv2
 
 os.environ["CUDA_VISIBLE_DEVICES"] = '0,1'
+
+class Denormalize(object):
+    def __init__(self, mean, std):
+        mean = np.array(mean)
+        std = np.array(std)
+        self._mean = -mean/std
+        self._std = 1/std
+
+    def __call__(self, tensor):
+        if isinstance(tensor, np.ndarray):
+            return (tensor - self._mean.reshape(-1,1,1)) / self._std.reshape(-1,1,1)
+        return normalize(tensor, self._mean, self._std)
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
@@ -203,19 +217,41 @@ def validate(model, val_loader, criterion):
 
     return {'valid_loss': losses.avg}
 
-def predict(test_loader, model, latest_model_path, device = torch.device("cuda:0")):
+def predict(test_loader, model, latest_model_path, save_dir = './result/test_loader', device = torch.device("cuda:0")):
     model.eval()
     metrics=[]
     pred_list = []
     gt_list = []
+    denorm = Denormalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     bar = tqdm.tqdm(total=len(test_loader))
     with torch.no_grad():
         for idx, (img, lab) in enumerate(test_loader, 1):
             # val_data  = Variable(img).cuda()
             val_data = Variable(img).to(device)
             pred = model(val_data)
-            pred_list.append(torch.sigmoid(pred.contiguous().cpu()).numpy())
-            gt_list.append(lab.numpy())
+
+            image = (denorm(img) * 255).squeeze(0).contiguous().cpu().numpy()
+            image = image.transpose(2, 1, 0).astype(np.uint8)
+            mask = torch.sigmoid(pred.squeeze(0)).contiguous().cpu().numpy()
+            label = lab.squeeze(0).contiguous().cpu().numpy()
+
+            pred_list.append(mask)
+            gt_list.append(label)
+            
+            mask = (mask.transpose(2, 1, 0)*255).astype('uint8')
+            label = (label.transpose(2, 1, 0)*255).astype('uint8')
+            mask[mask>127] = 255
+            label[label>0] = 255
+            
+            zeros = np.zeros(mask.shape)
+            mask = np.concatenate((mask,zeros,zeros),axis=-1).astype(np.uint8)
+            label = np.concatenate((zeros,zeros,label),axis=-1).astype(np.uint8)
+            # print(label.shape)
+            
+            temp = cv2.addWeighted(label,1,mask,1,0)
+            res = cv2.addWeighted(image,0.6,temp,0.4,0)
+
+            cv2.imwrite(os.path.join(save_dir,'%d_test.png' % idx), res)
             bar.update(1)
     bar.close
 
@@ -303,7 +339,7 @@ if __name__ == '__main__':
     test_loader = torch.utils.data.DataLoader(test_dataset, 1, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=4)
 
 
-    os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
     # device = torch.device("cuda")
     device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
     num_gpu = torch.cuda.device_count()
@@ -336,5 +372,6 @@ if __name__ == '__main__':
 
 
     # train(_dataset, model, criterion, optimizer, validate, args, logger)
-    predict(test_loader, model, latest_model_path, device=device)
+    predict(test_loader, model, latest_model_path, 
+            save_dir='/home/wj/local/crack_segmentation/unet/invest/test_loader', device=device)
 

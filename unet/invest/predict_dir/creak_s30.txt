@@ -1,0 +1,10 @@
+/nfs/wj/data/image/creak_s30.JPG
+threshold:1 | accuracy:0.99975 | precision:0.00000 | recall:0.00000 | f1:0.00000 
+threshold:2 | accuracy:0.99977 | precision:0.00000 | recall:0.00000 | f1:0.00000 
+threshold:3 | accuracy:0.99978 | precision:0.00000 | recall:0.00000 | f1:0.00000 
+threshold:4 | accuracy:0.99978 | precision:0.00000 | recall:0.00000 | f1:0.00000 
+threshold:5 | accuracy:0.99979 | precision:0.00000 | recall:0.00000 | f1:0.00000 
+threshold:6 | accuracy:0.99979 | precision:0.00000 | recall:0.00000 | f1:0.00000 
+threshold:7 | accuracy:0.99980 | precision:0.00000 | recall:0.00000 | f1:0.00000 
+threshold:8 | accuracy:0.99981 | precision:0.00000 | recall:0.00000 | f1:0.00000 
+threshold:9 | accuracy:0.99981 | precision:0.00000 | recall:0.00000 | f1:0.00000 
