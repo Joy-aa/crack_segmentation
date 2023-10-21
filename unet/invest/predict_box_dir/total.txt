@@ -1,9 +1,0 @@
-threshold:1 | accuracy:0.98707 | precision:0.71734 | recall:0.73551 | f1:0.70743 
-threshold:2 | accuracy:0.98723 | precision:0.73120 | recall:0.71955 | f1:0.70607 
-threshold:3 | accuracy:0.98730 | precision:0.73996 | recall:0.70837 | f1:0.70430 
-threshold:4 | accuracy:0.98732 | precision:0.74693 | recall:0.69874 | f1:0.70228 
-threshold:5 | accuracy:0.98732 | precision:0.75315 | recall:0.68946 | f1:0.69992 
-threshold:6 | accuracy:0.98730 | precision:0.75916 | recall:0.67974 | f1:0.69704 
-threshold:7 | accuracy:0.98725 | precision:0.76549 | recall:0.66871 | f1:0.69333 
-threshold:8 | accuracy:0.98716 | precision:0.77300 | recall:0.65454 | f1:0.68796 
-threshold:9 | accuracy:0.98694 | precision:0.78405 | recall:0.63101 | f1:0.67767 
