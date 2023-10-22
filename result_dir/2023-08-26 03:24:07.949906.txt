@@ -1,0 +1,10 @@
+/home/wj/local/crack_segmentation/CrackFormer/CrackFormer-II/test_result_box448
+threshold:1 | accuracy:0.94619 | precision:0.60407 | recall:0.51943 | f1:0.53400 
+threshold:2 | accuracy:0.94694 | precision:0.62016 | recall:0.49583 | f1:0.52570 
+threshold:3 | accuracy:0.94742 | precision:0.63690 | recall:0.46670 | f1:0.51286 
+threshold:4 | accuracy:0.94753 | precision:0.64590 | recall:0.44991 | f1:0.50417 
+threshold:5 | accuracy:0.94755 | precision:0.65334 | recall:0.43594 | f1:0.49635 
+threshold:6 | accuracy:0.94756 | precision:0.66108 | recall:0.42221 | f1:0.48828 
+threshold:7 | accuracy:0.94754 | precision:0.67095 | recall:0.40571 | f1:0.47798 
+threshold:8 | accuracy:0.94745 | precision:0.69148 | recall:0.37336 | f1:0.45650 
+threshold:9 | accuracy:0.94687 | precision:0.70602 | recall:0.34292 | f1:0.43239 

@@ -1,0 +1,10 @@
+/home/wj/local/crack_segmentation/unet++/checkpoints/Unet++_20.pth
+threshold:1 | accuracy:0.99645 | precision:0.90577 | recall:0.91595 | f1:0.91083 
+threshold:2 | accuracy:0.99656 | precision:0.91799 | recall:0.90745 | f1:0.91269 
+threshold:3 | accuracy:0.99660 | precision:0.92521 | recall:0.90127 | f1:0.91308 
+threshold:4 | accuracy:0.99662 | precision:0.93075 | recall:0.89585 | f1:0.91296 
+threshold:5 | accuracy:0.99662 | precision:0.93546 | recall:0.89060 | f1:0.91248 
+threshold:6 | accuracy:0.99660 | precision:0.93986 | recall:0.88495 | f1:0.91158 
+threshold:7 | accuracy:0.99657 | precision:0.94438 | recall:0.87838 | f1:0.91018 
+threshold:8 | accuracy:0.99650 | precision:0.94943 | recall:0.86973 | f1:0.90783 
+threshold:9 | accuracy:0.99636 | precision:0.95631 | recall:0.85526 | f1:0.90296 

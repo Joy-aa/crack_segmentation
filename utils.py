@@ -239,40 +239,42 @@ if __name__ == "__main__":
     # save_img_path = 'cut_data/img'
     # save_label_path = 'cut_data/label'
 
-    data_dir = '/mnt/hangzhou_116_homes/ymd/DamCrack'
-    TRAIN_IMG  = os.path.join(data_dir, 'train_image')
-    TRAIN_MASK = os.path.join(data_dir, 'train_label')
-    VALID_IMG = os.path.join(data_dir, 'val_image')
-    VALID_MASK = os.path.join(data_dir, 'val_label')
+    data_dir ='/nfs/wj/DamCrack'
+    # data_dir = '/mnt/hangzhou_116_homes/wj/DamCrack'
+    TRAIN_IMG  = os.path.join(data_dir, 'image1')
+    TRAIN_MASK = os.path.join(data_dir, 'label1')
+    # VALID_IMG = os.path.join(data_dir, 'val_image')
+    # VALID_MASK = os.path.join(data_dir, 'val_label')
+
+    DST_IMG = os.path.join(data_dir, 'image')
+    DST_LABEL = os.path.join(data_dir, 'label')
 
 
-    train_paths  = [path for path in Path(TRAIN_IMG).glob('*.jpg')]
-    valid_paths  = [path for path in Path(VALID_IMG).glob('*.jpg')]
-
-    # print(f'total train images = {len(train_img_names)}')
-    # print(f'total valid images = {len(valid_img_names)}')
+    train_paths  = [path for path in Path(TRAIN_IMG).glob('noncrack*.jpg')]
+    # valid_paths  = [path for path in Path(VALID_MASK).glob('*.png')]
     
-    with open('/home/wj/local/crack_segmentation/DeepCrack/codes/data/train_example.txt','w') as f:    #设置文件对象
-        for path in train_paths:
-            str = os.path.join(TRAIN_IMG, path.name) + ' ' + os.path.join(TRAIN_MASK, path.stem+'.bmp')
-            f.write(str + '\n')  
+    # with open('/home/wj/local/crack_segmentation/DeepCrack/codes/data/train_example.txt','w') as f:    #设置文件对象
+    #     for path in train_paths:
+    #         str = os.path.join(TRAIN_IMG, path.name) + ' ' + os.path.join(TRAIN_MASK, path.stem+'.bmp')
+    #         f.write(str + '\n')  
 
 
-    with open('/home/wj/local/crack_segmentation/DeepCrack/codes/data/val_example.txt','w') as f:    #设置文件对象
-        for path in valid_paths:
-            str = os.path.join(VALID_IMG, path.name) + ' ' + os.path.join(VALID_MASK, path.stem+'.bmp')
-            f.write(str + '\n')  
+    # with open('/home/wj/local/crack_segmentation/DeepCrack/codes/data/val_example.txt','w') as f:    #设置文件对象
+    #     for path in valid_paths:
+    #         str = os.path.join(VALID_IMG, path.name) + ' ' + os.path.join(VALID_MASK, path.stem+'.bmp')
+    #         f.write(str + '\n')  
     # img_paths  = [path for path in Path(DIR_MASK).glob('noncrack*.bmp')]
-    # # mask_paths = [path for path in Path(DIR_MASK).glob('Crack500*.jpg')]
+    # include_paths = [path for path in Path(TRAIN_IMG).glob('creak_s*.jpg')]
     # # print(len(img_paths))
-    # for img_path in tqdm(img_paths):
-    #     img = cv.imread(str(img_path), 0)
-    #     # print(img.shape)
-
-    #     cv.imwrite(os.path.join(str(img_path).split('.')[0] + '.bmp'), img)
-    #     os.remove(os.path.join(DIR_MASK, img_path.name))
-    #     # print(os.path.join(str(img_path).split('.')[0] + '.bmp'))
-    #     # print(os.path.join(DIR_MASK, img_path.name))
+    for img_path in tqdm(train_paths):
+        img = cv.imread(str(img_path))
+        label = cv.imread(os.path.join(TRAIN_MASK, img_path.stem+".png"), 0)
+            # print(img.path)
+        cv.imwrite(os.path.join(DST_IMG, img_path.name), img)
+        cv.imwrite(os.path.join(DST_LABEL, img_path.stem+'.png'), label)
+        # os.remove(os.path.join(TRAIN_MASK, img_path.name))
+        # print(os.path.join(str(img_path).split('.')[0] + '.bmp'))
+        # print(os.path.join(DIR_MASK, img_path.name))
 
 
 

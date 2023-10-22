@@ -1,0 +1,10 @@
+/mnt/hangzhou_116_homes/wj/model/crackformer1/crackformer_epoch(68).pth
+threshold:1 | accuracy:0.98808 | precision:0.16100 | recall:0.26941 | f1:0.17835 
+threshold:2 | accuracy:0.98957 | precision:0.17702 | recall:0.24169 | f1:0.17975 
+threshold:3 | accuracy:0.99037 | precision:0.18690 | recall:0.22400 | f1:0.17861 
+threshold:4 | accuracy:0.99094 | precision:0.19477 | recall:0.21002 | f1:0.17670 
+threshold:5 | accuracy:0.99141 | precision:0.20193 | recall:0.19735 | f1:0.17416 
+threshold:6 | accuracy:0.99184 | precision:0.20907 | recall:0.18486 | f1:0.17090 
+threshold:7 | accuracy:0.99226 | precision:0.21671 | recall:0.17141 | f1:0.16645 
+threshold:8 | accuracy:0.99272 | precision:0.22617 | recall:0.15524 | f1:0.15991 
+threshold:9 | accuracy:0.99332 | precision:0.24063 | recall:0.13151 | f1:0.14766 
