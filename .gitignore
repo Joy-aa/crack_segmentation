@@ -18,3 +18,4 @@ unet++/log/
 CascadePSP/weights/**
 work_dir/**
 result_dir/**
+unet-dynamic
