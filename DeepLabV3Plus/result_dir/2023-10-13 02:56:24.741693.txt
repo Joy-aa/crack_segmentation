@@ -1,0 +1,11 @@
+/home/wj/local/crack_segmentation/DeepLabV3Plus/checkpoints/stage2_/best_deeplabv3_mobilenet_crack_os16.pth
+test_loader
+threshold:1 | accuracy:0.97556 | precision:0.43018 | recall:0.72256 | f1:0.53929 
+threshold:2 | accuracy:0.97658 | precision:0.44271 | recall:0.70812 | f1:0.54481 
+threshold:3 | accuracy:0.97720 | precision:0.45085 | recall:0.69717 | f1:0.54758 
+threshold:4 | accuracy:0.97766 | precision:0.45724 | recall:0.68712 | f1:0.54909 
+threshold:5 | accuracy:0.97806 | precision:0.46291 | recall:0.67714 | f1:0.54990 
+threshold:6 | accuracy:0.97842 | precision:0.46829 | recall:0.66628 | f1:0.55001 
+threshold:7 | accuracy:0.97877 | precision:0.47375 | recall:0.65337 | f1:0.54925 
+threshold:8 | accuracy:0.97914 | precision:0.47972 | recall:0.63617 | f1:0.54698 
+threshold:9 | accuracy:0.97956 | precision:0.48690 | recall:0.60760 | f1:0.54059 

@@ -10,9 +10,9 @@ class Config:
     setproctitle.setproctitle("%s" % name)
 
     # path
-    # data_dir = '/nfs/wj/192_255_segmentation'
-    data_dir = '/mnt/nfs/wj/DamCrack'
-    checkpoint_path = 'checkpoints/stage1'
+    data_dir = '/mnt/nfs/wj/192_255_segmentation'
+    # data_dir = '/mnt/nfs/wj/DamCrack'
+    checkpoint_path = 'checkpoints/stage2'
     log_path = 'log'
     saver_path = os.path.join(checkpoint_path, name)
     max_save = 20
@@ -25,9 +25,11 @@ class Config:
     vis_train_img_every = 200
     val_every = 400
 
+    test_only = 0
+
     # training
     epoch = 50
-    pretrained_model = '/home/wj/local/crack_segmentation/CrackFormer/CrackFormer-II/checkpoints/stage1/crackformer_20.pth'
+    pretrained_model = '/home/wj/local/crack_segmentation/CrackFormer/CrackFormer-II/checkpoints/stage1/epoch(42)_acc(0.20-0.98).pth'
     weight_decay = 0.0000
     lr_decay = 0.1
     lr = 1e-3
