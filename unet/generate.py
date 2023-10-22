@@ -15,8 +15,8 @@ import argparse
 from os.path import join
 from PIL import Image
 import gc
-from build_unet import load_unet_vgg16, load_unet_resnet_101, load_unet_resnet_34
 from tqdm import tqdm
+import matplotlib.image as mpimg
 
 
 def evaluate_img(model, img):
@@ -31,11 +31,9 @@ def evaluate_img(model, img):
     mask = torch.sigmoid(mask[0, 0]).data.cpu().numpy()
     return mask
 
-def single_result(model, img, lab, th, txt_path,patch_size=64):
+def single_result(model,img,txt_path,patch_size=64,threshold=0.5):
     h, w, *_ = img.shape
-    cnt = 0
-    pred_list=[]
-    gt_list=[]
+    mask = np.zeros((h, w))
     with open(txt_path, 'r') as f:
         for line in f.readlines():
             data = line.split(' ')
@@ -56,15 +54,13 @@ def single_result(model, img, lab, th, txt_path,patch_size=64):
 
             cut_img = img[dy:dy+offset, dx:dx+offset]
             cut_mask = evaluate_img(model,cut_img)
-            cut_lab = lab[dy:dy+offset, dx:dx+offset]
-
-            pred_list.append(cut_mask)
-            gt_list.append(cut_lab)
             
-            cnt += 1
-    metric = calc_metric(pred_list, gt_list, mode='list', threshold=th)
+            mask[dy:dy+offset, dx:dx+offset] += cut_mask
     
-    return metric
+    mask[mask>threshold] = 1
+    mask[mask<= threshold] = 0
+    # mask[mask > 1] = 1
+    return mask * 255
 
 if __name__ == '__main__':
     model_path = '/home/wj/local/crack_segmentation/unet/checkpoints/stage2/model_best.pt'
@@ -76,7 +72,7 @@ if __name__ == '__main__':
     box_dir = '/nfs/wj/result-stride_0.7/Jun02_06_33_42/box/'
     ref_dir = '/nfs/wj/result-stride_0.7/Jun02_06_33_42/image/'
     res_dir = './result/stage2'
-    save_dir = './invest/predict_box_dir'
+    save_dir = './invest/predict_dir'
     
     #dam2
     # image_dir = '/nfs/wj/data/dataV2/image'
@@ -85,26 +81,19 @@ if __name__ == '__main__':
     # res_dir = './result/stage2V2/'
     # log_save = './result_dir'
 
-    # model = load_unet_vgg16(args.model_path)screen -r unet
-
-    model = UNet16(pretrained=True)
-    # model.load_state_dict(torch.load(args.model_path))
+    # model = UNet16(pretrained=True)
     
-    checkpoint = torch.load(model_path)
-    weights = checkpoint['model']
-    weights_dict = {}
-    for k, v in weights.items():
-        new_k = k.replace('module.', '') if 'module' in k else k
-        weights_dict[new_k] = v
-    model.load_state_dict(weights_dict)
-    model.cuda()
+    # checkpoint = torch.load(model_path)
+    # weights = checkpoint['model']
+    # weights_dict = {}
+    # for k, v in weights.items():
+    #     new_k = k.replace('module.', '') if 'module' in k else k
+    #     weights_dict[new_k] = v
+    # model.load_state_dict(weights_dict)
+    # model.cuda()
     
     if save_dir != '':
         os.makedirs(save_dir, exist_ok=True)
-
-
-    # channel_means = [0.485, 0.456, 0.406]
-    # channel_stds  = [0.229, 0.224, 0.225]
 
     paths = [path for path in Path(image_dir).glob('*.*')]
     metrics=[]
@@ -112,15 +101,19 @@ if __name__ == '__main__':
         print(path)
         img_0 = cv.imread(str(path), 1)
         img_0 = np.asarray(img_0)
-        gt = cv.imread(os.path.join(label_dir,path.stem+'.png'), 0)
-
         txt_path = os.path.join(box_dir,path.stem+'.txt')
 
+        # mask = single_result_no_box(model,img_0)
+        # mask =  single_result(model=model,img=img_0,txt_path=txt_path)
+        
+        mask = cv.imread(os.path.join(res_dir,path.stem+'.png'), 0)
+        gt = cv.imread(os.path.join(label_dir,path.stem+'.png'), 0)
+        
         with open(os.path.join(save_dir, path.stem+'.txt'), 'a', encoding='utf-8') as fout:
             fout.write(str(path)+'\n')
             for i in range(1, 10):
                 threshold = i / 10
-                metric =  single_result(model=model,img=img_0,lab=gt,th=threshold,txt_path=txt_path)
+                metric = calc_metric(mask, gt, mode='list', threshold=threshold, max_value=255)
                 line =  "threshold:{:d} | accuracy:{:.5f} | precision:{:.5f} | recall:{:.5f} | f1:{:.5f} " \
                     .format(i, metric['accuracy'],  metric['precision'],  metric['recall'],  metric['f1']) + '\n'
                 fout.write(line)
@@ -135,10 +128,26 @@ if __name__ == '__main__':
                     metrics[i-1]['precision'] += metric['precision']
                     metrics[i-1]['recall'] += metric['recall']
                     metrics[i-1]['f1'] += metric['f1']
-        # print(metrics)
+        
+        # 4-channels result for label
+        # mask[mask>127] = 255
+        # gt[gt>0] = 255
+        # image = cv.imread(os.path.join(ref_dir,path.stem+'.jpg'), 1)
+        # mask = np.expand_dims(mask,axis=2)
+        # zeros = np.zeros(mask.shape)
+        # mask = np.concatenate((mask,zeros,zeros),axis=-1).astype(np.uint8)
+        
+        # label = np.expand_dims(gt,axis=2)
+        # label = np.concatenate((zeros,zeros,label),axis=-1).astype(np.uint8)
+        
+        # temp = cv.addWeighted(label,1,mask,1,0)
+        # res = cv.addWeighted(image,0.6,temp,0.4,0)
+
+        # cv.imwrite(os.path.join(save_dir,path.stem+'.png'), res)
     gc.collect()
     with open(os.path.join(save_dir, 'total.txt'), 'a', encoding='utf-8') as fout:
-                for i in range(1, 10): 
-                    line =  "threshold:{:d} | accuracy:{:.5f} | precision:{:.5f} | recall:{:.5f} | f1:{:.5f} " \
-                        .format(i, metrics[i-1]['accuracy'],  metrics[i-1]['precision'],  metrics[i-1]['recall'],  metrics[i-1]['f1']) + '\n'
-                    fout.write(line)
+        for i in range(1, 10): 
+            line =  "threshold:{:d} | accuracy:{:.5f} | precision:{:.5f} | recall:{:.5f} | f1:{:.5f} " \
+                .format(i, metrics[i-1]['accuracy'],  metrics[i-1]['precision'],  metrics[i-1]['recall'],  metrics[i-1]['f1']) + '\n'
+            fout.write(line)
+
