@@ -13,6 +13,7 @@ from util.hyper_para import HyperParameters
 from util.log_integrator import Integrator
 from util.metrics_compute import compute_loss_and_metrics, iou_hooks_to_be_used
 from util.image_saver import vis_prediction
+from util.Visdom import Visualizer
 
 import time
 import os
@@ -32,6 +33,8 @@ else:
 logger = BoardLogger(long_id)
 logger.log_string('hyperpara', str(para))
 
+# vis = Visualizer(env='cascadPpsp')
+
 print('CUDA Device count: ', torch.cuda.device_count())
 
 # Construct model
@@ -48,12 +51,13 @@ optimizer = optim.Adam(model.parameters(), lr=para['lr'], weight_decay=para['wei
 
 # train_dataset = ConcatDataset([fss_dataset, duts_tr_dataset, duts_te_dataset, ecssd_dataset, msra_dataset])
 
-data_dir = '/mnt/hangzhou_116_homes/wj/DamCrack/'
-DIR_IMG  = os.path.join(data_dir, 'train_image')
-DIR_MASK  = os.path.join(data_dir, 'train_label')
+data_dir = '/nfs/wj/192_255_segmentation/'
+# data_dir = '/mnt/hangzhou_116_homes/wj/192_255_segmentation/'
+DIR_IMG  = os.path.join(data_dir, 'imgs')
+DIR_MASK  = os.path.join(data_dir, 'masks')
 DIR_SEG = os.path.join(data_dir, "segs")
-dataset = OnlineTransformDataset(DIR_IMG, DIR_MASK, method=1, perturb=True)
-# val_dataset = OfflineDataset(DIR_IMG, need_name=True, resize=False, do_crop=False)
+# dataset = OnlineTransformDataset(DIR_IMG, DIR_MASK, method=1, perturb=True)
+dataset = OfflineDataset(DIR_IMG, DIR_MASK, DIR_SEG, need_name=False, resize=False, do_crop=False)
 train_dataset = ConcatDataset([dataset])
 print('Total training size: ', len(train_dataset))
 
@@ -78,7 +82,7 @@ total_epoch = int(para['iterations']/len(train_loader) + 0.5)
 print('Actual training epoch: ', total_epoch)
 
 train_integrator = Integrator(logger)
-train_integrator.add_hook(iou_hooks_to_be_used)
+# train_integrator.add_hook(iou_hooks_to_be_used)
 total_iter = 0
 last_time = 0
 for e in range(total_epoch):
@@ -87,11 +91,15 @@ for e in range(total_epoch):
 
     # Train loop
     model = model.train()
+    # print(train_loader)
+    # for tuple in train_loader:
+    #     print(len(tuple))
+    #     print(tuple[0].shape)
     for im, seg, gt in train_loader:
         im, seg, gt = im.cuda(), seg.cuda(), gt.cuda()
 
         total_iter += 1
-        if total_iter % 5000 == 0:
+        if total_iter % 10000 == 0:
             saver.save_model(model, total_iter)
 
         images = model(im, seg)

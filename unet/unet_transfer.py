@@ -27,12 +27,12 @@ class ConvRelu(nn.Module):
     def __init__(self, in_, out):
         super().__init__()
         self.conv = conv3x3(in_, out)
-        self.bn = SynchronizedBatchNorm2d(out)
+        # self.bn = SynchronizedBatchNorm2d(out)
         self.activation = nn.ReLU(inplace=True)
 
     def forward(self, x):
         x = self.conv(x)
-        x = self.bn(x)
+        # x = self.bn(x)
         x = self.activation(x)
         return x
 
@@ -85,8 +85,8 @@ class UNet16(nn.Module):
 
         self.encoder = torchvision.models.vgg16(weights=torchvision.models.VGG16_Weights.IMAGENET1K_V1).features
 
-        # self.relu = nn.ReLU(inplace=True)
-        self.relu = nn.GELU()
+        self.relu = nn.ReLU(inplace=True)
+        # self.relu = nn.GELU()
 
         self.conv1 = nn.Sequential(self.encoder[0],
                                    self.relu,

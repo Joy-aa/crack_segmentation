@@ -1,0 +1,10 @@
+/home/wj/local/crack_segmentation/model/crackformer_epoch(15).pth
+threshold:1 | accuracy:0.97653 | precision:0.43030 | recall:0.57336 | f1:0.49163 
+threshold:2 | accuracy:0.97730 | precision:0.44177 | recall:0.55588 | f1:0.49230 
+threshold:3 | accuracy:0.97777 | precision:0.44925 | recall:0.54415 | f1:0.49217 
+threshold:4 | accuracy:0.97813 | precision:0.45535 | recall:0.53429 | f1:0.49167 
+threshold:5 | accuracy:0.97845 | precision:0.46103 | recall:0.52493 | f1:0.49091 
+threshold:6 | accuracy:0.97876 | precision:0.46684 | recall:0.51527 | f1:0.48986 
+threshold:7 | accuracy:0.97908 | precision:0.47334 | recall:0.50411 | f1:0.48824 
+threshold:8 | accuracy:0.97947 | precision:0.48173 | recall:0.48933 | f1:0.48550 
+threshold:9 | accuracy:0.98005 | precision:0.49594 | recall:0.46378 | f1:0.47932 

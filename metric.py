@@ -41,9 +41,13 @@ def calc_recall(mask, pred_mask):
             recall = 1
     return recall
 
-def calc_f1(mask, pred_mask):
-    precision = calc_precision(mask, pred_mask)
-    recall = calc_recall(mask, pred_mask)
+def calc_f1(mask, pred_mask, tmp_precision = None, tmp_recall = None):
+    if tmp_precision is not None and tmp_recall is not None:
+        precision = tmp_precision
+        recall = tmp_recall
+    else:
+        precision = calc_precision(mask, pred_mask)
+        recall = calc_recall(mask, pred_mask)
     if precision == 0 and recall == 0:
         f1 = 0
     else:
@@ -63,14 +67,15 @@ def calc_metric(pred_list, gt_list, mode='list', threshold = 0, max_value = 1):
         # print(pred_arr.shape)
         # print(gt_arr.shape)
         th = threshold * max_value
-        pred_arr[pred_arr > th] = 1
-        pred_arr[pred_arr <= th] = 0
+        mask_arr = pred_arr.copy()
+        mask_arr[pred_arr > th] = 1
+        mask_arr[pred_arr <= th] = 0
         # print(np.sum(pred_arr == 0))
         # print(np.sum(pred_arr == 1))
         gt_arr[gt_arr > 0] = 1
         # print(np.sum(gt_arr == 0))
         # print(np.sum(gt_arr == 1))
-        pred_mask = torch.tensor(pred_arr)
+        pred_mask = torch.tensor(mask_arr)
         mask = torch.tensor(gt_arr)
     elif mode == 'tensor':
         # print(pred_list.shape)
@@ -84,7 +89,7 @@ def calc_metric(pred_list, gt_list, mode='list', threshold = 0, max_value = 1):
     metric['accuracy'], metric['neg_accuracy'] = calc_accuracy(mask, pred_mask)
     metric['precision'] = calc_precision(mask, pred_mask)
     metric['recall'] = calc_recall(mask, pred_mask)
-    metric['f1'] = calc_f1(mask, pred_mask)
+    metric['f1'] = calc_f1(mask, pred_mask, metric['precision'], metric['recall'])
     return metric
 
 if __name__ == "__main__":
@@ -92,8 +97,8 @@ if __name__ == "__main__":
     from tqdm import tqdm
     import cv2 as cv
     import os
-    DIR_PRED = '/home/wj/local/crack_segmentation/CascadePSP/unet2'
-    DIR_GT = '/mnt/hangzhou_116_homes/wj/data/new_label'
+    DIR_PRED = '/home/wj/local/crack_segmentation/unet++/result_images'
+    DIR_GT = '/mnt/nfs/wj/data/new_label'
     paths = [path for path in Path(DIR_PRED).glob('*.*')]
     metrics=[]
     for path in tqdm(paths):
@@ -103,8 +108,8 @@ if __name__ == "__main__":
         mask = cv.imread(str(path), 0)
         mask = mask / 255.0
         gt = cv.imread(os.path.join(DIR_GT, path.stem+'.png'), 0)
-        # filepath = os.path.join('/mnt/nfs/wj/result-stride_0.7/Jun02_06_33_42/box', path.stem+'.txt')
-        filepath = os.path.join('/mnt/hangzhou_116_homes/wj/result-stride_0.7/Jun02_06_33_42/box', path.stem+'.txt')
+
+        filepath = os.path.join('/mnt/nfs/wj/result-stride_0.7/Jun02_06_33_42/box', path.stem+'.txt')
         boxes = []
         with open(filepath, 'r', encoding='utf-8') as f:
             for data in f.readlines():

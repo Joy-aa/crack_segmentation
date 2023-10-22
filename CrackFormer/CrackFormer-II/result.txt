@@ -1,4 +1,2 @@
-accuracy:0.99540 | precision:0.61294 | recall:0.09412 | f1:0.13101 
-accuracy:0.99126 | precision:0.28486 | recall:0.51491 | f1:0.32854 
-accuracy:0.00000 | precision:0.00000 | recall:0.00000 | f1:0.00000 
-accuracy:0.99395 | precision:0.85888 | recall:0.07846 | f1:0.09129 
+
+epoch: 5————accuracy:0.95188 | precision:0.24856 | recall:0.79571 | f1:0.34660 

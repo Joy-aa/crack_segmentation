@@ -1,0 +1,10 @@
+/mnt/hangzhou_116_homes/wj/model/unet/gelu_model_epoch_48.pt
+threshold:1 | accuracy:0.99558 | precision:0.49301 | recall:0.46797 | f1:0.45883 
+threshold:2 | accuracy:0.99567 | precision:0.50710 | recall:0.45528 | f1:0.45863 
+threshold:3 | accuracy:0.99573 | precision:0.51614 | recall:0.44648 | f1:0.45773 
+threshold:4 | accuracy:0.99576 | precision:0.52347 | recall:0.43899 | f1:0.45658 
+threshold:5 | accuracy:0.99579 | precision:0.53012 | recall:0.43160 | f1:0.45497 
+threshold:6 | accuracy:0.99582 | precision:0.53675 | recall:0.42390 | f1:0.45295 
+threshold:7 | accuracy:0.99584 | precision:0.54394 | recall:0.41477 | f1:0.45004 
+threshold:8 | accuracy:0.99587 | precision:0.55296 | recall:0.40231 | f1:0.44532 
+threshold:9 | accuracy:0.99588 | precision:0.56717 | recall:0.37851 | f1:0.43386 
