@@ -41,12 +41,12 @@ class Trainer(nn.Module):
 
         pred_fuse5, pred_fuse4, pred_fuse3, pred_fuse2, pred_fuse1, pred_output, = self.model(input)
 
-        output_loss = 10*self.mask_loss(pred_output.view(-1, 1), target.view(-1, 1))  + dice_loss(F.sigmoid(pred_output.squeeze(1)), target.squeeze(1).float(), multiclass=False)
-        fuse5_loss = 10*self.mask_loss(pred_fuse5.view(-1, 1), target.view(-1, 1))  + dice_loss(F.sigmoid(pred_fuse5.squeeze(1)), target.squeeze(1).float(), multiclass=False)
-        fuse4_loss = 10*self.mask_loss(pred_fuse4.view(-1, 1), target.view(-1, 1))  + dice_loss(F.sigmoid(pred_fuse4.squeeze(1)), target.squeeze(1).float(), multiclass=False)
-        fuse3_loss = 10*self.mask_loss(pred_fuse3.view(-1, 1), target.view(-1, 1))  + dice_loss(F.sigmoid(pred_fuse3.squeeze(1)), target.squeeze(1).float(), multiclass=False)
-        fuse2_loss = 10*self.mask_loss(pred_fuse2.view(-1, 1), target.view(-1, 1))  + dice_loss(F.sigmoid(pred_fuse2.squeeze(1)), target.squeeze(1).float(), multiclass=False)
-        fuse1_loss = 10*self.mask_loss(pred_fuse1.view(-1, 1), target.view(-1, 1)) + dice_loss(F.sigmoid(pred_fuse1.squeeze(1)), target.squeeze(1).float(), multiclass=False)
+        output_loss = self.mask_loss(pred_output.view(-1, 1), target.view(-1, 1))  + dice_loss(F.sigmoid(pred_output.squeeze(1)), target.squeeze(1).float(), multiclass=False)
+        fuse5_loss = self.mask_loss(pred_fuse5.view(-1, 1), target.view(-1, 1))  + dice_loss(F.sigmoid(pred_fuse5.squeeze(1)), target.squeeze(1).float(), multiclass=False)
+        fuse4_loss = self.mask_loss(pred_fuse4.view(-1, 1), target.view(-1, 1))  + dice_loss(F.sigmoid(pred_fuse4.squeeze(1)), target.squeeze(1).float(), multiclass=False)
+        fuse3_loss = self.mask_loss(pred_fuse3.view(-1, 1), target.view(-1, 1))  + dice_loss(F.sigmoid(pred_fuse3.squeeze(1)), target.squeeze(1).float(), multiclass=False)
+        fuse2_loss = self.mask_loss(pred_fuse2.view(-1, 1), target.view(-1, 1))  + dice_loss(F.sigmoid(pred_fuse2.squeeze(1)), target.squeeze(1).float(), multiclass=False)
+        fuse1_loss = self.mask_loss(pred_fuse1.view(-1, 1), target.view(-1, 1)) + dice_loss(F.sigmoid(pred_fuse1.squeeze(1)), target.squeeze(1).float(), multiclass=False)
 
         total_loss = 5*output_loss + fuse5_loss + fuse4_loss + fuse3_loss + fuse2_loss + fuse1_loss
         total_loss.backward()
@@ -69,12 +69,12 @@ class Trainer(nn.Module):
     def val_op(self, input, target):
         pred_fuse5, pred_fuse4, pred_fuse3, pred_fuse2, pred_fuse1, pred_output, = self.model(input)
 
-        output_loss = 10*self.mask_loss(pred_output.view(-1, 1), target.view(-1, 1))  + dice_loss(F.sigmoid(pred_output.squeeze(1)), target.squeeze(1).float(), multiclass=False)
-        fuse5_loss = 10*self.mask_loss(pred_fuse5.view(-1, 1), target.view(-1, 1)) + dice_loss(F.sigmoid(pred_fuse5.squeeze(1)), target.squeeze(1).float(), multiclass=False)
-        fuse4_loss = 10*self.mask_loss(pred_fuse4.view(-1, 1), target.view(-1, 1)) + dice_loss(F.sigmoid(pred_fuse4.squeeze(1)), target.squeeze(1).float(), multiclass=False)
-        fuse3_loss = 10*self.mask_loss(pred_fuse3.view(-1, 1), target.view(-1, 1)) + dice_loss(F.sigmoid(pred_fuse3.squeeze(1)), target.squeeze(1).float(), multiclass=False)
-        fuse2_loss = 10*self.mask_loss(pred_fuse2.view(-1, 1), target.view(-1, 1)) + dice_loss(F.sigmoid(pred_fuse2.squeeze(1)), target.squeeze(1).float(), multiclass=False)
-        fuse1_loss = 10*self.mask_loss(pred_fuse1.view(-1, 1), target.view(-1, 1)) + dice_loss(F.sigmoid(pred_fuse1.squeeze(1)), target.squeeze(1).float(), multiclass=False)
+        output_loss = self.mask_loss(pred_output.view(-1, 1), target.view(-1, 1))  + dice_loss(F.sigmoid(pred_output.squeeze(1)), target.squeeze(1).float(), multiclass=False)
+        fuse5_loss = self.mask_loss(pred_fuse5.view(-1, 1), target.view(-1, 1)) + dice_loss(F.sigmoid(pred_fuse5.squeeze(1)), target.squeeze(1).float(), multiclass=False)
+        fuse4_loss = self.mask_loss(pred_fuse4.view(-1, 1), target.view(-1, 1)) + dice_loss(F.sigmoid(pred_fuse4.squeeze(1)), target.squeeze(1).float(), multiclass=False)
+        fuse3_loss = self.mask_loss(pred_fuse3.view(-1, 1), target.view(-1, 1)) + dice_loss(F.sigmoid(pred_fuse3.squeeze(1)), target.squeeze(1).float(), multiclass=False)
+        fuse2_loss = self.mask_loss(pred_fuse2.view(-1, 1), target.view(-1, 1)) + dice_loss(F.sigmoid(pred_fuse2.squeeze(1)), target.squeeze(1).float(), multiclass=False)
+        fuse1_loss = self.mask_loss(pred_fuse1.view(-1, 1), target.view(-1, 1)) + dice_loss(F.sigmoid(pred_fuse1.squeeze(1)), target.squeeze(1).float(), multiclass=False)
 
 
         total_loss = 5*output_loss + fuse5_loss + fuse4_loss + fuse3_loss + fuse2_loss + fuse1_loss
