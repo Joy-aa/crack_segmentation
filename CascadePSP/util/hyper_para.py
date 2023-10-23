@@ -5,12 +5,12 @@ class HyperParameters():
         parser = ArgumentParser()
 
         # Generic learning parameters
-        parser.add_argument('-i', '--iterations', help='Number of training iterations', default=2.5e5, type=int)
+        parser.add_argument('-i', '--iterations', help='Number of training iterations', default=3e5, type=int)
         parser.add_argument('-b', '--batch_size', help='Batch size', default=12, type=int)
         parser.add_argument('--lr', help='Initial learning rate', default=2.25e-4, type=float)
-        parser.add_argument('--steps', help='Iteration at which learning rate is decayed by gamma', default=[22500, 37500], type=int, nargs='*')
-        parser.add_argument('--gamma', help='Gamma used in learning rate decay', default=0.1, type=float)
-        parser.add_argument('--weight_decay', help='Weight decay', default=1e-4, type=float)
+        parser.add_argument('--steps', help='Iteration at which learning rate is decayed by gamma', default=[50000, 100000, 150000, 200000, 250000], type=int, nargs='*')
+        parser.add_argument('--gamma', help='Gamma used in learning rate decay', default=0.3, type=float)
+        parser.add_argument('--weight_decay', help='Weight decay', default=5e-4, type=float)
 
         # same decay applied to discriminator
         parser.add_argument('--load', help='Path to pretrained model if available')

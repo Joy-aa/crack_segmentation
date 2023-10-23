@@ -147,7 +147,7 @@ if __name__ == "__main__":
     print(metrics)
     d = datetime.today()
     datetime.strftime(d,'%Y-%m-%d %H-%M-%S')
-    os.makedirs('./result_dir', exist_ok=True)
+    # os.makedirs('./unet/result_dir', exist_ok=True)
     with open(os.path.join('./result_dir', str(d)+'.txt'), 'a', encoding='utf-8') as fout:
             fout.write(DIR_PRED+'\n')
             for i in range(1, 10): 

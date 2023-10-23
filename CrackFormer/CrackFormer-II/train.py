@@ -57,9 +57,35 @@ def main(model, device):
     # ----------------------- dataset ----------------------- #
 
     # 第一阶段训练
-    # TRAIN_IMG  = os.path.join(cfg.data_dir, 'image')
-    # TRAIN_MASK = os.path.join(cfg.data_dir, 'label')
-    # train_img_names  = [path.name for path in Path(TRAIN_IMG).glob('*.jpg')]
+    TRAIN_IMG  = os.path.join(cfg.data_dir, 'image')
+    TRAIN_MASK = os.path.join(cfg.data_dir, 'label')
+    train_img_names  = [path.name for path in Path(TRAIN_IMG).glob('*.jpg')]
+    train_mask_names = [path.name for path in Path(TRAIN_MASK).glob('*.jpg')]
+    print(f'total train images = {len(train_img_names)}')
+
+    channel_means = [0.485, 0.456, 0.406]
+    channel_stds  = [0.229, 0.224, 0.225]
+    train_tfms = transforms.Compose([transforms.ToTensor(),
+                                     transforms.Normalize(channel_means, channel_stds)])
+    val_tfms = transforms.Compose([transforms.ToTensor(),
+                                   transforms.Normalize(channel_means, channel_stds)])
+    mask_tfms = transforms.Compose([transforms.ToTensor()])
+
+    # _dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
+    train_dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
+    _dataset, test_dataset = random_split(train_dataset, [275, 40],torch.Generator().manual_seed(42))
+    # train_dataset, valid_dataset = random_split(_dataset, [0.9, 0.1],torch.Generator().manual_seed(42))
+    # train_loader = torch.utils.data.DataLoader(train_dataset, args.batch_size, shuffle=True, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
+    # val_loader = torch.utils.data.DataLoader(valid_dataset, 1, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
+    test_loader = torch.utils.data.DataLoader(test_dataset, 1, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=cfg.num_workers)
+
+
+
+# 第二阶段训练
+    # TRAIN_IMG  = os.path.join(args.data_dir, 'imgs')
+    # TRAIN_MASK = os.path.join(args.data_dir, 'masks')
+    # print(args.data_dir)
+    # train_img_names  = [path.name for path in Path(TRAIN_IMG).glob('*.png')]
     # train_mask_names = [path.name for path in Path(TRAIN_MASK).glob('*.png')]
     # print(f'total train images = {len(train_img_names)}')
 
@@ -99,7 +125,7 @@ def main(model, device):
     test_loader = torch.utils.data.DataLoader(test_dataset, 1, shuffle=False, pin_memory=False)
 
     # -------------------- build trainer --------------------- #
-    long_id = '%s_%s' % (str(cfg.lr), datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S'))
+    long_id = 'cracksl_%s_%s' % (str(cfg.lr), datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S'))
     logger = BoardLogger(long_id)
 
     # -------------------- build trainer --------------------- #
@@ -162,12 +188,15 @@ def main(model, device):
 
 
     try:
-
+        # train_size = int(len(dataset)*0.9)
+        train_dataset, valid_dataset = random_split(_dataset, [265, 10])
+        train_loader = torch.utils.data.DataLoader(train_dataset, cfg.train_batch_size, shuffle=True, pin_memory=torch.cuda.is_available(), num_workers=4)
+        val_loader = torch.utils.data.DataLoader(valid_dataset, 1, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=4)
         for epoch in range(epoch+1, cfg.epoch+1):
-            train_size = int(len(_dataset)*0.9)
-            train_dataset, valid_dataset = random_split(_dataset, [train_size, len(_dataset) - train_size])
-            train_loader = torch.utils.data.DataLoader(train_dataset, cfg.train_batch_size, shuffle=True, pin_memory=torch.cuda.is_available(), num_workers=4)
-            val_loader = torch.utils.data.DataLoader(valid_dataset, cfg.val_batch_size, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=4)
+            # train_size = int(len(_dataset)*0.9)
+            # train_dataset, valid_dataset = random_split(_dataset, [train_size, len(_dataset) - train_size])
+            # train_loader = torch.utils.data.DataLoader(train_dataset, cfg.train_batch_size, shuffle=True, pin_memory=torch.cuda.is_available(), num_workers=4)
+            # val_loader = torch.utils.data.DataLoader(valid_dataset, cfg.val_batch_size, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=4)
 
             adjust_learning_rate(trainer.optimizer, epoch, cfg.lr)   
 
