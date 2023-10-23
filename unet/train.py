@@ -109,9 +109,9 @@ def calc_loss(masks_pred, target_var, r=1):
 
 def train(dataset, model, criterion, optimizer, validation, args, logger):
 
-    latest_model_path = find_latest_model_path(args.model_dir)
+    # latest_model_path = find_latest_model_path(args.model_dir)
     # latest_model_path = os.path.join(*[args.model_dir, 'model_start.pt'])
-    # latest_model_path = None
+    latest_model_path = None
     best_model_path = os.path.join(*[args.model_dir, 'model_best.pt'])
 
     if latest_model_path is not None:
@@ -141,12 +141,11 @@ def train(dataset, model, criterion, optimizer, validation, args, logger):
 
     valid_losses = []
     total_iter = 0
+    # train_size = int(len(dataset)*0.9)
+    train_dataset, valid_dataset = random_split(dataset, [265, 10])
+    train_loader = torch.utils.data.DataLoader(train_dataset, args.batch_size, shuffle=True, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
+    valid_loader = torch.utils.data.DataLoader(valid_dataset, 1, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
     for epoch in range(epoch, args.n_epoch + 1):
-
-        train_size = int(len(dataset)*0.9)
-        train_dataset, valid_dataset = random_split(dataset, [train_size, len(dataset) - train_size])
-        train_loader = torch.utils.data.DataLoader(train_dataset, args.batch_size, shuffle=True, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
-        valid_loader = torch.utils.data.DataLoader(valid_dataset, 1, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
 
         adjust_learning_rate(optimizer, epoch, args.lr)
 
@@ -246,7 +245,6 @@ def predict(test_loader, model, latest_model_path, save_dir = './result/test_loa
             zeros = np.zeros(mask.shape)
             mask = np.concatenate((mask,zeros,zeros),axis=-1).astype(np.uint8)
             label = np.concatenate((zeros,zeros,label),axis=-1).astype(np.uint8)
-            # print(label.shape)
             
             temp = cv2.addWeighted(label,1,mask,1,0)
             res = cv2.addWeighted(image,0.6,temp,0.4,0)
@@ -271,7 +269,7 @@ def predict(test_loader, model, latest_model_path, save_dir = './result/test_loa
     datetime.datetime.strftime(d,'%Y-%m-%d %H-%M-%S')
     os.makedirs('./result_dir', exist_ok=True)
     with open(os.path.join('./result_dir', str(d)+'.txt'), 'a', encoding='utf-8') as fout:
-                fout.write(latest_model_path+'\n')
+                fout.write(str(latest_model_path)+'\n')
                 for i in range(1, 10): 
                     line =  "threshold:{:d} | accuracy:{:.5f} | precision:{:.5f} | recall:{:.5f} | f1:{:.5f} " \
                         .format(i, metrics[i-1]['accuracy'],  metrics[i-1]['precision'],  metrics[i-1]['recall'],  metrics[i-1]['f1']) + '\n'
@@ -279,12 +277,12 @@ def predict(test_loader, model, latest_model_path, save_dir = './result/test_loa
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
-    parser.add_argument('--n_epoch', default=50, type=int, metavar='N', help='number of total epochs to run')
+    parser.add_argument('--n_epoch', default=20, type=int, metavar='N', help='number of total epochs to run')
     parser.add_argument('--lr', default=0.001, type=float, metavar='LR', help='initial learning rate')
     parser.add_argument('--momentum', default=0.9, type=float, metavar='M', help='momentum')
     parser.add_argument('--print_freq', default=100, type=int, metavar='N', help='print frequency (default: 10)')
     parser.add_argument('--weight_decay', default=5e-4, type=float, metavar='W', help='weight decay (default: 1e-4)')
-    parser.add_argument('--batch_size',  default=8, type=int,  help='weight decay (default: 1e-4)')
+    parser.add_argument('--batch_size',  default=4, type=int,  help='weight decay (default: 1e-4)')
     parser.add_argument('--num_workers', default=2, type=int, help='output dataset directory')
     parser.add_argument('--data_dir',type=str, help='input dataset directory')
     # /home/wj/dataset/seg_dataset /nfs/wj/DamCrack /nfs/wj/192_255_segmentation
@@ -295,9 +293,30 @@ if __name__ == '__main__':
     os.makedirs(args.model_dir, exist_ok=True)
 
     # 第一阶段训练
-    # TRAIN_IMG  = os.path.join(args.data_dir, 'image')
-    # TRAIN_MASK = os.path.join(args.data_dir, 'label')
-    # train_img_names  = [path.name for path in Path(TRAIN_IMG).glob('*.jpg')]
+    TRAIN_IMG  = os.path.join(args.data_dir, 'image')
+    TRAIN_MASK = os.path.join(args.data_dir, 'label')
+    train_img_names  = [path.name for path in Path(TRAIN_IMG).glob('*.jpg')]
+    train_mask_names = [path.name for path in Path(TRAIN_MASK).glob('*.jpg')]
+    print(f'total train images = {len(train_img_names)}')
+
+    channel_means = [0.485, 0.456, 0.406]
+    channel_stds  = [0.229, 0.224, 0.225]
+    train_tfms = transforms.Compose([transforms.ToTensor(),
+                                     transforms.Normalize(channel_means, channel_stds)])
+    val_tfms = transforms.Compose([transforms.ToTensor(),
+                                   transforms.Normalize(channel_means, channel_stds)])
+    mask_tfms = transforms.Compose([transforms.ToTensor()])
+
+    dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
+    _dataset, test_dataset = random_split(dataset, [275, 40],torch.Generator().manual_seed(42))
+    test_loader = torch.utils.data.DataLoader(test_dataset, 1, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=4)
+
+# 第二阶段训练
+    # TRAIN_IMG  = os.path.join(args.data_dir, 'imgs')
+    # TRAIN_MASK = os.path.join(args.data_dir, 'masks')
+
+
+    # train_img_names  = [path.name for path in Path(TRAIN_IMG).glob('*.png')]
     # train_mask_names = [path.name for path in Path(TRAIN_MASK).glob('*.png')]
     # print(f'total train images = {len(train_img_names)}')
 
@@ -305,41 +324,22 @@ if __name__ == '__main__':
     # channel_stds  = [0.229, 0.224, 0.225]
     # train_tfms = transforms.Compose([transforms.ToTensor(),
     #                                  transforms.Normalize(channel_means, channel_stds)])
+
     # val_tfms = transforms.Compose([transforms.ToTensor(),
     #                                transforms.Normalize(channel_means, channel_stds)])
+
     # mask_tfms = transforms.Compose([transforms.ToTensor()])
 
     # train_dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
-
-# 第二阶段训练
-    TRAIN_IMG  = os.path.join(args.data_dir, 'imgs')
-    TRAIN_MASK = os.path.join(args.data_dir, 'masks')
-
-
-    train_img_names  = [path.name for path in Path(TRAIN_IMG).glob('*.png')]
-    train_mask_names = [path.name for path in Path(TRAIN_MASK).glob('*.png')]
-    print(f'total train images = {len(train_img_names)}')
-
-    channel_means = [0.485, 0.456, 0.406]
-    channel_stds  = [0.229, 0.224, 0.225]
-    train_tfms = transforms.Compose([transforms.ToTensor(),
-                                     transforms.Normalize(channel_means, channel_stds)])
-
-    val_tfms = transforms.Compose([transforms.ToTensor(),
-                                   transforms.Normalize(channel_means, channel_stds)])
-
-    mask_tfms = transforms.Compose([transforms.ToTensor()])
-
-    train_dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
-    train_size = int(len(train_dataset)*0.9)
-    _dataset, test_dataset = random_split(train_dataset, [train_size, len(train_dataset) - train_size],torch.Generator().manual_seed(42))
-    # train_dataset, valid_dataset = random_split(_dataset, [0.9, 0.1],torch.Generator().manual_seed(42))
-    # train_loader = torch.utils.data.DataLoader(train_dataset, args.batch_size, shuffle=True, pin_memory=torch.cuda.is_available(), num_workers=4)
-    # val_loader = torch.utils.data.DataLoader(valid_dataset, 1, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=4)
-    test_loader = torch.utils.data.DataLoader(test_dataset, 1, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=4)
+    # train_size = int(len(train_dataset)*0.9)
+    # _dataset, test_dataset = random_split(train_dataset, [train_size, len(train_dataset) - train_size],torch.Generator().manual_seed(42))
+    # # train_dataset, valid_dataset = random_split(_dataset, [0.9, 0.1],torch.Generator().manual_seed(42))
+    # # train_loader = torch.utils.data.DataLoader(train_dataset, args.batch_size, shuffle=True, pin_memory=torch.cuda.is_available(), num_workers=4)
+    # # val_loader = torch.utils.data.DataLoader(valid_dataset, 1, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=4)
+    # test_loader = torch.utils.data.DataLoader(test_dataset, 1, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=4)
 
 
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+    # os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
     # device = torch.device("cuda")
     device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
     num_gpu = torch.cuda.device_count()
@@ -348,7 +348,7 @@ if __name__ == '__main__':
     # model = torch.nn.DataParallel(model, device_ids=range(num_gpu))
     model.to(device)
 
-    long_id = '%s_%s' % (str(args.lr), datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S'))
+    long_id = 'unet_crackls315_%s_%s' % (str(args.lr), datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S'))
     logger = BoardLogger(long_id)
 
     optimizer = torch.optim.SGD(model.parameters(), args.lr,
@@ -359,7 +359,9 @@ if __name__ == '__main__':
     criterion = torch.nn.BCEWithLogitsLoss()
     # criterion = BinaryFocalLoss()
 
-    latest_model_path = '/home/wj/local/crack_segmentation/unet/checkpoints/stage2/model_best.pt'
+    # train(_dataset, model, criterion, optimizer, validate, args, logger)
+
+    latest_model_path = find_latest_model_path(args.model_dir)
     state = torch.load(latest_model_path)
     epoch = state['epoch']
     # model.load_state_dict(state['model'])
@@ -370,8 +372,5 @@ if __name__ == '__main__':
         weights_dict[new_k] = v
     model.load_state_dict(weights_dict)
 
-
-    # train(_dataset, model, criterion, optimizer, validate, args, logger)
-    predict(test_loader, model, latest_model_path, 
-            save_dir='/home/wj/local/crack_segmentation/unet/invest/test_loader', device=device)
+    predict(test_loader, model, latest_model_path, save_dir='/home/wj/local/crack_segmentation/unet/result/crackls315/test_loader', device=device)
 
