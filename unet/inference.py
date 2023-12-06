@@ -10,12 +10,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 import torchvision.transforms as transforms
-from unet_transfer import UNet16, UNet16V2
+from unet.network.unet_transfer import UNet16, UNet16V2
 import argparse
 from os.path import join
 from PIL import Image
 import gc
-from build_unet import load_unet_vgg16, load_unet_resnet_101, load_unet_resnet_34
+from unet.network.build_unet import load_unet_vgg16, load_unet_resnet_101, load_unet_resnet_34
 from tqdm import tqdm
 
 
