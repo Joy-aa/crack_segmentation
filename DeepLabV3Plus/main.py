@@ -1,6 +1,6 @@
 from tqdm import tqdm
 import network
-import utils
+import utils_tmp
 import os
 import random
 import argparse
@@ -9,7 +9,7 @@ from pathlib import Path
 
 from torch.utils import data
 from datasets import VOCSegmentation, Cityscapes
-from utils import ext_transforms as et
+from utils_tmp import ext_transforms as et
 import torchvision.transforms as transforms
 from torch.utils.data import random_split
 import torch.nn.functional as F
@@ -255,7 +255,7 @@ def validate(opts, model, loader, device, criterion, ret_samples_ids=None, thres
     if opts.save_val_results:
         if not os.path.exists('results'):
             os.mkdir('results')
-        denorm = utils.Denormalize(mean=[0.485, 0.456, 0.406],
+        denorm = utils_tmp.Denormalize(mean=[0.485, 0.456, 0.406],
                                    std=[0.229, 0.224, 0.225])
         img_id = 0
 
@@ -446,7 +446,7 @@ def main():
     model = network.modeling.__dict__[opts.model](num_classes=opts.num_classes, output_stride=opts.output_stride)
     if opts.separable_conv and 'plus' in opts.model:
         network.convert_to_separable_conv(model.classifier)
-    utils.set_bn_momentum(model.backbone, momentum=0.01)
+    utils_tmp.set_bn_momentum(model.backbone, momentum=0.01)
 
     # Set up optimizer
     optimizer = torch.optim.SGD(params=[
@@ -458,21 +458,21 @@ def main():
 
     if opts.lr_policy == 'poly':
         total_iters = opts.epoch * int(0.9 * len(_dataset) / opts.batch_size)
-        scheduler = utils.PolyLR(optimizer, total_iters, power=0.9)
+        scheduler = utils_tmp.PolyLR(optimizer, total_iters, power=0.9)
     elif opts.lr_policy == 'step':
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.1)
     # Set up criterion
     # criterion = utils.get_loss(opts.loss_type)
     if opts.loss_type == 'focal_loss':
-        criterion = utils.FocalLoss(ignore_index=255, size_average=True)
+        criterion = utils_tmp.FocalLoss(ignore_index=255, size_average=True)
     elif opts.loss_type == 'cross_entropy':
         criterion = nn.CrossEntropyLoss(reduction='mean')
     # criterion = criterion.to(device)
 
-    utils.mkdir(opts.model_dir)
+    utils_tmp.mkdir(opts.model_dir)
     vis_sample_id = np.random.randint(0, len(test_loader), opts.vis_num_samples,
                                       np.int32) if opts.enable_vis else None  # sample idxs for visualization
-    denorm = utils.Denormalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # denormalization for ori images
+    denorm = utils_tmp.Denormalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # denormalization for ori images
     # Restore
     best_score = 0.0
     epoch = 0
