@@ -10,9 +10,9 @@ from torchvision.transforms.functional import normalize
 import shutil
 import sys
 sys.path.append("/home/wj/local/crack_segmentation")
-from logger import BoardLogger
+from segtool.logger import BoardLogger
 from segtool.measure import measure
-from data_loader import ImgDataSet
+from segtool.data_loader import ImgDataSet
 import os
 import datetime
 import argparse
@@ -20,7 +20,7 @@ import tqdm
 import numpy as np
 import scipy.ndimage as ndimage
 from unet.network.build_unet import BinaryFocalLoss, dice_loss
-from metric import calc_metric
+from segtool.metric import calc_metric
 import cv2
 
 os.environ["CUDA_VISIBLE_DEVICES"] = ','.join(map(str, [1,2])) 
