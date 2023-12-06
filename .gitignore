@@ -19,3 +19,5 @@ CascadePSP/weights/**
 work_dir/**
 result_dir/**
 unet-dynamic
+**.mp4
+/home/wj/local/crack_segmentation/GSCNN/docs/resources
