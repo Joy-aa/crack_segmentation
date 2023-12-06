@@ -1,5 +1,7 @@
 import torch
-from unet_transfer import UNet16, UNetResNet, UNet16V2
+from network.unet_transfer import UNet16
+from network.unet_network import UNet16V3, UNet16V2
+from network.unet_gate import UNetGate
 from pathlib import Path
 import torchvision.transforms as transforms
 from torch.utils.data import DataLoader, Dataset, random_split
@@ -10,19 +12,22 @@ from torchvision.transforms.functional import normalize
 import shutil
 import sys
 sys.path.append("/home/wj/local/crack_segmentation")
-from logger import BoardLogger
-from data_loader import ImgDataSet
+from segtool.logger import BoardLogger
+from segtool.measure import measure
+from segtool.data_loader import ImgDataSet, CrackDataSet
 import os
 import datetime
 import argparse
 import tqdm
 import numpy as np
 import scipy.ndimage as ndimage
-from build_unet import BinaryFocalLoss, dice_loss
-from metric import calc_metric
+from unet.network.build_unet import BinaryFocalLoss, dice_loss
+from segtool.metric import calc_metric
 import cv2
 
-os.environ["CUDA_VISIBLE_DEVICES"] = '0,1'
+os.environ["CUDA_VISIBLE_DEVICES"] = ','.join(map(str, [0])) 
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+print(torch.cuda.device_count())
 
 class Denormalize(object):
     def __init__(self, mean, std):
@@ -53,23 +58,19 @@ class AverageMeter(object):
         self.count += n
         self.avg = self.sum / self.count
 
-def create_model(type ='vgg16'):
+def create_model(type ='vgg16', is_deconv=False):
     if type == 'vgg16':
         print('create vgg16 model')
-        model = UNet16(pretrained=True)
+        model = UNet16(pretrained=True, is_deconv=is_deconv)
     elif type == 'vgg16V2':
         print('create vgg16V2 model')
-        model = UNet16V2(pretrained=True)
-    elif type == 'resnet101':
-        encoder_depth = 101
-        num_classes = 1
-        print('create resnet101 model')
-        model = UNetResNet(encoder_depth=encoder_depth, num_classes=num_classes, pretrained=True)
-    elif type == 'resnet34':
-        encoder_depth = 34
-        num_classes = 1
-        print('create resnet34 model')
-        model = UNetResNet(encoder_depth=encoder_depth, num_classes=num_classes, pretrained=True)
+        model = UNet16V2(pretrained=True, is_deconv=is_deconv)
+    elif type == 'vgg16V3':
+        print('create vgg16V3 model')
+        model = UNet16V3(pretrained=True, is_deconv=is_deconv)
+    elif type == 'gate':
+        print('create gateconv model')
+        model = UNetGate(pretrained=True, is_deconv=is_deconv)
     else:
         assert False
     model.eval()
@@ -105,6 +106,23 @@ def calc_loss(masks_pred, target_var, r=1):
     
     loss = r * criterion(masks_probs_flat, true_masks_flat)
     loss += dice_loss(torch.sigmoid(masks_pred.squeeze(1)), target_var.squeeze(1).float(), multiclass=False)
+    return loss
+
+def calc_dual_loss(masks_pred, target_var, r=1):
+    segin, edgein = masks_pred
+    segmask, edgemask = target_var
+
+    masks_probs_flat = segin.view(-1)
+    true_masks_flat  = segmask.view(-1)
+    
+    seg_loss = r * criterion(masks_probs_flat, true_masks_flat)
+    seg_loss += dice_loss(torch.sigmoid(segin.squeeze(1)), segmask.float(), multiclass=False)
+
+    edge_probs_flat = edgein.view(-1)
+    true_edge_flat = edgemask.view(-1)
+    edge_loss = 20 * criterion(edge_probs_flat, true_edge_flat)
+
+    loss = seg_loss + edge_loss
     return loss
 
 def train(dataset, model, criterion, optimizer, validation, args, logger):
@@ -154,13 +172,14 @@ def train(dataset, model, criterion, optimizer, validation, args, logger):
 
         losses = AverageMeter()
         model.train()
-        for i, (input, target) in enumerate(train_loader):
-            input_var  = Variable(input).cuda()
-            target_var = Variable(target).cuda()
+        for i, (input, target, edge) in enumerate(train_loader):
+            input_var  = Variable(input).to(device)
+            target_var = Variable(target).to(device)
+            edge_var = Variable(edge).cuda()
 
             masks_pred = model(input_var)
 
-            loss = calc_loss(masks_pred, target_var, 10)
+            loss = calc_dual_loss(masks_pred, (target_var, edge_var), 10)
             losses.update(loss)
             # total_iter = 
             if (i+total_iter) % args.print_freq == 0:
@@ -183,7 +202,7 @@ def train(dataset, model, criterion, optimizer, validation, args, logger):
 
         #save the model of the current epoch
         epoch_model_path = os.path.join(*[args.model_dir, f'model_epoch_{epoch}.pt'])
-        if(epoch % 5 == 0):
+        if(epoch % 10 == 0):
             torch.save({
                 'model': model.state_dict(),
                 'epoch': epoch,
@@ -205,18 +224,19 @@ def validate(model, val_loader, criterion):
     losses = AverageMeter()
     model.eval()
     with torch.no_grad():
-        for i, (input, target) in enumerate(val_loader):
-            input_var = Variable(input).cuda()
-            target_var = Variable(target).cuda()
+        for i, (input, target, edge) in enumerate(val_loader):
+            input_var = Variable(input).to(device)
+            target_var = Variable(target).to(device)
 
-            output = model(input_var)
-            loss = calc_loss(output, target_var, 10)
+            pred, edge_out = model(input_var)
+            loss = calc_loss(pred, target_var, 10)
 
             losses.update(loss.item())
 
     return {'valid_loss': losses.avg}
 
-def predict(test_loader, model, latest_model_path, save_dir = './result/test_loader', device = torch.device("cuda:0")):
+def predict(test_loader, model, latest_model_path, save_dir = './result/test_loader', vis_sample_id = None):
+    os.makedirs(save_dir, exist_ok=True)
     model.eval()
     metrics=[]
     pred_list = []
@@ -224,10 +244,10 @@ def predict(test_loader, model, latest_model_path, save_dir = './result/test_loa
     denorm = Denormalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     bar = tqdm.tqdm(total=len(test_loader))
     with torch.no_grad():
-        for idx, (img, lab) in enumerate(test_loader, 1):
+        for idx, (img, lab, edge) in enumerate(test_loader, 1):
             # val_data  = Variable(img).cuda()
             val_data = Variable(img).to(device)
-            pred = model(val_data)
+            pred, edge_out = model(val_data)
 
             image = (denorm(img) * 255).squeeze(0).contiguous().cpu().numpy()
             image = image.transpose(2, 1, 0).astype(np.uint8)
@@ -249,21 +269,51 @@ def predict(test_loader, model, latest_model_path, save_dir = './result/test_loa
             temp = cv2.addWeighted(label,1,mask,1,0)
             res = cv2.addWeighted(image,0.6,temp,0.4,0)
 
-            cv2.imwrite(os.path.join(save_dir,'%d_test.png' % idx), res)
+            if idx in vis_sample_id:
+                mask = (mask.transpose(2, 1, 0)*255).astype('uint8')
+                mask[mask > 127] = 255
+                mask[mask < 255] = 0
+                crackInfos = measure(mask=mask)
+
+                label = (label.transpose(2, 1, 0)*255).astype('uint8')
+                label[label>0] = 255
+                
+                zeros = np.zeros(mask.shape)
+                mask = np.concatenate((mask,zeros,zeros),axis=-1).astype(np.uint8)
+                label = np.concatenate((zeros,zeros,label),axis=-1).astype(np.uint8)
+                # print(label.shape)
+                
+                temp = cv2.addWeighted(label,1,mask,1,0)
+                res = cv2.addWeighted(image,0.6,temp,0.4,0)
+
+                edge_pred = torch.sigmoid(edge_out.squeeze(0)).contiguous().cpu().numpy().transpose(2, 1, 0)
+                edge_mask = np.where(edge_pred > 0.7, edge_pred, zeros)
+                # edge_mask[edge_mask > 127] = 255
+                edge_mask = np.concatenate((zeros,zeros,edge_mask * 255),axis=-1).astype(np.uint8)
+                res_edge = cv2.addWeighted(image,0.6,edge_mask,0.4,0)
+
+                cv2.imwrite(os.path.join(save_dir,'%d_test.png' % idx), res)
+                cv2.imwrite(os.path.join(save_dir,'%d_test_edge.png' % idx), res_edge)
+                
+                with open(os.path.join(save_dir,'%d_test.txt' % idx), 'a', encoding='utf-8') as fout:
+                    for crack in crackInfos:
+                        line =  "box:[{:d},{:d},{:d},{:d}] | length:{:.5f} | avg_width:{:.5f} | max_width:{:.5f} " \
+                            .format( crack['box'][0], crack['box'][1], crack['box'][2], crack['box'][3], crack['length'],  crack['avg_width'],  crack['max_width']) + '\n'
+                        fout.write(line)
             bar.update(1)
     bar.close
 
     for i in range(1, 10):
-                threshold = i / 10
-                metric = calc_metric(pred_list, gt_list, mode='list', threshold=threshold)
-                print(metric)
-                if len(metrics) < i:
-                    metrics.append(metric)
-                else:
-                    metrics[i-1]['accuracy'] += metric['accuracy']
-                    metrics[i-1]['precision'] += metric['precision']
-                    metrics[i-1]['recall'] += metric['recall']
-                    metrics[i-1]['f1'] += metric['f1']
+            threshold = i / 10
+            metric = calc_metric(pred_list, gt_list, mode='list', threshold=threshold)
+            print(metric)
+            if len(metrics) < i:
+                metrics.append(metric)
+            else:
+                metrics[i-1]['accuracy'] += metric['accuracy']
+                metrics[i-1]['precision'] += metric['precision']
+                metrics[i-1]['recall'] += metric['recall']
+                metrics[i-1]['f1'] += metric['f1']
     print(metrics)
     d = datetime.datetime.today()
     datetime.datetime.strftime(d,'%Y-%m-%d %H-%M-%S')
@@ -284,10 +334,11 @@ if __name__ == '__main__':
     parser.add_argument('--weight_decay', default=5e-4, type=float, metavar='W', help='weight decay (default: 1e-4)')
     parser.add_argument('--batch_size',  default=4, type=int,  help='weight decay (default: 1e-4)')
     parser.add_argument('--num_workers', default=2, type=int, help='output dataset directory')
-    parser.add_argument('--data_dir',type=str, help='input dataset directory')
+    parser.add_argument('--data_dir',type=str, default='/nfs/wj/DamCrack', help='input dataset directory')
     # /home/wj/dataset/seg_dataset /nfs/wj/DamCrack /nfs/wj/192_255_segmentation
-    parser.add_argument('--model_dir', type=str, help='output dataset directory')
-    parser.add_argument('--model_type', type=str, required=False, default='vgg16', choices=['vgg16', 'vgg16V2', 'resnet101', 'resnet34'])
+    parser.add_argument('--model_dir', type=str, default='checkpoints/stage2', help='output dataset directory')
+    parser.add_argument('--model_type', type=str, required=False, default='gate', choices=['vgg16', 'vgg16V2', 'vgg16V3', 'gate'])
+    parser.add_argument("--deconv", action='store_true', default=False)
 
     args = parser.parse_args()
     os.makedirs(args.model_dir, exist_ok=True)
@@ -341,11 +392,12 @@ if __name__ == '__main__':
 
     # os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
     # device = torch.device("cuda")
-    device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
-    num_gpu = torch.cuda.device_count()
+    # print(device)
+    # device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+    # num_gpu = torch.cuda.device_count()
 
-    model = create_model(args.model_type)
-    # model = torch.nn.DataParallel(model, device_ids=range(num_gpu))
+    model = create_model(args.model_type, args.deconv)
+    # model = torch.nn.DataParallel(model, device_ids=[0,1])
     model.to(device)
 
     long_id = 'unet_crackls315_%s_%s' % (str(args.lr), datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S'))
@@ -356,21 +408,23 @@ if __name__ == '__main__':
                                 weight_decay=args.weight_decay)
     # optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     
-    criterion = torch.nn.BCEWithLogitsLoss()
+    criterion = torch.nn.BCEWithLogitsLoss().to(device)
     # criterion = BinaryFocalLoss()
 
-    # train(_dataset, model, criterion, optimizer, validate, args, logger)
+    train(_dataset, model, criterion, optimizer, validate, args, logger)
 
-    latest_model_path = find_latest_model_path(args.model_dir)
+    np.random.seed(0)
+    vis_sample_id = np.random.randint(0, len(test_loader), 50, np.int32)  # sample idxs for visualization
+
+    latest_model_path = os.path.join(args.model_dir, 'model_best.pt')
     state = torch.load(latest_model_path)
     epoch = state['epoch']
-    # model.load_state_dict(state['model'])
-    weights = state['model']
-    weights_dict = {}
-    for k, v in weights.items():
-        new_k = k.replace('module.', '') if 'module' in k else k
-        weights_dict[new_k] = v
-    model.load_state_dict(weights_dict)
-
-    predict(test_loader, model, latest_model_path, save_dir='/home/wj/local/crack_segmentation/unet/result/crackls315/test_loader', device=device)
+    model.load_state_dict(state['model'])
+    # weights = state['model']
+    # weights_dict = {}
+    # for k, v in weights.items():
+    #     new_k = k.replace('module.', '') if 'module' in k else k
+    #     weights_dict[new_k] = v
+    # model.load_state_dict(weights_dict)
+    predict(test_loader, model, latest_model_path, save_dir=os.path.join(args.model_dir, 'test_visual'), vis_sample_id=vis_sample_id)
 

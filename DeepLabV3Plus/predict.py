@@ -1,7 +1,7 @@
 from torch.utils.data import dataset
 from tqdm import tqdm
 import network
-import utils_tmp
+import segtool.utils_tmp as utils_tmp
 import os
 import random
 import argparse

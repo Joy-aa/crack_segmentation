@@ -10,7 +10,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 import torchvision.transforms as transforms
-from unet_transfer import UNet16
+from unet.network.unet_transfer import UNet16
 import argparse
 from os.path import join
 from PIL import Image
@@ -146,13 +146,21 @@ if __name__ == '__main__':
     ref_dir = '/mnt/nfs/wj/result-stride_0.7/Jun02_06_33_42/image/'
     res_dir = './invest/adaptive/imgs'
     save_dir = './invest/adaptive/dir'
+    # image_dir = '/nfs/wj/data/image/'
+    # label_dir = '/nfs/wj/data/new_label/'
+    # box_dir = '/nfs/wj/result-stride_0.7/Jun02_06_33_42/box/'
+    # ref_dir = '/nfs/wj/result-stride_0.7/Jun02_06_33_42/image/'
+    # res_dir = './result/stage2'
+    # save_dir = './invest/predict_dir'
     
     #dam2
-    # image_dir = '/nfs/wj/data/dataV2/image'
-    # label_dir = ''
-    # box_dir = '/nfs/DamDetection/data/dataV2/result/Jun02_06_33_42/box/'
-    # res_dir = './result/stage2V2/'
-    # log_save = './result_dir'
+    image_dir = '/nfs/wj/data/dataV2/image'
+    label_dir = ''
+    box_dir = '/nfs/DamDetection/data/dataV2/result/Jun02_06_33_42/box/'
+    ref_dir = '/nfs/DamDetection/data/dataV2/result/Jun02_06_33_42/image'
+    res_dir = './invest/stage2V2/imgs/'
+    mask_dir = './result/stage2V2/'
+    # log_save = './invest/stage2V2/dirs/'
 
     model = UNet16(pretrained=True)
     
@@ -253,9 +261,9 @@ if __name__ == '__main__':
 
         cv.imwrite(os.path.join(res_dir,path.stem+'.png'), res)
     gc.collect()
-    with open(os.path.join(save_dir, 'total.txt'), 'a', encoding='utf-8') as fout:
-        for i in range(1, 10): 
-            line =  "threshold:{:d} | accuracy:{:.5f} | precision:{:.5f} | recall:{:.5f} | f1:{:.5f} " \
-                .format(i, metrics[i-1]['accuracy'],  metrics[i-1]['precision'],  metrics[i-1]['recall'],  metrics[i-1]['f1']) + '\n'
-            fout.write(line)
+    # with open(os.path.join(save_dir, 'total.txt'), 'a', encoding='utf-8') as fout:
+    #     for i in range(1, 10): 
+    #         line =  "threshold:{:d} | accuracy:{:.5f} | precision:{:.5f} | recall:{:.5f} | f1:{:.5f} " \
+    #             .format(i, metrics[i-1]['accuracy'],  metrics[i-1]['precision'],  metrics[i-1]['recall'],  metrics[i-1]['f1']) + '\n'
+    #         fout.write(line)
 
