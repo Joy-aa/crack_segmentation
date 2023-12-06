@@ -9,7 +9,8 @@ import torch
 from torch import nn
 from torch import Tensor
 import tqdm
-from unet.network.unet_transfer import UNet16, UNetResNet
+from network.unet_transfer import UNet16
+from network.unet_network import UNetResNet
 
 
 class AverageMeter(object):
