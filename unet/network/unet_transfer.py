@@ -3,7 +3,7 @@ from torch.nn import functional as F
 import torch
 from torchvision import models
 import torchvision
-from sync_batchnorm.batchnorm import SynchronizedBatchNorm2d
+# from sync_batchnorm.batchnorm import SynchronizedBatchNorm2d
 
 input_size = (480, 480)
 

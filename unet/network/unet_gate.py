@@ -3,13 +3,13 @@ from torch.nn import functional as F
 import torch
 from torchvision import models
 import torchvision
-from sync_batchnorm.batchnorm import SynchronizedBatchNorm2d
+# from sync_batchnorm.batchnorm import SynchronizedBatchNorm2d
 import torch.nn as nn
 import torch
 import torch.nn.functional as F
 from torch.nn.modules.conv import _ConvNd
 from torch.nn.modules.utils import _pair
-import network.mynn as mynn
+# import mynn
 import numpy as np
 import cv2
 
@@ -111,11 +111,11 @@ class GatedSpatialConv2d(_ConvNd):
             False, _pair(0), groups, bias, 'zeros')
 
         self._gate_conv = nn.Sequential(
-            mynn.Norm2d(in_channels+1),
+            torch.nn.BatchNorm2d(in_channels+1),
             nn.Conv2d(in_channels+1, in_channels+1, 1),
             nn.ReLU(), 
             nn.Conv2d(in_channels+1, 1, 1),
-            mynn.Norm2d(1),
+            torch.nn.BatchNorm2d(1),
             nn.Sigmoid()
         )
 
@@ -195,11 +195,11 @@ class UNetGate(nn.Module):
 
         self.canny_conv = nn.Conv2d(1, 64, 1)
 
-        self.dsn1 = nn.Conv2d(512, 1, 1)
-        self.dsn2 = nn.Conv2d(512, 1, 1)
+        self.dsn5 = nn.Conv2d(512, 1, 1)
+        self.dsn4 = nn.Conv2d(512, 1, 1)
         self.dsn3 = nn.Conv2d(256, 1, 1)
-        self.dsn4 = nn.Conv2d(128, 1, 1)
-        self.dsn5 = nn.Conv2d(64, 1, 1)
+        self.dsn2 = nn.Conv2d(128, 1, 1)
+        self.dsn1 = nn.Conv2d(64, 1, 1)
 
         self.gate5 = GatedSpatialConv2d(64, 64)
         self.gate4 = GatedSpatialConv2d(64, 64)
@@ -207,10 +207,16 @@ class UNetGate(nn.Module):
         self.gate2 = GatedSpatialConv2d(16, 16)
         self.gate1 = GatedSpatialConv2d(8, 8)
 
+        self.d5 = nn.Conv2d(64, 64, 1)
+        self.d4 = nn.Conv2d(64, 32, 1)
+        self.d3 = nn.Conv2d(32, 16, 1)
+        self.d2 = nn.Conv2d(16, 8, 1)
+        # self.d1 = nn.Conv2d(16, 8, 1)
+
         self.fuse5 = Fuse(64 + num_filters * 8, num_filters * 8 * 2, num_filters * 8)
-        self.fuse4 = Fuse(64 + num_filters * 8, num_filters * 8 * 2, num_filters * 8)
-        self.fuse3 = Fuse(32 + num_filters * 8, num_filters * 4 * 2, num_filters * 2)
-        self.fuse2 = Fuse(16 + num_filters * 8, num_filters * 2 * 2, num_filters)
+        self.fuse4 = Fuse(32 + num_filters * 8, num_filters * 8 * 2, num_filters * 8)
+        self.fuse3 = Fuse(16 + num_filters * 2, num_filters * 4 * 2, num_filters * 2)
+        self.fuse2 = Fuse(8 + num_filters, num_filters * 2 * 2, num_filters)
         self.fuse1 = Fuse(8 + num_filters, num_filters * 2 * 2, num_filters)
 
         self.dec5 = DecoderBlockV2(512 + num_filters * 8, num_filters * 8 * 2, num_filters * 8, is_deconv)
@@ -240,42 +246,45 @@ class UNetGate(nn.Module):
         edge_inp = F.interpolate(canny, conv5.size()[2:],mode='bilinear', align_corners=True) #b, 1, h/16, w/16
         edge_inp = self.canny_conv(edge_inp) #b, 64, h/16, w/16
         
-        d5 = self.dsn5(conv5)
-        d4 = self.dsn4(conv4)
-        d3 = self.dsn3(conv3)
-        d2 = self.dsn2(conv2)
-        d1 = self.dsn1(conv1)
+        d5 = self.dsn5(conv5) #b , 1, h/16, w/16
+        d4 = self.dsn4(conv4) #b , 1, h/8, w/8
+        d3 = self.dsn3(conv3) #b , 1, h/4, w/4
+        d2 = self.dsn2(conv2) #b , 1, h/2, w/2
+        d1 = self.dsn1(conv1) #b , 1, h, w
 
         edge5 = self.gate5(edge_inp, d5)
-        edge5 = F.interpolate(edge5, conv4.size()[2:], mode='bilinear', align_corners=True) #b, 64, h/8, w/8
+        edge5 = self.d5(edge5)
+        edge5 = F.interpolate(edge5, conv4.size()[2:], mode='bilinear', align_corners=True) #b, 64, h/16, w/16
+        dec5 = self.dec5(torch.cat([center, conv5], 1))  #input:256+512, h/32, w/32; output:256, h/16, w/16
+        fuse5 = self.fuse5(edge5, dec5)                  #input:64+256, h/16, w/16; output:256, h/8, w/8
+        
 
         edge4 = self.gate4(edge5, d4)
-        edge4 = F.interpolate(edge4, conv3.size()[2:], mode='bilinear', align_corners=True) #b, 32, h/4, w/4
+        edge4 = self.d4(edge4)
+        edge4 = F.interpolate(edge4, conv3.size()[2:], mode='bilinear', align_corners=True) #b, 64, h/8, w/8
+        dec4 = self.dec4(torch.cat([fuse5, conv4], 1))   #input:256+512, h/8, w/8; output:256, h/4, w/4
+        fuse4 = self.fuse4(edge4, dec4)
+        
 
         edge3 = self.gate3(edge4, d3)
-        edge3 = F.interpolate(edge3, conv2.size()[2:], mode='bilinear', align_corners=True) #b, 16, h/2, w/2
+        edge3 = self.d3(edge3)
+        edge3 = F.interpolate(edge3, conv2.size()[2:], mode='bilinear', align_corners=True) #b, 32, h/4, w/4
+        dec3 = self.dec3(torch.cat([fuse4, conv3], 1))   #input:256+256, h/4, w/4; output:64, h/2, w/2
+        fuse3 = self.fuse3(edge3, dec3)
+        
 
         edge2 = self.gate2(edge3, d2)
-        edge2 = F.interpolate(edge2, conv1.size()[2:], mode='bilinear', align_corners=True) #b, 8, h, w
-
-        edge1 = self.gate1(edge2, d1)
-        edge_out = F.sigmoid(self.edge_final(edge1))
-        
-        dec5 = self.dec5(torch.cat([center, conv5], 1)) #input:256+512, h/32, w/32; output:256, h/16, w/16
-        fuse5 = self.fuse5(edge5, dec5)
-
-        dec4 = self.dec4(torch.cat([fuse5, conv4], 1))   #input:256+512, h/16, w/16; output:256, h/8, w/8
-        fuse4 = self.fuse4(edge4, dec4)
-
-        dec3 = self.dec3(torch.cat([fuse4, conv3], 1))   #input:256+256, h/8, w/8; output:64, h/4, w/4
-        fuse3 = self.fuse3(edge3, dec3)
-
-        dec2 = self.dec2(torch.cat([fuse3, conv2], 1))   #input:64+128, h/4, w/4; output:32, h/2, w/2
+        edge2 = self.d2(edge2)
+        edge2 = F.interpolate(edge2, conv1.size()[2:], mode='bilinear', align_corners=True) #b, 16, h, w
+        dec2 = self.dec2(torch.cat([fuse3, conv2], 1))   #input:64+128, h/2, w/2; output:32, h, w
         fuse2 = self.fuse2(edge2, dec2)
-
+        
+        
+        edge1 = self.gate1(edge2, d1)
         dec1 = self.dec1(torch.cat([fuse2, conv1], 1))   #input:32+64, h/2, w/2; output:32, h, w
         fuse1 = self.fuse1(edge1, dec1)
 
+        edge_out = torch.sigmoid(self.edge_final(edge1))
         if self.num_classes > 1:
             seg_out = F.log_softmax(self.final(fuse1), dim=1)
         else:
