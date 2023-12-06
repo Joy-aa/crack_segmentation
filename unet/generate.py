@@ -10,7 +10,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 import torchvision.transforms as transforms
-from unet_transfer import UNet16
+from unet.network.unet_transfer import UNet16
 import argparse
 from os.path import join
 from PIL import Image
@@ -67,19 +67,21 @@ if __name__ == '__main__':
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     print(device)
     #dam
-    image_dir = '/nfs/wj/data/image/'
-    label_dir = '/nfs/wj/data/new_label/'
-    box_dir = '/nfs/wj/result-stride_0.7/Jun02_06_33_42/box/'
-    ref_dir = '/nfs/wj/result-stride_0.7/Jun02_06_33_42/image/'
-    res_dir = './result/stage2'
-    save_dir = './invest/predict_dir'
+    # image_dir = '/nfs/wj/data/image/'
+    # label_dir = '/nfs/wj/data/new_label/'
+    # box_dir = '/nfs/wj/result-stride_0.7/Jun02_06_33_42/box/'
+    # ref_dir = '/nfs/wj/result-stride_0.7/Jun02_06_33_42/image/'
+    # res_dir = './result/stage2'
+    # save_dir = './invest/predict_dir'
     
     #dam2
-    # image_dir = '/nfs/wj/data/dataV2/image'
-    # label_dir = ''
-    # box_dir = '/nfs/DamDetection/data/dataV2/result/Jun02_06_33_42/box/'
-    # res_dir = './result/stage2V2/'
-    # log_save = './result_dir'
+    image_dir = '/nfs/wj/data/dataV2/image'
+    label_dir = ''
+    box_dir = '/nfs/DamDetection/data/dataV2/result/Jun02_06_33_42/box/'
+    ref_dir = '/nfs/DamDetection/data/dataV2/result/Jun02_06_33_42/image'
+    res_dir = './invest/stage2V2/imgs/'
+    mask_dir = './result/stage2V2/'
+    # log_save = './invest/stage2V2/dirs/'
 
     # model = UNet16(pretrained=True)
     
@@ -92,8 +94,8 @@ if __name__ == '__main__':
     # model.load_state_dict(weights_dict)
     # model.cuda()
     
-    if save_dir != '':
-        os.makedirs(save_dir, exist_ok=True)
+    if res_dir != '':
+        os.makedirs(res_dir, exist_ok=True)
 
     paths = [path for path in Path(image_dir).glob('*.*')]
     metrics=[]
@@ -106,48 +108,48 @@ if __name__ == '__main__':
         # mask = single_result_no_box(model,img_0)
         # mask =  single_result(model=model,img=img_0,txt_path=txt_path)
         
-        mask = cv.imread(os.path.join(res_dir,path.stem+'.png'), 0)
-        gt = cv.imread(os.path.join(label_dir,path.stem+'.png'), 0)
+        mask = cv.imread(os.path.join(mask_dir,path.stem+'.png'), 0)
+        # gt = cv.imread(os.path.join(label_dir,path.stem+'.png'), 0)
         
-        with open(os.path.join(save_dir, path.stem+'.txt'), 'a', encoding='utf-8') as fout:
-            fout.write(str(path)+'\n')
-            for i in range(1, 10):
-                threshold = i / 10
-                metric = calc_metric(mask, gt, mode='list', threshold=threshold, max_value=255)
-                line =  "threshold:{:d} | accuracy:{:.5f} | precision:{:.5f} | recall:{:.5f} | f1:{:.5f} " \
-                    .format(i, metric['accuracy'],  metric['precision'],  metric['recall'],  metric['f1']) + '\n'
-                fout.write(line)
-                metric['accuracy'] = metric['accuracy'] / len(paths)
-                metric['precision'] = metric['precision'] / len(paths)
-                metric['recall'] = metric['recall'] / len(paths)
-                metric['f1'] = metric['f1'] / len(paths)
-                if len(metrics) < i:
-                    metrics.append(metric)
-                else:
-                    metrics[i-1]['accuracy'] += metric['accuracy']
-                    metrics[i-1]['precision'] += metric['precision']
-                    metrics[i-1]['recall'] += metric['recall']
-                    metrics[i-1]['f1'] += metric['f1']
+        # with open(os.path.join(box_dir, path.stem+'.txt'), 'a', encoding='utf-8') as fout:
+        #     fout.write(str(path)+'\n')
+        #     for i in range(1, 10):
+        #         threshold = i / 10
+        #         metric = calc_metric(mask, gt, mode='list', threshold=threshold, max_value=255)
+        #         line =  "threshold:{:d} | accuracy:{:.5f} | precision:{:.5f} | recall:{:.5f} | f1:{:.5f} " \
+        #             .format(i, metric['accuracy'],  metric['precision'],  metric['recall'],  metric['f1']) + '\n'
+        #         fout.write(line)
+        #         metric['accuracy'] = metric['accuracy'] / len(paths)
+        #         metric['precision'] = metric['precision'] / len(paths)
+        #         metric['recall'] = metric['recall'] / len(paths)
+        #         metric['f1'] = metric['f1'] / len(paths)
+        #         if len(metrics) < i:
+        #             metrics.append(metric)
+        #         else:
+        #             metrics[i-1]['accuracy'] += metric['accuracy']
+        #             metrics[i-1]['precision'] += metric['precision']
+        #             metrics[i-1]['recall'] += metric['recall']
+        #             metrics[i-1]['f1'] += metric['f1']
         
         # 4-channels result for label
-        # mask[mask>127] = 255
+        mask[mask>127] = 255
         # gt[gt>0] = 255
-        # image = cv.imread(os.path.join(ref_dir,path.stem+'.jpg'), 1)
-        # mask = np.expand_dims(mask,axis=2)
-        # zeros = np.zeros(mask.shape)
-        # mask = np.concatenate((mask,zeros,zeros),axis=-1).astype(np.uint8)
+        image = cv.imread(os.path.join(ref_dir,path.stem+'.jpg'), 1)
+        mask = np.expand_dims(mask,axis=2)
+        zeros = np.zeros(mask.shape)
+        mask = np.concatenate((mask,zeros,zeros),axis=-1).astype(np.uint8)
         
         # label = np.expand_dims(gt,axis=2)
         # label = np.concatenate((zeros,zeros,label),axis=-1).astype(np.uint8)
         
         # temp = cv.addWeighted(label,1,mask,1,0)
-        # res = cv.addWeighted(image,0.6,temp,0.4,0)
+        res = cv.addWeighted(image,0.6,mask,0.4,0)
 
-        # cv.imwrite(os.path.join(save_dir,path.stem+'.png'), res)
+        cv.imwrite(os.path.join(res_dir,path.stem+'.png'), res)
     gc.collect()
-    with open(os.path.join(save_dir, 'total.txt'), 'a', encoding='utf-8') as fout:
-        for i in range(1, 10): 
-            line =  "threshold:{:d} | accuracy:{:.5f} | precision:{:.5f} | recall:{:.5f} | f1:{:.5f} " \
-                .format(i, metrics[i-1]['accuracy'],  metrics[i-1]['precision'],  metrics[i-1]['recall'],  metrics[i-1]['f1']) + '\n'
-            fout.write(line)
+    # with open(os.path.join(save_dir, 'total.txt'), 'a', encoding='utf-8') as fout:
+    #     for i in range(1, 10): 
+    #         line =  "threshold:{:d} | accuracy:{:.5f} | precision:{:.5f} | recall:{:.5f} | f1:{:.5f} " \
+    #             .format(i, metrics[i-1]['accuracy'],  metrics[i-1]['precision'],  metrics[i-1]['recall'],  metrics[i-1]['f1']) + '\n'
+    #         fout.write(line)
 
