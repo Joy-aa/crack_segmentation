@@ -1,0 +1,11 @@
+/home/wj/local/crack_segmentation/CrackFormer/CrackFormer-II/result/crackls/checkpoints/epoch(16)_acc(0.52-1.00).pth
+test_loader
+threshold:1 | accuracy:0.97974 | precision:0.05626 | recall:0.43566 | f1:0.09966 
+threshold:2 | accuracy:0.98386 | precision:0.06248 | recall:0.37623 | f1:0.10716 
+threshold:3 | accuracy:0.98628 | precision:0.06580 | recall:0.32817 | f1:0.10963 
+threshold:4 | accuracy:0.98811 | precision:0.06898 | recall:0.28956 | f1:0.11142 
+threshold:5 | accuracy:0.98959 | precision:0.07059 | recall:0.25006 | f1:0.11009 
+threshold:6 | accuracy:0.99089 | precision:0.07220 | recall:0.21416 | f1:0.10800 
+threshold:7 | accuracy:0.99214 | precision:0.07318 | recall:0.17596 | f1:0.10336 
+threshold:8 | accuracy:0.99346 | precision:0.07523 | recall:0.13646 | f1:0.09699 
+threshold:9 | accuracy:0.99496 | precision:0.07987 | recall:0.09126 | f1:0.08519 

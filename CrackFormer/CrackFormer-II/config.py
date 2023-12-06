@@ -11,7 +11,7 @@ class Config:
 
     # path
     # data_dir = '/nfs/wj/192_255_segmentation'
-    data_dir = '/nfs/wj/CrackLS315/'
+    data_dir = '/mnt/nfs/wj/CrackLS315/'
     checkpoint_path = '/home/wj/local/crack_segmentation/CrackFormer/CrackFormer-II/result/crackls/checkpoints'
     log_path = 'log'
     saver_path = os.path.join(checkpoint_path, name)
@@ -25,11 +25,12 @@ class Config:
     vis_train_img_every = 200
     val_every = 400
 
-    test_only = 0
+    test_only = 1
+    save_dir='/home/wj/local/crack_segmentation/CrackFormer/CrackFormer-II/result/crack315/test_loader'
 
     # training
-    epoch = 20
-    pretrained_model = ''
+    epoch = 50
+    pretrained_model = '/home/wj/local/crack_segmentation/CrackFormer/CrackFormer-II/checkpoints/crack315_0.pth'
     weight_decay = 0.0000
     lr_decay = 0.1
     lr = 1e-3

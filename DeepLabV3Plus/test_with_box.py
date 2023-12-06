@@ -17,7 +17,7 @@ import gc
 from tqdm import tqdm
 import datetime
 import network
-import utils
+import utils_tmp
 
 channel_means = [0.485, 0.456, 0.406]
 channel_stds  = [0.229, 0.224, 0.225]
@@ -105,7 +105,7 @@ if __name__ == '__main__':
     model = network.modeling.__dict__[model_type](num_classes=1, output_stride=16)
     # if opts.separable_conv and 'plus' in model_type:
     #     network.convert_to_separable_conv(model.classifier)
-    utils.set_bn_momentum(model.backbone, momentum=0.01)
+    utils_tmp.set_bn_momentum(model.backbone, momentum=0.01)
     state = torch.load(model_path)
     # model.load_state_dict(state['model'])
     weights = state["model_state"]
