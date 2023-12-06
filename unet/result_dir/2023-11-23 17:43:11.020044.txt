@@ -1,0 +1,10 @@
+checkpoints/layer4/nodeconv/model_best.pt
+threshold:1 | accuracy:0.99300 | precision:0.74386 | recall:0.91910 | f1:0.82225 
+threshold:2 | accuracy:0.99391 | precision:0.78837 | recall:0.89426 | f1:0.83798 
+threshold:3 | accuracy:0.99430 | precision:0.81445 | recall:0.87596 | f1:0.84409 
+threshold:4 | accuracy:0.99451 | precision:0.83395 | recall:0.85972 | f1:0.84664 
+threshold:5 | accuracy:0.99464 | precision:0.85091 | recall:0.84373 | f1:0.84731 
+threshold:6 | accuracy:0.99471 | precision:0.86719 | recall:0.82636 | f1:0.84628 
+threshold:7 | accuracy:0.99472 | precision:0.88422 | recall:0.80539 | f1:0.84296 
+threshold:8 | accuracy:0.99461 | precision:0.90429 | recall:0.77584 | f1:0.83515 
+threshold:9 | accuracy:0.99416 | precision:0.93364 | recall:0.71926 | f1:0.81255 

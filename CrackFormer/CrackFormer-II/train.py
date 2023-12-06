@@ -10,9 +10,9 @@ import cv2
 import sys
 from pathlib import Path
 sys.path.append('/home/wj/local/crack_segmentation')
-from data_loader import ImgDataSet
-from metric import calc_metric
-from logger import BoardLogger
+from segtool.data_loader import ImgDataSet
+from segtool.metric import calc_metric
+from segtool.logger import BoardLogger
 import datetime
 from torch.utils.data import DataLoader, random_split
 from torchvision import transforms

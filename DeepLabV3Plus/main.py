@@ -1,6 +1,6 @@
 from tqdm import tqdm
 import network
-import utils_tmp
+import segtool.utils_tmp as utils_tmp
 import os
 import random
 import argparse
@@ -9,7 +9,7 @@ from pathlib import Path
 
 from torch.utils import data
 from datasets import VOCSegmentation, Cityscapes
-from utils_tmp import ext_transforms as et
+from segtool.utils_tmp import ext_transforms as et
 import torchvision.transforms as transforms
 from torch.utils.data import random_split
 import torch.nn.functional as F

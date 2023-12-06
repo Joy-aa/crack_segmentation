@@ -5,7 +5,7 @@ warnings.filterwarnings("ignore")
 import numpy as np
 # from d2l import torch as d2l
 from tqdm import tqdm
-from unet_transfer import UNet16, UNetResNet, UNet16V2
+from unet.network.unet_transfer import UNet16, UNetResNet, UNet16V2
 # import pandas as pd
 from PIL import Image
 import torchvision.transforms as transforms

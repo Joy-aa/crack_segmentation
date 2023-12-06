@@ -1,0 +1,10 @@
+box:[149,412,196,439] | length:185.58074 | avg_width:0.02397 | max_width:1.41421 
+box:[196,368,260,410] | length:316.80613 | avg_width:0.02977 | max_width:1.41421 
+box:[75,337,113,362] | length:154.61017 | avg_width:0.13095 | max_width:1.41421 
+box:[333,319,370,333] | length:133.39697 | avg_width:0.06149 | max_width:1.41421 
+box:[259,316,329,367] | length:331.01934 | avg_width:0.04285 | max_width:1.41421 
+box:[55,308,77,335] | length:143.29646 | avg_width:0.00000 | max_width:0.00000 
+box:[422,294,439,323] | length:103.08326 | avg_width:0.11467 | max_width:1.41421 
+box:[380,265,423,294] | length:179.43860 | avg_width:0.09428 | max_width:1.41421 
+box:[5,110,54,152] | length:309.29141 | avg_width:0.00000 | max_width:0.00000 
+box:[208,24,271,195] | length:570.52900 | avg_width:0.13469 | max_width:1.41421 

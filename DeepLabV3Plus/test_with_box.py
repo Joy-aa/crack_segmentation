@@ -17,7 +17,7 @@ import gc
 from tqdm import tqdm
 import datetime
 import network
-import utils_tmp
+import segtool.utils_tmp as utils_tmp
 
 channel_means = [0.485, 0.456, 0.406]
 channel_stds  = [0.229, 0.224, 0.225]
