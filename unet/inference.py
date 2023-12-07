@@ -10,12 +10,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 import torchvision.transforms as transforms
-from unet_transfer import UNet16, input_size, UNet16V2
+from unet.network.unet_transfer import UNet16, UNet16V2
 import argparse
 from os.path import join
 from PIL import Image
 import gc
-from build_unet import load_unet_vgg16, load_unet_resnet_101, load_unet_resnet_34
+from unet.network.build_unet import load_unet_vgg16, load_unet_resnet_101, load_unet_resnet_34
 from tqdm import tqdm
 
 
@@ -25,14 +25,14 @@ def evaluate_img(model, img, test_tfms):
 
     mask = model(X)
 
-    mask = F.sigmoid(mask[0, 0]).data.cpu().numpy()
+    mask = torch.sigmoid(mask[0, 0]).data.cpu().numpy()
     return mask
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    # /nfs/DamDetection/data/  /mnt/hangzhou_116_homes/DamDetection/data/  /home/wj/dataset/crack/
+    # /nfs/DamDetection/data/  /mnt/hangzhou_116_homes/wj/data/  /home/wj/dataset/crack/
     parser.add_argument('--img_dir',type=str, default='../images', help='input dataset directory')
-    parser.add_argument('--model_path', type=str, default='./checkpoints/model_epoch_29.pt', help='trained model path')
+    parser.add_argument('--model_path', type=str, default='./checkpoints/model_best.pt', help='trained model path')
     parser.add_argument('--model_type', type=str, default='vgg16', choices=['vgg16', 'vgg16V2', 'resnet101', 'resnet34'])
     parser.add_argument('--out_pred_dir', type=str, default='./result_img', required=False,  help='prediction output dir')
     parser.add_argument('--type', type=str, default='out' , choices=['out', 'metric'])
@@ -88,13 +88,8 @@ if __name__ == '__main__':
     channel_means = [0.485, 0.456, 0.406]
     channel_stds  = [0.229, 0.224, 0.225]
 
-    paths = [path for path in Path(DIR_IMG).glob('*.*')]
-    # metrics = {
-    #         'accuracy': 0,
-    #         'precision': 0,
-    #         'recall': 0,
-    #         'f1': 0,
-    # }
+    print()
+    paths = [path for path in Path(DIR_IMG).glob('20160307_164143.*')]
     metrics=[]
     for path in tqdm(paths):
         print(path)
@@ -119,8 +114,12 @@ if __name__ == '__main__':
         img_1 = np.zeros((img_height, img_width))
 
         cof = 1
+        input_size = (480, 480)
         w, h = int(cof * input_size[0]), int(cof * input_size[1])
         offset = 32
+
+        torch.set_num_threads(1)
+        torch.backends.cudnn.benchmark = True
         
         for i in range(0, img_height+h, h):
             for j in range(0, img_width+w, w):
@@ -134,7 +133,6 @@ if __name__ == '__main__':
                     if j2>img_width:
                         j1 = max(0, img_width - w)
                         j2 = img_width
-                    # print(i1, i2, j1, j2)
                     img_pat = img_0[i1:i2 + offset, j1:j2 + offset]
                     mask_pat = lab[i1:i2 + offset, j1:j2 + offset]
                     ori_shape = mask_pat.shape
@@ -142,7 +140,6 @@ if __name__ == '__main__':
                     if mask_pat.shape != (h+offset, w+offset):
                         img_pat = cv.resize(img_pat, (w+offset, h+offset), cv.INTER_AREA)
                         mask_pat = cv.resize(mask_pat, (w+offset, h+offset), cv.INTER_AREA)
-                        # print(img_pat.shape)
                         prob_map_full = evaluate_img(model, img_pat, test_tfms)
                         pred_list.append(prob_map_full)
                         gt_list.append(mask_pat)
@@ -151,21 +148,12 @@ if __name__ == '__main__':
                         prob_map_full = evaluate_img(model, img_pat,test_tfms)
                         pred_list.append(prob_map_full)
                         gt_list.append(mask_pat)
-                    # print(prob_map_full.shape)
                     img_1[i1:i2 + offset, j1:j2 + offset] += prob_map_full
         img_1[img_1 > 1] = 1
         if args.out_pred_dir != '':
-        #     # img_1[img_1 > 0.3] = 1
-        #     # img_1[img_1 <= 0.3] = 0
-            cv.imwrite(filename=join(args.out_pred_dir, f'{path.stem}.jpg'), img=(img_1 * 255).astype(np.uint8))
+            cv.imwrite(filename=join(args.out_pred_dir, f'{path.stem}.png'), img=(img_1 * 255).astype(np.uint8))
 
         if args.type == 'metric':
-            # metric = calc_metric(pred_list, gt_list, mode='list', threshold=0.3)
-            # metrics['accuracy'] += metric['accuracy'] / len(paths)
-            # metrics['precision'] += metric['precision'] / len(paths)
-            # metrics['recall'] += metric['recall'] / len(paths)
-            # metrics['f1'] += metric['f1'] / len(paths)
-            # print(metric)
             for i in range(1, 10):
                 threshold = i / 10
                 metric = calc_metric(pred_list, gt_list, mode='list', threshold=threshold)

@@ -20,7 +20,11 @@ import time
 import sys
 sys.path.append("/home/wj/local/crack_segmentation")
 from metric import *
-input_size=[448, 448]
+<<<<<<< HEAD
+input_size=[416, 416]
+=======
+input_size=[160,160]
+>>>>>>> 9b69e40b4731cb2975426104432bd00ad610f8d9
 
 class Parser():
     def parse(self):
@@ -29,16 +33,22 @@ class Parser():
 
         parser = ArgumentParser()
 
-        parser.add_argument('--dir', default='/mnt/nfs/wj/data', help='Directory with testing images')
-        parser.add_argument('--model',default='/home/wj/local/crack_segmentation/CascadePSP/weights/1_2023-08-03_15:28:58/model_246720', help='Pretrained model')
+<<<<<<< HEAD
+        parser.add_argument('--dir', default='/mnt/nfs/wj/data/image', help='Directory with testing images')
+        parser.add_argument('--seg', default='/mnt/hangzhou_116_homes/wj/result/0825/unet1/result_img448', help='Directory with testing images')
+        parser.add_argument('--model',default='/home/wj/local/crack_segmentation/CascadePSP/weights/1_2023-08-24_07:23:11/model_300690', help='Pretrained model')
+=======
+        parser.add_argument('--dir', default='/nfs/wj/data', help='Directory with testing images')
+        parser.add_argument('--model',default='/home/wj/local/crack_segmentation/CascadePSP/weights/1_2023-08-04_00:07:51/model_250390', help='Pretrained model')
+>>>>>>> 9b69e40b4731cb2975426104432bd00ad610f8d9
         parser.add_argument('--output', default='/home/wj/local/crack_segmentation/CascadePSP/results', help='Output directory')
 
-        parser.add_argument('--global_only', help='Global step only', action='store_true')
+        # parser.add_argument('--global_only', help='Global step only', action='store_true')
 
-        parser.add_argument('--L', help='Parameter L used in the paper', type=int, default=256)
-        parser.add_argument('--stride', help='stride', type=int, default=64)
+        # parser.add_argument('--L', help='Parameter L used in the paper', type=int, default=256)
+        # parser.add_argument('--stride', help='stride', type=int, default=64)
 
-        parser.add_argument('--clear', help='Clear pytorch cache?', action='store_true')
+        # parser.add_argument('--clear', help='Clear pytorch cache?', action='store_true')
 
         parser.add_argument('--type', type=str, default='out', choices=['metric', 'out'])
 
@@ -67,11 +77,11 @@ model = model.eval()
 
 if  para['type'] == 'out':
         DIR_IMG = os.path.join(para['dir'], 'image')
-        DIR_PRED = os.path.join(para['dir'], 'test_result')
+        DIR_PRED = para['seg']
         DIR_GT = ''
 elif para['type']  == 'metric':
         DIR_IMG = os.path.join(para['dir'], 'image')
-        DIR_PRED = os.path.join(para['dir'], 'test_result')
+        DIR_PRED = para['seg']
         DIR_GT = os.path.join(para['dir'], 'new_label')
 else:
         print('undefind test pattern')
@@ -97,7 +107,7 @@ w, h = int(cof * input_size[0]), int(cof * input_size[1])
 offset = 32
 paths = [path for path in Path(DIR_IMG).glob('*.*')]
 metrics = []
-
+print('total images:{}'.format(len(paths)))
 for path in paths:
     pred_list=[]
     gt_list = []
@@ -122,9 +132,8 @@ for path in paths:
             lab = np.zeros((img_height, img_width))
 
     if DIR_PRED != '':
-            seg_path = os.path.join(DIR_PRED, path.stem+'.jpg')
+            seg_path = os.path.join(DIR_PRED, path.stem+'.png')
             seg = cv2.imread(seg_path, 0)
-            # seg = np.reshape(seg, (1, 1, img_height, img_width))
     else:
             seg = np.zeros((img_height, img_width))
     img_0 = im_transform(img_0).unsqueeze(0).cuda()

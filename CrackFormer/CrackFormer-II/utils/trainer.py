@@ -41,12 +41,12 @@ class Trainer(nn.Module):
 
         pred_fuse5, pred_fuse4, pred_fuse3, pred_fuse2, pred_fuse1, pred_output, = self.model(input)
 
-        output_loss = self.mask_loss(pred_output.view(-1, 1), target.view(-1, 1)) / cfg.train_batch_size + dice_loss(F.sigmoid(pred_output.squeeze(1)), target.squeeze(1).float(), multiclass=False)
-        fuse5_loss = self.mask_loss(pred_fuse5.view(-1, 1), target.view(-1, 1)) / cfg.train_batch_size + dice_loss(F.sigmoid(pred_fuse5.squeeze(1)), target.squeeze(1).float(), multiclass=False)
-        fuse4_loss = self.mask_loss(pred_fuse4.view(-1, 1), target.view(-1, 1)) / cfg.train_batch_size + dice_loss(F.sigmoid(pred_fuse4.squeeze(1)), target.squeeze(1).float(), multiclass=False)
-        fuse3_loss = self.mask_loss(pred_fuse3.view(-1, 1), target.view(-1, 1)) / cfg.train_batch_size + dice_loss(F.sigmoid(pred_fuse3.squeeze(1)), target.squeeze(1).float(), multiclass=False)
-        fuse2_loss = self.mask_loss(pred_fuse2.view(-1, 1), target.view(-1, 1)) / cfg.train_batch_size + dice_loss(F.sigmoid(pred_fuse2.squeeze(1)), target.squeeze(1).float(), multiclass=False)
-        fuse1_loss = self.mask_loss(pred_fuse1.view(-1, 1), target.view(-1, 1)) / cfg.train_batch_size + dice_loss(F.sigmoid(pred_fuse1.squeeze(1)), target.squeeze(1).float(), multiclass=False)
+        output_loss = self.mask_loss(pred_output.view(-1, 1), target.view(-1, 1))  + dice_loss(F.sigmoid(pred_output.squeeze(1)), target.squeeze(1).float(), multiclass=False)
+        fuse5_loss = self.mask_loss(pred_fuse5.view(-1, 1), target.view(-1, 1))  + dice_loss(F.sigmoid(pred_fuse5.squeeze(1)), target.squeeze(1).float(), multiclass=False)
+        fuse4_loss = self.mask_loss(pred_fuse4.view(-1, 1), target.view(-1, 1))  + dice_loss(F.sigmoid(pred_fuse4.squeeze(1)), target.squeeze(1).float(), multiclass=False)
+        fuse3_loss = self.mask_loss(pred_fuse3.view(-1, 1), target.view(-1, 1))  + dice_loss(F.sigmoid(pred_fuse3.squeeze(1)), target.squeeze(1).float(), multiclass=False)
+        fuse2_loss = self.mask_loss(pred_fuse2.view(-1, 1), target.view(-1, 1))  + dice_loss(F.sigmoid(pred_fuse2.squeeze(1)), target.squeeze(1).float(), multiclass=False)
+        fuse1_loss = self.mask_loss(pred_fuse1.view(-1, 1), target.view(-1, 1)) + dice_loss(F.sigmoid(pred_fuse1.squeeze(1)), target.squeeze(1).float(), multiclass=False)
 
         total_loss = 5*output_loss + fuse5_loss + fuse4_loss + fuse3_loss + fuse2_loss + fuse1_loss
         total_loss.backward()
@@ -69,12 +69,12 @@ class Trainer(nn.Module):
     def val_op(self, input, target):
         pred_fuse5, pred_fuse4, pred_fuse3, pred_fuse2, pred_fuse1, pred_output, = self.model(input)
 
-        output_loss = self.mask_loss(pred_output.view(-1, 1), target.view(-1, 1)) / cfg.val_batch_size + dice_loss(F.sigmoid(pred_output.squeeze(1)), target.squeeze(1).float(), multiclass=False)
-        fuse5_loss = self.mask_loss(pred_fuse5.view(-1, 1), target.view(-1, 1)) / cfg.val_batch_size + dice_loss(F.sigmoid(pred_fuse5.squeeze(1)), target.squeeze(1).float(), multiclass=False)
-        fuse4_loss = self.mask_loss(pred_fuse4.view(-1, 1), target.view(-1, 1)) / cfg.val_batch_size + dice_loss(F.sigmoid(pred_fuse4.squeeze(1)), target.squeeze(1).float(), multiclass=False)
-        fuse3_loss = self.mask_loss(pred_fuse3.view(-1, 1), target.view(-1, 1)) / cfg.val_batch_size + dice_loss(F.sigmoid(pred_fuse3.squeeze(1)), target.squeeze(1).float(), multiclass=False)
-        fuse2_loss = self.mask_loss(pred_fuse2.view(-1, 1), target.view(-1, 1)) / cfg.val_batch_size + dice_loss(F.sigmoid(pred_fuse2.squeeze(1)), target.squeeze(1).float(), multiclass=False)
-        fuse1_loss = self.mask_loss(pred_fuse1.view(-1, 1), target.view(-1, 1)) / cfg.val_batch_size + dice_loss(F.sigmoid(pred_fuse1.squeeze(1)), target.squeeze(1).float(), multiclass=False)
+        output_loss = self.mask_loss(pred_output.view(-1, 1), target.view(-1, 1))  + dice_loss(F.sigmoid(pred_output.squeeze(1)), target.squeeze(1).float(), multiclass=False)
+        fuse5_loss = self.mask_loss(pred_fuse5.view(-1, 1), target.view(-1, 1)) + dice_loss(F.sigmoid(pred_fuse5.squeeze(1)), target.squeeze(1).float(), multiclass=False)
+        fuse4_loss = self.mask_loss(pred_fuse4.view(-1, 1), target.view(-1, 1)) + dice_loss(F.sigmoid(pred_fuse4.squeeze(1)), target.squeeze(1).float(), multiclass=False)
+        fuse3_loss = self.mask_loss(pred_fuse3.view(-1, 1), target.view(-1, 1)) + dice_loss(F.sigmoid(pred_fuse3.squeeze(1)), target.squeeze(1).float(), multiclass=False)
+        fuse2_loss = self.mask_loss(pred_fuse2.view(-1, 1), target.view(-1, 1)) + dice_loss(F.sigmoid(pred_fuse2.squeeze(1)), target.squeeze(1).float(), multiclass=False)
+        fuse1_loss = self.mask_loss(pred_fuse1.view(-1, 1), target.view(-1, 1)) + dice_loss(F.sigmoid(pred_fuse1.squeeze(1)), target.squeeze(1).float(), multiclass=False)
 
 
         total_loss = 5*output_loss + fuse5_loss + fuse4_loss + fuse3_loss + fuse2_loss + fuse1_loss
@@ -93,8 +93,9 @@ class Trainer(nn.Module):
 
     def acc_op(self, pred, target):
         mask = target
+        mask[mask > 0] = 1
 
-        pred = pred
+        pred = torch.sigmoid(pred)
         # print(mask.shape)
         # print(pred.shape)
         pred[pred > cfg.acc_sigmoid_th] = 1
@@ -104,11 +105,20 @@ class Trainer(nn.Module):
         mask = mask[:, 0, :, :].contiguous()
 
         mask_acc = pred_mask.eq(mask.view_as(pred_mask)).sum().item() / mask.numel()
+
+        
+        # num = pred_mask[pred_mask > 0].numel()
+        # if num == 0:
+        #     mask_pos_acc = 1
+        # else:
+        #     mask_pos_acc = pred_mask[mask > 0].eq(mask[mask > 0].view_as(pred_mask[mask > 0])).sum().item() / pred_mask[pred_mask > 0].numel()
         num = mask[mask > 0].numel()
         if num != 0:
             mask_pos_acc = pred_mask[mask > 0].eq(mask[mask > 0].view_as(pred_mask[mask > 0])).sum().item() / mask[mask > 0].numel()
         else:
             mask_pos_acc = 1
+
+
         mask_neg_acc = pred_mask[mask < 1].eq(mask[mask < 1].view_as(pred_mask[mask < 1])).sum().item() / mask[mask < 1].numel()
 
         self.log_acc = {

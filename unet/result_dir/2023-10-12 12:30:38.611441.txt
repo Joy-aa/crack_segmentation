@@ -1,0 +1,11 @@
+/home/wj/local/crack_segmentation/unet/checkpoints/stage2/model_best.pt
+test_with_box_192
+threshold:1 | accuracy:0.99637 | precision:0.61466 | recall:0.74726 | f1:0.65828 
+threshold:2 | accuracy:0.99653 | precision:0.63438 | recall:0.73369 | f1:0.66444 
+threshold:3 | accuracy:0.99662 | precision:0.64557 | recall:0.72563 | f1:0.66740 
+threshold:4 | accuracy:0.99667 | precision:0.65355 | recall:0.71980 | f1:0.66931 
+threshold:5 | accuracy:0.99672 | precision:0.65998 | recall:0.71498 | f1:0.67068 
+threshold:6 | accuracy:0.99675 | precision:0.66558 | recall:0.71073 | f1:0.67179 
+threshold:7 | accuracy:0.99679 | precision:0.67081 | recall:0.70673 | f1:0.67271 
+threshold:8 | accuracy:0.99682 | precision:0.67595 | recall:0.70289 | f1:0.67359 
+threshold:9 | accuracy:0.99685 | precision:0.68161 | recall:0.69879 | f1:0.67455 

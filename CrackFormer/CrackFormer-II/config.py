@@ -10,9 +10,9 @@ class Config:
     setproctitle.setproctitle("%s" % name)
 
     # path
-    data_dir = '/mnt/nfs/wj/DamCrack'
-    # data_dir = '/nfs/wj/DamCrack'
-    checkpoint_path = 'model'
+    # data_dir = '/nfs/wj/192_255_segmentation'
+    data_dir = '/mnt/nfs/wj/CrackLS315/'
+    checkpoint_path = '/home/wj/local/crack_segmentation/CrackFormer/CrackFormer-II/result/crackls/checkpoints'
     log_path = 'log'
     saver_path = os.path.join(checkpoint_path, name)
     max_save = 20
@@ -20,22 +20,25 @@ class Config:
     # visdom
     vis_env = 'Crack'
     port = 8097
-    vis_train_loss_every = 40
-    vis_train_acc_every = 40
-    vis_train_img_every = 40
-    val_every = 200
+    vis_train_loss_every = 200
+    vis_train_acc_every = 200
+    vis_train_img_every = 200
+    val_every = 400
+
+    test_only = 1
+    save_dir='/home/wj/local/crack_segmentation/CrackFormer/CrackFormer-II/result/crack315/test_loader'
 
     # training
-    epoch = 500
-    pretrained_model = '/home/wj/local/crack_segmentation/CrackFormer/CrackFormer-II/model/crackformer_epoch(30).pth'
+    epoch = 50
+    pretrained_model = '/home/wj/local/crack_segmentation/CrackFormer/CrackFormer-II/checkpoints/crack315_0.pth'
     weight_decay = 0.0000
     lr_decay = 0.1
-    lr = 1e-4
+    lr = 1e-3
     momentum = 0.9
     use_adam = False  # Use Adam optimizer
-    train_batch_size = 2
-    val_batch_size = 2
-    test_batch_size = 2
+    train_batch_size = 4
+    val_batch_size = 4
+    test_batch_size = 1
 
     acc_sigmoid_th = 0.5
     pos_pixel_weight = 1

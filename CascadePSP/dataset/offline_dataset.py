@@ -12,12 +12,14 @@ from dataset.make_bb_trans import *
 from PIL import ImageOps
 
 class OfflineDataset(Dataset):
-    def __init__(self, root, in_memory=False, need_name=False, resize=False, do_crop=False):
+    def __init__(self, root, gt_root, seg_root, in_memory=False, need_name=False, resize=False, do_crop=False):
         self.root = root
         self.need_name = need_name
         self.resize = resize
         self.do_crop = do_crop
         self.in_memory = in_memory
+        self.gt_root = gt_root
+        self.seg_root = seg_root
 
         imgs = os.listdir(root)
         imgs = sorted(imgs)
@@ -80,9 +82,9 @@ class OfflineDataset(Dataset):
         image = self.resize_bi(crop_lambda(Image.open(im).convert('RGB')))
         dirStr, _ = os.path.splitext(im)
         img_name = dirStr.split("/")[-1]
-        print(img_name)
-        gt_path = os.path.join("/mnt/nfs/wj/data", "new_label", img_name+".png")
-        seg_path = os.path.join("/home/wj/local/crack_segmentation/CrackFormer/CrackFormer-II/test_result", img_name+".jpg" )
+        # print(img_name)
+        gt_path = os.path.join(self.gt_root, img_name+".png")
+        seg_path = os.path.join(self.seg_root, img_name+".png" )
         # print(im)
         # print(gt_path)
         # print(seg_path)
