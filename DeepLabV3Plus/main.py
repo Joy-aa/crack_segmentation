@@ -1,6 +1,6 @@
 from tqdm import tqdm
 import network
-import utils
+import segtool.utils_tmp as utils_tmp
 import os
 import random
 import argparse
@@ -10,7 +10,7 @@ import cv2
 
 from torch.utils import data
 from datasets import VOCSegmentation, Cityscapes
-from utils import ext_transforms as et
+from segtool.utils_tmp import ext_transforms as et
 import torchvision.transforms as transforms
 from torch.utils.data import random_split
 import torch.nn.functional as F
@@ -26,11 +26,12 @@ import matplotlib.pyplot as plt
 
 import sys
 sys.path.append("/home/wj/local/crack_segmentation")
-from data_loader import ImgDataSet
-from LossFunctions import BinaryFocalLoss, dice_loss
-from metric import calc_metric
-from logger import BoardLogger
+from segtool.data_loader import ImgDataSet
+from segtool.LossFunctions import BinaryFocalLoss, dice_loss
+from segtool.metric import calc_metric
+from segtool.logger import BoardLogger
 import datetime
+import cv2
 
 # os.environ['CUDA_VISIBLE_DEVICES'] = '0,1,2'
 
@@ -78,7 +79,8 @@ def get_argparser():
     parser.add_argument("--ckpt", default=None, type=str,
                         help="restore from checkpoint")
     parser.add_argument("--continue_training", action='store_true', default=False)
-    parser.add_argument("--save_dir", type=str, default='/home/wj/local/crack_segmentation/DeepLabV3Plus/result/crackls315')
+    parser.add_argument("--model_dir", default='checkpoints', type=str,
+                        help="the folder for saving checkpoints")
 
     parser.add_argument("--loss_type", type=str, default='cross_entropy',
                         choices=['cross_entropy', 'focal_loss'], help="loss type (default: False)")
@@ -116,7 +118,55 @@ def get_dataset(opts):
     """
     if opts.dataset == 'crack':
         # first stage
-        TRAIN_IMG  = os.path.join(opts.data_dir, 'image')
+        TRAIN_IMG  = os.path.join(opts.data_root, 'image')
+        # TRAIN_MASK = os.path.join(args.data_dir, 'label')
+        # train_img_names  = [path.name for path in Path(TRAIN_IMG).glob('*.jpg')]
+        # train_mask_names = [path.name for path in Path(TRAIN_MASK).glob('*.png')]
+        # print(f'total train images = {len(train_img_names)}')
+
+
+        # train_img_names  = [path.name for path in Path(TRAIN_IMG).glob('*.jpg')]
+        # train_mask_names = [path.name for path in Path(TRAIN_MASK).glob('*.png')]
+        
+        # channel_means = [0.485, 0.456, 0.406]
+        # channel_stds  = [0.229, 0.224, 0.225]
+        # train_tfms = transforms.Compose([transforms.ToTensor(),
+        #                                 transforms.Normalize(channel_means, channel_stds)])
+
+        # val_tfms = transforms.Compose([transforms.ToTensor(),
+        #                             transforms.Normalize(channel_means, channel_stds)])
+        
+        # mask_tfms = transforms.Compose([transforms.ToTensor()])
+        
+        # train_dst = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
+        # val_dst = ImgDataSet(img_dir=VALID_IMG, img_fnames=valid_img_names, img_transform=val_tfms, mask_dir=VALID_MASK, mask_fnames=valid_mask_names, mask_transform=mask_tfms)
+        # train_size = int(0.6*len(train_dst))
+        # rest_size = len(train_dst) - train_size
+        # train_dst, rest_dataset = torch.utils.data.random_split(train_dst, [train_size, rest_size])
+
+        # second part
+        # TRAIN_IMG  = os.path.join(opts.data_root, 'imgs')
+        # TRAIN_MASK = os.path.join(opts.data_root, 'masks')
+
+
+        # train_img_names  = [path.name for path in Path(TRAIN_IMG).glob('*.png')]
+        # train_mask_names = [path.name for path in Path(TRAIN_MASK).glob('*.png')]
+
+        # channel_means = [0.485, 0.456, 0.406]
+        # channel_stds  = [0.229, 0.224, 0.225]
+        # train_tfms = transforms.Compose([transforms.ToTensor(),
+        #                                 transforms.Normalize(channel_means, channel_stds)])
+
+        # val_tfms = transforms.Compose([transforms.ToTensor(),
+        #                             transforms.Normalize(channel_means, channel_stds)])
+
+        # mask_tfms = transforms.Compose([transforms.ToTensor()])
+
+        # train_dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
+        # _size = int(len(train_dataset) * 0.9)
+        # _dataset, test_dataset = random_split(train_dataset, [_size, len(train_dataset) - _size],torch.Generator().manual_seed(42))
+        # train_size = int(_size * 0.9)
+        # train_dst, val_dst = random_split(_dataset, [train_size, _size - train_size],torch.Generator().manual_seed(42))
 
     if opts.dataset == 'voc':
         train_transform = et.ExtCompose([
@@ -205,7 +255,7 @@ def validate(opts, model, loader, device, criterion, threshold=0.5, save_path=No
     if save_path is not None:
         if not os.path.exists('results'):
             os.mkdir('results')
-        denorm = utils.Denormalize(mean=[0.485, 0.456, 0.406],
+        denorm = utils_tmp.Denormalize(mean=[0.485, 0.456, 0.406],
                                    std=[0.229, 0.224, 0.225])
 
     with torch.no_grad():
@@ -217,7 +267,7 @@ def validate(opts, model, loader, device, criterion, threshold=0.5, save_path=No
 
             outputs = model(images)
             loss = criterion(outputs, targets).item()
-            dloss = dice_loss(outputs.squeeze(1), targets.squeeze(1), multiclass=False).item()
+            dloss = dice_loss(torch.sigmoid(outputs.squeeze(1)), targets.squeeze(1).float(), multiclass=False).item()
             metrics = calc_metric(torch.sigmoid(outputs).cpu(), targets.cpu(), mode='tensor', threshold=threshold)
             loss += dloss
             losses.update(loss=loss,metrics=metrics,n=images.size(0))
@@ -256,6 +306,52 @@ def validate(opts, model, loader, device, criterion, threshold=0.5, save_path=No
 
     num = len(loader)
     return {'loss': losses.avg, 'dice_score': losses.dice_score/num, 'precision': losses.precision/num, 'recall': losses.recall/num}
+
+
+def predict(model, loader, device, latest_model_path, ret_samples_ids=None):
+    model.eval()
+    metrics=[]
+    pred_list = []
+    gt_list = []
+    bar = tqdm(total=len(loader))
+    with torch.no_grad():
+        for idx, (img, lab) in enumerate(loader):
+            images = img.to(device, dtype=torch.float32)
+            targets = lab.to(device, dtype=torch.float32)
+
+            outputs = model(images)
+            pred = torch.sigmoid(outputs.squeeze(1).contiguous().cpu()).numpy()
+            lab = lab.squeeze(1).numpy()
+            pred_list.append(pred)
+            gt_list.append(lab)
+            if ret_samples_ids is not None and idx in ret_samples_ids:  # get vis samples
+                cv2.imwrite('results/%d_target.png' % idx, (lab.transpose(2, 1, 0)*255).astype('uint8'))
+                cv2.imwrite('results/%d_pred.png' % idx, (pred.transpose(2, 1, 0)*255).astype('uint8'))
+            bar.update(1)
+    bar.close
+
+    for i in range(1, 10):
+                threshold = i / 10
+                metric = calc_metric(pred_list, gt_list, mode='list', threshold=threshold)
+                print(metric)
+                if len(metrics) < i:
+                    metrics.append(metric)
+                else:
+                    metrics[i-1]['accuracy'] += metric['accuracy']
+                    metrics[i-1]['precision'] += metric['precision']
+                    metrics[i-1]['recall'] += metric['recall']
+                    metrics[i-1]['f1'] += metric['f1']
+    print(metrics)
+    d = datetime.datetime.today()
+    datetime.datetime.strftime(d,'%Y-%m-%d %H-%M-%S')
+    os.makedirs('./result_dir', exist_ok=True)
+    with open(os.path.join('./result_dir', str(d)+'.txt'), 'a', encoding='utf-8') as fout:
+                fout.write(latest_model_path+'\n')
+                fout.write('test_loader\n')
+                for i in range(1, 10): 
+                    line =  "threshold:{:d} | accuracy:{:.5f} | precision:{:.5f} | recall:{:.5f} | f1:{:.5f} " \
+                        .format(i, metrics[i-1]['accuracy'],  metrics[i-1]['precision'],  metrics[i-1]['recall'],  metrics[i-1]['f1']) + '\n'
+                    fout.write(line)
 
 
 def adjust_learning_rate_poly(optimizer, epoch, num_epochs, base_lr, power):
@@ -302,65 +398,54 @@ def main():
     np.random.seed(opts.random_seed)
     random.seed(opts.random_seed)
 
-    # Setup dataloader
-    # if opts.dataset == 'voc' and not opts.crop_val:
-    #     opts.val_batch_size = 1
-
     # first stage
-    TRAIN_IMG  = os.path.join(opts.data_root, 'image')
-    TRAIN_MASK = os.path.join(opts.data_root, 'label')
-    train_img_names  = [path.name for path in Path(TRAIN_IMG).glob('*.jpg')]
-    train_mask_names = [path.name for path in Path(TRAIN_MASK).glob('*.jpg')]
-    print(f'total train images = {len(train_img_names)}')
-
-    
-    channel_means = [0.485, 0.456, 0.406]
-    channel_stds  = [0.229, 0.224, 0.225]
-    train_tfms = transforms.Compose([transforms.ToTensor(),
-                                    transforms.Normalize(channel_means, channel_stds)])
-    
-    mask_tfms = transforms.Compose([transforms.ToTensor()])
-    
-    _dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
-    _size = int(len(_dataset) * 0.9)
-    _dataset, test_dataset = random_split(_dataset, [275, 40],torch.Generator().manual_seed(42))
-    # train_size = int(_size * 0.9)
-    # train_dst, val_dst = random_split(_dataset, [train_size, _size - train_size],torch.Generator().manual_seed(42))
-    test_loader = torch.utils.data.DataLoader(test_dataset, 1, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=4)
-
-    # second part
-    # TRAIN_IMG  = os.path.join(opts.data_root, 'imgs')
-    # TRAIN_MASK = os.path.join(opts.data_root, 'masks')
-
-
-    # train_img_names  = [path.name for path in Path(TRAIN_IMG).glob('*.png')]
+    # TRAIN_IMG  = os.path.join(opts.data_root, 'image')
+    # TRAIN_MASK = os.path.join(opts.data_root, 'label')
+    # train_img_names  = [path.name for path in Path(TRAIN_IMG).glob('*.jpg')]
     # train_mask_names = [path.name for path in Path(TRAIN_MASK).glob('*.png')]
+    # print(f'total train images = {len(train_img_names)}')
 
+    
     # channel_means = [0.485, 0.456, 0.406]
     # channel_stds  = [0.229, 0.224, 0.225]
     # train_tfms = transforms.Compose([transforms.ToTensor(),
     #                                 transforms.Normalize(channel_means, channel_stds)])
-
-    # val_tfms = transforms.Compose([transforms.ToTensor(),
-    #                             transforms.Normalize(channel_means, channel_stds)])
-
+    
     # mask_tfms = transforms.Compose([transforms.ToTensor()])
-
-    # train_dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
+    
+    # _dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
     # _size = int(len(_dataset) * 0.9)
     # _, test_dataset = random_split(_dataset, [_size, len(_dataset) - _size],torch.Generator().manual_seed(42))
-    # # train_size = int(_size * 0.9)
-    # # train_dst, val_dst = random_split(_dataset, [train_size, _size - train_size],torch.Generator().manual_seed(42))
     # test_loader = torch.utils.data.DataLoader(test_dataset, 1, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=4)
 
+    # second stage
+    TRAIN_IMG  = os.path.join(opts.data_root, 'imgs')
+    TRAIN_MASK = os.path.join(opts.data_root, 'masks')
+
+
+    train_img_names  = [path.name for path in Path(TRAIN_IMG).glob('*.png')]
+    train_mask_names = [path.name for path in Path(TRAIN_MASK).glob('*.png')]
+
+    channel_means = [0.485, 0.456, 0.406]
+    channel_stds  = [0.229, 0.224, 0.225]
+    train_tfms = transforms.Compose([transforms.ToTensor(),
+                                    transforms.Normalize(channel_means, channel_stds)])
+
+    val_tfms = transforms.Compose([transforms.ToTensor(),
+                                transforms.Normalize(channel_means, channel_stds)])
+
+    mask_tfms = transforms.Compose([transforms.ToTensor()])
+
+    _dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
+    _size = int(len(_dataset) * 0.9)
+    _dataset, test_dataset = random_split(_dataset, [_size, len(_dataset) - _size],torch.Generator().manual_seed(42))
+    test_loader = torch.utils.data.DataLoader(test_dataset, 1, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=4)
+
     # Set up model (all models are 'constructed at network.modeling)
-    model = network.modeling.__dict__[opts.model](num_classes=1, output_stride=opts.output_stride)
+    model = network.modeling.__dict__[opts.model](num_classes=opts.num_classes, output_stride=opts.output_stride)
     if opts.separable_conv and 'plus' in opts.model:
         network.convert_to_separable_conv(model.classifier)
-    utils.set_bn_momentum(model.backbone, momentum=0.01)
-
-    # Set up metrics
-    # metrics = StreamSegMetrics(opts.num_classes)
+    utils_tmp.set_bn_momentum(model.backbone, momentum=0.01)
 
     # Set up optimizer
     optimizer = torch.optim.SGD(params=[
@@ -372,18 +457,21 @@ def main():
 
     if opts.lr_policy == 'poly':
         total_iters = opts.epoch * int(0.9 * len(_dataset) / opts.batch_size)
-        scheduler = utils.PolyLR(optimizer, total_iters, power=0.9)
+        scheduler = utils_tmp.PolyLR(optimizer, total_iters, power=0.9)
     elif opts.lr_policy == 'step':
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.1)
     # Set up criterion
     # criterion = utils.get_loss(opts.loss_type)
     if opts.loss_type == 'focal_loss':
-        criterion = utils.FocalLoss(ignore_index=255, size_average=True)
+        criterion = utils_tmp.FocalLoss(ignore_index=255, size_average=True)
     elif opts.loss_type == 'cross_entropy':
         criterion = nn.CrossEntropyLoss(reduction='mean')
     # criterion = criterion.to(device)
 
-    utils.mkdir('checkpoints')
+    utils_tmp.mkdir(opts.model_dir)
+    vis_sample_id = np.random.randint(0, len(test_loader), opts.vis_num_samples,
+                                      np.int32) if opts.enable_vis else None  # sample idxs for visualization
+    denorm = utils_tmp.Denormalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # denormalization for ori images
     # Restore
     best_score = 0.0
     epoch = 0
@@ -391,13 +479,13 @@ def main():
     if opts.ckpt is not None and os.path.isfile(opts.ckpt):
         # https://github.com/VainF/DeepLabV3Plus-Pytorch/issues/8#issuecomment-605601402, @PytaichukBohdan
         checkpoint = torch.load(opts.ckpt, map_location=torch.device('cpu'))
-        model.load_state_dict(checkpoint["model_state"])
+        model.load_state_dict(checkpoint["model_state"], strict=False)
         model = nn.DataParallel(model)
         model.to(device)
         if opts.continue_training:
             optimizer.load_state_dict(checkpoint["optimizer_state"])
             scheduler.load_state_dict(checkpoint["scheduler_state"])
-            epoch = checkpoint["epoch"]
+            # epoch = checkpoint["epoch"]
             best_score = checkpoint['best_score']
             print("Training state restored from %s" % opts.ckpt)
         print("Model restored from %s" % opts.ckpt)
@@ -407,23 +495,17 @@ def main():
         model = nn.DataParallel(model)
         model.to(device)
 
+    if opts.test_only:
+        model.eval()
+        predict(model, test_loader, device, opts.ckpt, vis_sample_id)
+        return
+
     # ==========   Train Loop   ==========#
     long_id = 'crackls_%s_%s' % (str(opts.lr), datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S'))
     logger = BoardLogger(long_id)
-    vis_sample_id = np.random.randint(0, len(test_loader), opts.vis_num_samples, np.int32) if opts.enable_vis else None  # sample idxs for visualization
-    denorm = utils.Denormalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])  # denormalization for ori images
 
-    if opts.test_only:
-        model.eval()
-        val_score = validate( opts=opts, model=model, loader=test_loader, device=device, criterion=criterion, threshold=0.5, save_path=opts.save_dir)
-        print(val_score)
-        return
 
-    train_size = int(len(_dataset)*0.9)
-    train_dataset, valid_dataset = random_split(_dataset, [265, 10])
-    train_loader = torch.utils.data.DataLoader(train_dataset, opts.batch_size, shuffle=True, pin_memory=torch.cuda.is_available(), num_workers=4, drop_last=True)
-    valid_loader = torch.utils.data.DataLoader(valid_dataset, 1, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=4)
-    for epoch in range(epoch, opts.epoch+1):
+    for epoch in range(epoch+1, opts.epoch+1):
     # while True:  # cur_itrs < opts.total_itrs:
         # =====  Train  =====
         model.train()
@@ -459,14 +541,14 @@ def main():
         tq.close()
 
         if epoch % 5 == 0:
-            save_ckpt('%s/checkpoints/%s_%s_os%d_%d.pth' % (opts.save_dir, opts.model, opts.dataset, opts.output_stride, epoch), epoch, model, optimizer, scheduler, best_score)
+            save_ckpt('%s/%s_%s_os%d_%d.pth' % (opts.model_dir, opts.model, opts.dataset, opts.output_stride, epoch), epoch, model, optimizer, scheduler, best_score)
         # -------------------- val ------------------- #
         model.eval()
         val_score= validate(opts=opts, model=model, loader=valid_loader, device=device, criterion=criterion,)
         print(val_score)
         if val_score['dice_score'] > best_score:  # save best model
             best_score = val_score['dice_score']
-            save_ckpt('%s/checkpoints/best_%s_%s_os%d.pth' % (opts.save_dir, opts.model, opts.dataset, opts.output_stride), epoch, model, optimizer, scheduler, best_score)
+            save_ckpt('%s/best_%s_%s_os%d.pth' % (opts.model_dir, opts.model, opts.dataset, opts.output_stride), epoch, model, optimizer, scheduler, best_score)
 
         logger.log_scalar('train/lr', optimizer.param_groups[0]['lr'], epoch)
         logger.log_scalar('train/loss', interval_loss.avg, epoch)

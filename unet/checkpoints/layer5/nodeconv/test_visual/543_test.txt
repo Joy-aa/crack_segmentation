@@ -1,0 +1,2 @@
+box:[48,339,236,448] | length:1063.91587 | avg_width:2.50605 | max_width:8.00000 
+box:[121,0,172,281] | length:926.69553 | avg_width:5.75328 | max_width:11.66190 

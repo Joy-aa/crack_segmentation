@@ -10,8 +10,9 @@ import cv2
 import sys
 from pathlib import Path
 sys.path.append('/home/wj/local/crack_segmentation')
-from data_loader import ImgDataSet
-from logger import BoardLogger
+from segtool.data_loader import ImgDataSet
+from segtool.metric import calc_metric
+from segtool.logger import BoardLogger
 import datetime
 from torch.utils.data import DataLoader, random_split
 from torchvision import transforms
@@ -19,9 +20,21 @@ import argparse
 from nets.SDDNet import SDDNet
 from nets.STRNet import STRNet
 from torch.autograd import Variable
+from torchvision.transforms.functional import normalize
 
 os.environ["CUDA_VISIBLE_DEVICES"] = cfg.gpu_id
 
+class Denormalize(object):
+    def __init__(self, mean, std):
+        mean = np.array(mean)
+        std = np.array(std)
+        self._mean = -mean/std
+        self._std = 1/std
+
+    def __call__(self, tensor):
+        if isinstance(tensor, np.ndarray):
+            return (tensor - self._mean.reshape(-1,1,1)) / self._std.reshape(-1,1,1)
+        return normalize(tensor, self._mean, self._std)
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
@@ -66,24 +79,21 @@ def main(model, device):
     channel_stds  = [0.229, 0.224, 0.225]
     train_tfms = transforms.Compose([transforms.ToTensor(),
                                      transforms.Normalize(channel_means, channel_stds)])
-    val_tfms = transforms.Compose([transforms.ToTensor(),
-                                   transforms.Normalize(channel_means, channel_stds)])
+    val_tfms = transforms.Compose([transforms.ToTensor()])
     mask_tfms = transforms.Compose([transforms.ToTensor()])
 
     # _dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
-    train_dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
+    train_dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=val_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
     _dataset, test_dataset = random_split(train_dataset, [275, 40],torch.Generator().manual_seed(42))
     # train_dataset, valid_dataset = random_split(_dataset, [0.9, 0.1],torch.Generator().manual_seed(42))
     # train_loader = torch.utils.data.DataLoader(train_dataset, args.batch_size, shuffle=True, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
     # val_loader = torch.utils.data.DataLoader(valid_dataset, 1, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
-    test_loader = torch.utils.data.DataLoader(test_dataset, 1, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=cfg.num_workers)
-
-
+    test_loader = torch.utils.data.DataLoader(test_dataset, 1, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=4)
 
 # 第二阶段训练
-    # TRAIN_IMG  = os.path.join(args.data_dir, 'imgs')
-    # TRAIN_MASK = os.path.join(args.data_dir, 'masks')
-    # print(args.data_dir)
+    # TRAIN_IMG  = os.path.join(cfg.data_dir, 'imgs')
+    # TRAIN_MASK = os.path.join(cfg.data_dir, 'masks')
+    # print(cfg.data_dir)
     # train_img_names  = [path.name for path in Path(TRAIN_IMG).glob('*.png')]
     # train_mask_names = [path.name for path in Path(TRAIN_MASK).glob('*.png')]
     # print(f'total train images = {len(train_img_names)}')
@@ -101,9 +111,9 @@ def main(model, device):
     # train_dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
     # _dataset, test_dataset = random_split(train_dataset, [0.9, 0.1],torch.Generator().manual_seed(42))
     # # train_dataset, valid_dataset = random_split(_dataset, [0.9, 0.1],torch.Generator().manual_seed(42))
-    # # train_loader = torch.utils.data.DataLoader(train_dataset, args.batch_size, shuffle=True, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
+    # # train_loader = torch.utils.data.DataLoader(train_dataset, cfg.batch_size, shuffle=True, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
     # # val_loader = torch.utils.data.DataLoader(valid_dataset, 1, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
-    # test_loader = torch.utils.data.DataLoader(test_dataset, 1, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
+    # test_loader = torch.utils.data.DataLoader(test_dataset, 1, shuffle=False, pin_memory=False)
 
     # -------------------- build trainer --------------------- #
     long_id = 'cracksl_%s_%s' % (str(cfg.lr), datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S'))
@@ -122,9 +132,70 @@ def main(model, device):
         model_dict.update(pretrained_dict)
         model.load_state_dict(model_dict)
 
-        # epoch_str = Path(cfg.pretrained_model).stem.split('_')[-1]
-        # epoch = int(epoch_str)
+        epoch_str = Path(cfg.pretrained_model).stem.split('_')[-1]
+        epoch = int(epoch_str)
 
+    if cfg.test_only:
+        model.eval()
+        metrics=[]
+        pred_list = []
+        gt_list = []
+        denorm = Denormalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+        bar = tqdm(total=len(test_loader))
+        with torch.no_grad():
+            for idx, (img, lab) in enumerate(test_loader):
+                val_data  = Variable(img).cuda()
+                val_target = Variable(lab).cuda()
+                pred = trainer.val_op(val_data, val_target)[0]
+                pred = torch.sigmoid(pred.squeeze(1).contiguous().cpu()).numpy()
+                lab = lab.squeeze(1).numpy()
+                pred_list.append(pred)
+                gt_list.append(lab)
+                
+                mask = (pred.transpose(2, 1, 0)*255).astype('uint8')
+                label = (lab.transpose(2, 1, 0)*255).astype('uint8')
+                mask[mask>127] = 255
+                label[label>0] = 255
+                
+                zeros = np.zeros(mask.shape)
+                mask = np.concatenate((mask,zeros,zeros),axis=-1).astype(np.uint8)
+                label = np.concatenate((zeros,zeros,label),axis=-1).astype(np.uint8)
+                
+                image = (img * 255).squeeze(0).contiguous().cpu().numpy()
+                # image = (denorm(img) * 255).squeeze(0).contiguous().cpu().numpy()
+                image = image.transpose(2, 1, 0).astype(np.uint8)
+                temp = cv2.addWeighted(label,1,mask,1,0)
+                res = cv2.addWeighted(image,0.6,temp,0.4,0)
+
+                cv2.imwrite(os.path.join(cfg.save_dir,'%d_test.png' % idx), res)
+
+                bar.update(1)
+        bar.close
+
+        for i in range(1, 10):
+            threshold = i / 10
+            metric = calc_metric(pred_list, gt_list, mode='list', threshold=threshold)
+            print(metric)
+            if len(metrics) < i:
+                metrics.append(metric)
+            else:
+                metrics[i-1]['accuracy'] += metric['accuracy']
+                metrics[i-1]['precision'] += metric['precision']
+                metrics[i-1]['recall'] += metric['recall']
+                metrics[i-1]['f1'] += metric['f1']
+        print(metrics)
+        d = datetime.datetime.today()
+        datetime.datetime.strftime(d,'%Y-%m-%d %H-%M-%S')
+        os.makedirs('./result_dir', exist_ok=True)
+        with open(os.path.join('./result_dir', str(d)+'.txt'), 'a', encoding='utf-8') as fout:
+                    fout.write(cfg.pretrained_model+'\n')
+                    fout.write('test_loader\n')
+                    for i in range(1, 10): 
+                        line =  "threshold:{:d} | accuracy:{:.5f} | precision:{:.5f} | recall:{:.5f} | f1:{:.5f} " \
+                            .format(i, metrics[i-1]['accuracy'],  metrics[i-1]['precision'],  metrics[i-1]['recall'],  metrics[i-1]['f1']) + '\n'
+                        fout.write(line)
+        return
+    
     try:
         # train_size = int(len(dataset)*0.9)
         train_dataset, valid_dataset = random_split(_dataset, [265, 10])
@@ -240,7 +311,7 @@ if __name__ == '__main__':
     # model.load_state_dict(torch.load(args.model_path))
     
     device = torch.device("cuda")
-    # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    # device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
     num_gpu = torch.cuda.device_count()
     print(device)
 

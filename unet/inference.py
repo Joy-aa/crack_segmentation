@@ -10,12 +10,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd import Variable
 import torchvision.transforms as transforms
-from unet_transfer import UNet16, UNet16V2
+from unet.network.unet_transfer import UNet16, UNet16V2
 import argparse
 from os.path import join
 from PIL import Image
 import gc
-from build_unet import load_unet_vgg16, load_unet_resnet_101, load_unet_resnet_34
+from unet.network.build_unet import load_unet_vgg16, load_unet_resnet_101, load_unet_resnet_34
 from tqdm import tqdm
 
 
@@ -34,7 +34,7 @@ if __name__ == '__main__':
     parser.add_argument('--img_dir',type=str, default='../images', help='input dataset directory')
     parser.add_argument('--model_path', type=str, default='./checkpoints/model_best.pt', help='trained model path')
     parser.add_argument('--model_type', type=str, default='vgg16', choices=['vgg16', 'vgg16V2', 'resnet101', 'resnet34'])
-    parser.add_argument('--out_pred_dir', type=str, default='./result_imgV2', required=False,  help='prediction output dir')
+    parser.add_argument('--out_pred_dir', type=str, default='./result_img', required=False,  help='prediction output dir')
     parser.add_argument('--type', type=str, default='out' , choices=['out', 'metric'])
     args = parser.parse_args()
 
@@ -89,7 +89,7 @@ if __name__ == '__main__':
     channel_stds  = [0.229, 0.224, 0.225]
 
     print()
-    paths = [path for path in Path(DIR_IMG).glob('*.*')]
+    paths = [path for path in Path(DIR_IMG).glob('20160307_164143.*')]
     metrics=[]
     for path in tqdm(paths):
         print(path)

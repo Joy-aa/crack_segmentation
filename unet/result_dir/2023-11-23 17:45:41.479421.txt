@@ -1,0 +1,10 @@
+checkpoints/layer4/deconv/model_best.pt
+threshold:1 | accuracy:0.99246 | precision:0.72363 | recall:0.92536 | f1:0.81216 
+threshold:2 | accuracy:0.99358 | precision:0.77292 | recall:0.89959 | f1:0.83146 
+threshold:3 | accuracy:0.99406 | precision:0.80230 | recall:0.87976 | f1:0.83925 
+threshold:4 | accuracy:0.99434 | precision:0.82466 | recall:0.86200 | f1:0.84291 
+threshold:5 | accuracy:0.99451 | precision:0.84368 | recall:0.84450 | f1:0.84409 
+threshold:6 | accuracy:0.99459 | precision:0.86155 | recall:0.82545 | f1:0.84311 
+threshold:7 | accuracy:0.99460 | precision:0.87983 | recall:0.80282 | f1:0.83956 
+threshold:8 | accuracy:0.99448 | precision:0.90084 | recall:0.77160 | f1:0.83123 
+threshold:9 | accuracy:0.99402 | precision:0.93033 | recall:0.71404 | f1:0.80796 
