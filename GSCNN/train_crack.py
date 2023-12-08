@@ -9,15 +9,15 @@ from torchvision.transforms.functional import normalize
 import shutil
 import sys
 sys.path.append("/home/wj/local/crack_segmentation")
-from logger import BoardLogger
+from segtool.logger import BoardLogger
 import os
 import datetime
 import argparse
 import tqdm
 import numpy as np
 import scipy.ndimage as ndimage
-from LossFunctions import BinaryFocalLoss, dice_loss
-from metric import calc_metric
+from segtool.LossFunctions import BinaryFocalLoss, dice_loss
+from segtool.metric import calc_metric
 import cv2
 from config import cfg
 

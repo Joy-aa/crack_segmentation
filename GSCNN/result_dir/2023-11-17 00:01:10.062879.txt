@@ -1,2 +1,2 @@
-/home/wj/local/crack_segmentation/GSCNN/checkpoints/gscnn_epoch_50.pt
+/home/wj/local/crack_segmentation/GSCNN/checkpoints/pretrain/gscnn_epoch_50.pt
 threshold:0.5 | accuracy:0.99310 | precision:0.81006 | recall:0.79467 | f1:0.80229 
