@@ -109,9 +109,9 @@ def calc_loss(masks_pred, target_var, r=1):
 
 def train(dataset, model, criterion, optimizer, validation, args, logger):
 
-    # latest_model_path = find_latest_model_path(args.model_dir)
+    latest_model_path = find_latest_model_path(args.model_dir)
     # latest_model_path = os.path.join(*[args.model_dir, 'model_start.pt'])
-    latest_model_path = None
+    # latest_model_path = None
     best_model_path = os.path.join(*[args.model_dir, 'model_best.pt'])
 
     if latest_model_path is not None:
@@ -277,7 +277,7 @@ def predict(test_loader, model, latest_model_path, save_dir = './result/test_loa
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
-    parser.add_argument('--n_epoch', default=20, type=int, metavar='N', help='number of total epochs to run')
+    parser.add_argument('--n_epoch', default=50, type=int, metavar='N', help='number of total epochs to run')
     parser.add_argument('--lr', default=0.001, type=float, metavar='LR', help='initial learning rate')
     parser.add_argument('--momentum', default=0.9, type=float, metavar='M', help='momentum')
     parser.add_argument('--print_freq', default=100, type=int, metavar='N', help='print frequency (default: 10)')
@@ -339,13 +339,13 @@ if __name__ == '__main__':
     # test_loader = torch.utils.data.DataLoader(test_dataset, 1, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=4)
 
 
-    # os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
-    # device = torch.device("cuda")
-    device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
+    device = torch.device("cuda")
+    # device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
     num_gpu = torch.cuda.device_count()
 
     model = create_model(args.model_type)
-    # model = torch.nn.DataParallel(model, device_ids=range(num_gpu))
+    model = torch.nn.DataParallel(model, device_ids=range(num_gpu))
     model.to(device)
 
     long_id = 'unet_crackls315_%s_%s' % (str(args.lr), datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S'))
@@ -359,18 +359,18 @@ if __name__ == '__main__':
     criterion = torch.nn.BCEWithLogitsLoss()
     # criterion = BinaryFocalLoss()
 
-    # train(_dataset, model, criterion, optimizer, validate, args, logger)
+    train(_dataset, model, criterion, optimizer, validate, args, logger)
 
     latest_model_path = find_latest_model_path(args.model_dir)
     state = torch.load(latest_model_path)
     epoch = state['epoch']
-    # model.load_state_dict(state['model'])
-    weights = state['model']
-    weights_dict = {}
-    for k, v in weights.items():
-        new_k = k.replace('module.', '') if 'module' in k else k
-        weights_dict[new_k] = v
-    model.load_state_dict(weights_dict)
+    model.load_state_dict(state['model'])
+    # weights = state['model']
+    # weights_dict = {}
+    # for k, v in weights.items():
+    #     new_k = k.replace('module.', '') if 'module' in k else k
+    #     weights_dict[new_k] = v
+    # model.load_state_dict(weights_dict)
 
     predict(test_loader, model, latest_model_path, save_dir='/home/wj/local/crack_segmentation/unet/result/crackls315/test_loader', device=device)
 
