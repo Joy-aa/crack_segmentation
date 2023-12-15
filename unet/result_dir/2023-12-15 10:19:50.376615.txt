@@ -1,0 +1,10 @@
+/home/wj/local/crack_segmentation/unet/checkpoints/gateconv_fineseg/model_best.pt
+threshold:1 | accuracy:0.98472 | precision:0.57751 | recall:0.85022 | f1:0.68782 
+threshold:2 | accuracy:0.98686 | precision:0.63190 | recall:0.80573 | f1:0.70830 
+threshold:3 | accuracy:0.98779 | precision:0.66482 | recall:0.77264 | f1:0.71469 
+threshold:4 | accuracy:0.98832 | precision:0.69060 | recall:0.74281 | f1:0.71575 
+threshold:5 | accuracy:0.98865 | precision:0.71350 | recall:0.71259 | f1:0.71304 
+threshold:6 | accuracy:0.98883 | precision:0.73614 | recall:0.67900 | f1:0.70641 
+threshold:7 | accuracy:0.98885 | precision:0.76047 | recall:0.63763 | f1:0.69365 
+threshold:8 | accuracy:0.98863 | precision:0.79007 | recall:0.57935 | f1:0.66850 
+threshold:9 | accuracy:0.98765 | precision:0.83538 | recall:0.46869 | f1:0.60048 

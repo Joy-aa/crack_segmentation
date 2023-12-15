@@ -104,8 +104,9 @@ def calc_loss(masks_pred, target_var, r=1):
     masks_probs_flat = masks_pred.view(-1)
     true_masks_flat  = target_var.view(-1)
     
-    loss = r * criterion(masks_probs_flat, true_masks_flat)
-    loss += dice_loss(torch.sigmoid(masks_pred.squeeze(1)), target_var.squeeze(1).float(), multiclass=False)
+    loss = criterion(masks_probs_flat, true_masks_flat)
+    # loss = r * criterion(masks_probs_flat, true_masks_flat)
+    # loss += dice_loss(torch.sigmoid(masks_pred.squeeze(1)), target_var.squeeze(1).float(), multiclass=False)
     return loss
 
 def calc_dual_loss(masks_pred, target_var, r=1):
@@ -115,12 +116,12 @@ def calc_dual_loss(masks_pred, target_var, r=1):
     masks_probs_flat = segin.view(-1)
     true_masks_flat  = segmask.view(-1)
     
-    seg_loss = r * criterion(masks_probs_flat, true_masks_flat)
-    seg_loss += dice_loss(torch.sigmoid(segin.squeeze(1)), segmask.float(), multiclass=False)
+    seg_loss = criterion(masks_probs_flat, true_masks_flat)
+    # seg_loss += dice_loss(torch.sigmoid(segin.squeeze(1)), segmask.float(), multiclass=False)
 
     edge_probs_flat = edgein.view(-1)
     true_edge_flat = edgemask.view(-1)
-    edge_loss = 100 * criterion(edge_probs_flat, true_edge_flat)
+    edge_loss = 20 * criterion(edge_probs_flat, true_edge_flat)
 
     loss = (seg_loss + edge_loss)/ 10
     if(torch.isnan(loss)):
@@ -132,14 +133,15 @@ def calc_dual_loss(masks_pred, target_var, r=1):
 
 def train(dataset, model, criterion, optimizer, validation, args, logger):
 
-    latest_model_path = find_latest_model_path(args.model_dir)
+    # latest_model_path = find_latest_model_path(args.model_dir)
     # latest_model_path = os.path.join(*[args.model_dir, 'model_start.pt'])
-    # latest_model_path = args.snapshot
+    latest_model_path = args.snapshot
     best_model_path = os.path.join(*[args.model_dir, 'model_best.pt'])
 
     if latest_model_path is not None:
         state = torch.load(latest_model_path)
-        epoch = state['epoch']
+        # epoch = state['epoch']
+        epoch = 0
         model.load_state_dict(state['model'])
         # weights = state['model']
         # weights_dict = {}
@@ -321,16 +323,16 @@ def predict(test_loader, model, latest_model_path, save_dir = './result/test_loa
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
-    parser.add_argument('--n_epoch', default=100, type=int, metavar='N', help='number of total epochs to run')
+    parser.add_argument('--n_epoch', default=30, type=int, metavar='N', help='number of total epochs to run')
     parser.add_argument('--lr', default=0.001, type=float, metavar='LR', help='initial learning rate')
     parser.add_argument('--momentum', default=0.9, type=float, metavar='M', help='momentum')
     parser.add_argument('--print_freq', default=100, type=int, metavar='N', help='print frequency (default: 10)')
     parser.add_argument('--weight_decay', default=5e-4, type=float, metavar='W', help='weight decay (default: 1e-4)')
-    parser.add_argument('--batch_size',  default=32, type=int,  help='weight decay (default: 1e-4)')
+    parser.add_argument('--batch_size',  default=4, type=int,  help='weight decay (default: 1e-4)')
     parser.add_argument('--num_workers', default=8, type=int, help='output dataset directory')
     parser.add_argument('--data_dir',type=str, default='/mnt/nfs/wj/192_255_segmentation', help='input dataset directory')
     # /home/wj/dataset/seg_dataset /nfs/wj/DamCrack /nfs/wj/192_255_segmentation
-    parser.add_argument('--model_dir', type=str, default='/home/wj/local/crack_segmentation/unet/checkpoints/gateconv_fineseg', help='output dataset directory')
+    parser.add_argument('--model_dir', type=str, default='/home/wj/local/crack_segmentation/unet/checkpoints/gateconv', help='output dataset directory')
     parser.add_argument('--snapshot', type=str, default=None, help='pretrained model')
     parser.add_argument('--model_type', type=str, required=False, default='gate', choices=['vgg16', 'vgg16V2', 'vgg16V3', 'gate'])
     parser.add_argument("--deconv", action='store_true', default=False)
@@ -339,28 +341,9 @@ if __name__ == '__main__':
     os.makedirs(args.model_dir, exist_ok=True)
 
     # 第一阶段训练
-    # TRAIN_IMG  = os.path.join(args.data_dir, 'image')
-    # TRAIN_MASK = os.path.join(args.data_dir, 'label')
-    # train_img_names  = [path.name for path in Path(TRAIN_IMG).glob('*.jpg')]
-    # train_mask_names = [path.name for path in Path(TRAIN_MASK).glob('*.png')]
-    # print(f'total train images = {len(train_img_names)}')
-
-    # channel_means = [0.485, 0.456, 0.406]
-    # channel_stds  = [0.229, 0.224, 0.225]
-    # train_tfms = transforms.Compose([transforms.ToTensor(),
-    #                                  transforms.Normalize(channel_means, channel_stds)])
-    # val_tfms = transforms.Compose([transforms.ToTensor(),
-    #                                transforms.Normalize(channel_means, channel_stds)])
-    # mask_tfms = transforms.Compose([transforms.ToTensor()])
-
-    # train_dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
-
-# 第二阶段训练
-    TRAIN_IMG  = os.path.join(args.data_dir, 'imgs')
-    TRAIN_MASK = os.path.join(args.data_dir, 'masks')
-
-
-    train_img_names  = [path.name for path in Path(TRAIN_IMG).glob('*.png')]
+    TRAIN_IMG  = os.path.join(args.data_dir, 'images')
+    TRAIN_MASK = os.path.join(args.data_dir, 'labels')
+    train_img_names  = [path.name for path in Path(TRAIN_IMG).glob('*.jpg')]
     train_mask_names = [path.name for path in Path(TRAIN_MASK).glob('*.png')]
     print(f'total train images = {len(train_img_names)}')
 
@@ -368,11 +351,30 @@ if __name__ == '__main__':
     channel_stds  = [0.229, 0.224, 0.225]
     train_tfms = transforms.Compose([transforms.ToTensor(),
                                      transforms.Normalize(channel_means, channel_stds)])
-
     val_tfms = transforms.Compose([transforms.ToTensor(),
                                    transforms.Normalize(channel_means, channel_stds)])
-
     mask_tfms = transforms.Compose([transforms.ToTensor()])
+
+    # train_dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
+
+# 第二阶段训练
+    # TRAIN_IMG  = os.path.join(args.data_dir, 'imgs')
+    # TRAIN_MASK = os.path.join(args.data_dir, 'masks')
+
+
+    # train_img_names  = [path.name for path in Path(TRAIN_IMG).glob('*.png')]
+    # train_mask_names = [path.name for path in Path(TRAIN_MASK).glob('*.png')]
+    # print(f'total train images = {len(train_img_names)}')
+
+    # channel_means = [0.485, 0.456, 0.406]
+    # channel_stds  = [0.229, 0.224, 0.225]
+    # train_tfms = transforms.Compose([transforms.ToTensor(),
+    #                                  transforms.Normalize(channel_means, channel_stds)])
+
+    # val_tfms = transforms.Compose([transforms.ToTensor(),
+    #                                transforms.Normalize(channel_means, channel_stds)])
+
+    # mask_tfms = transforms.Compose([transforms.ToTensor()])
 
     # train_dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
     train_dataset = CrackDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
