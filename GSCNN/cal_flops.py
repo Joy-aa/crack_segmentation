@@ -54,3 +54,4 @@ flops, params = profile(model, inputs=(input, ))
 
 flops, params = clever_format([flops, params], "%.3f") 
 print(flops)
+print(params)
