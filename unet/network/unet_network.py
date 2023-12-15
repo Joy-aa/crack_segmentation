@@ -3,8 +3,6 @@ from torch.nn import functional as F
 import torch
 import torchvision
 
-input_size = (480, 480)
-
 class Interpolate(nn.Module):
     def __init__(self, size=None, scale_factor=None, mode='nearest', align_corners=False):
         super(Interpolate, self).__init__()

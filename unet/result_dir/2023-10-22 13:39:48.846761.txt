@@ -1,0 +1,10 @@
+/home/wj/local/crack_segmentation/unet/result/crackls315/checkpoints/model_epoch_20.pt
+threshold:1 | accuracy:0.99603 | precision:0.33961 | recall:0.57497 | f1:0.42701 
+threshold:2 | accuracy:0.99667 | precision:0.39052 | recall:0.52484 | f1:0.44783 
+threshold:3 | accuracy:0.99699 | precision:0.42643 | recall:0.48601 | f1:0.45428 
+threshold:4 | accuracy:0.99721 | precision:0.45694 | recall:0.45078 | f1:0.45384 
+threshold:5 | accuracy:0.99735 | precision:0.48281 | recall:0.41417 | f1:0.44586 
+threshold:6 | accuracy:0.99747 | precision:0.51120 | recall:0.37893 | f1:0.43524 
+threshold:7 | accuracy:0.99756 | precision:0.54117 | recall:0.33603 | f1:0.41461 
+threshold:8 | accuracy:0.99762 | precision:0.57720 | recall:0.28382 | f1:0.38053 
+threshold:9 | accuracy:0.99763 | precision:0.62493 | recall:0.20119 | f1:0.30439 

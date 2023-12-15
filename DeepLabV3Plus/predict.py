@@ -1,7 +1,7 @@
 from torch.utils.data import dataset
 from tqdm import tqdm
 import network
-import utils
+import segtool.utils_tmp as utils_tmp
 import os
 import random
 import argparse
@@ -32,6 +32,7 @@ def get_argparser():
     parser = argparse.ArgumentParser()
 
     # Datset Options
+    # /mnt/nfs/wj/data
     parser.add_argument("--input", type=str, required=True,
                         help="path to a single image or image directory")
     parser.add_argument("--dataset", type=str, default='crack',
@@ -43,7 +44,7 @@ def get_argparser():
                               network.modeling.__dict__[name])
                               )
 
-    parser.add_argument("--model", type=str, default='deeplabv3plus_mobilenet',
+    parser.add_argument("--model", type=str, default='deeplabv3_mobilenet',
                         choices=available_models, help='model name')
     parser.add_argument("--separable_conv", action='store_true', default=False,
                         help="apply separable conv to decoder and aspp")
@@ -93,7 +94,7 @@ def main():
     model = network.modeling.__dict__[opts.model](num_classes=opts.num_classes, output_stride=opts.output_stride)
     if opts.separable_conv and 'plus' in opts.model:
         network.convert_to_separable_conv(model.classifier)
-    utils.set_bn_momentum(model.backbone, momentum=0.01)
+    utils_tmp.set_bn_momentum(model.backbone, momentum=0.01)
     
     if opts.ckpt is not None and os.path.isfile(opts.ckpt):
         # https://github.com/VainF/DeepLabV3Plus-Pytorch/issues/8#issuecomment-605601402, @PytaichukBohdan
@@ -145,9 +146,9 @@ def main():
             img_1 = np.zeros((img_height, img_width))
 
             cof = 1
-            input_size = (112, 112)
+            input_size = (480, 480)
             w, h = int(cof * input_size[0]), int(cof * input_size[1])
-            offset = 16
+            offset = 32
 
             torch.set_num_threads(1)
             torch.backends.cudnn.benchmark = True

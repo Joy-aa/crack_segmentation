@@ -35,7 +35,7 @@ if __name__ == '__main__':
     parser.add_argument('--model_path', type=str, default='./checkpoints/Unet++_20.pth', help='trained model path')
     parser.add_argument('--out_pred_dir', type=str, default='./result_images', required=False,  help='prediction output dir')
     parser.add_argument('--type', type=str, default='out' , choices=['out', 'metric'])
-    parser.add_argument('--eval_type', type=str, default='512x512' , choices=['test_loader', '512x512', 'test_with_box_192'])
+    parser.add_argument('--eval_type', type=str, default='512x512' , choices=['512x512', 'test_with_box_192'])
     args = parser.parse_args()
 
     if args.out_pred_dir != '':

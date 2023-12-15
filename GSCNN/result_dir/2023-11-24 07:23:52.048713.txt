@@ -1,0 +1,2 @@
+/home/wj/local/crack_segmentation/GSCNN/checkpoints/fineSeg/model_best.pt
+threshold:0.5 | accuracy:0.99686 | precision:0.90299 | recall:0.94255 | f1:0.92235 
