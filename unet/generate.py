@@ -1,6 +1,6 @@
 import sys
 sys.path.append('/home/wj/local/crack_segmentation')
-from metric import *
+from segtool.metric import *
 import os
 import numpy as np
 from pathlib import Path

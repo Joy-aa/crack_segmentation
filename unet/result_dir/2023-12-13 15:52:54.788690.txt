@@ -1,0 +1,10 @@
+/home/wj/local/crack_segmentation/unet/checkpoints/gateconv_fineseg/model_epoch_50.pt
+threshold:1 | accuracy:0.98525 | precision:0.59010 | recall:0.83524 | f1:0.69159 
+threshold:2 | accuracy:0.98718 | precision:0.64439 | recall:0.78679 | f1:0.70850 
+threshold:3 | accuracy:0.98797 | precision:0.67680 | recall:0.75107 | f1:0.71200 
+threshold:4 | accuracy:0.98839 | precision:0.70189 | recall:0.71913 | f1:0.71041 
+threshold:5 | accuracy:0.98862 | precision:0.72409 | recall:0.68721 | f1:0.70517 
+threshold:6 | accuracy:0.98872 | precision:0.74600 | recall:0.65217 | f1:0.69594 
+threshold:7 | accuracy:0.98866 | precision:0.76935 | recall:0.60983 | f1:0.68037 
+threshold:8 | accuracy:0.98834 | precision:0.79767 | recall:0.55061 | f1:0.65150 
+threshold:9 | accuracy:0.98728 | precision:0.84129 | recall:0.44040 | f1:0.57815 

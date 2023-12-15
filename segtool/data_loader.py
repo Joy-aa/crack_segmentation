@@ -120,8 +120,8 @@ class CrackDataSet(Dataset):
             random.seed(self.seed)
             img = self.img_transform(img)
 
-        mname = self.mask_fnames[i]
-        # mname = fname.split('.')[0] + '.png'
+        # mname = self.mask_fnames[i]
+        mname = fname.split('.')[0] + '.png'
         mpath = os.path.join(self.mask_dir, mname)
         mask = Image.open(mpath).convert('L') 
         mask_copy = np.array(mask)

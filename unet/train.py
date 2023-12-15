@@ -78,7 +78,7 @@ def create_model(type ='vgg16', is_deconv=False):
 
 def adjust_learning_rate(optimizer, epoch, lr):
     """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
-    lr = lr * (0.5 ** (epoch // 20))
+    lr = lr * (0.5 ** (epoch // 10))
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
@@ -120,16 +120,21 @@ def calc_dual_loss(masks_pred, target_var, r=1):
 
     edge_probs_flat = edgein.view(-1)
     true_edge_flat = edgemask.view(-1)
-    edge_loss = 20 * criterion(edge_probs_flat, true_edge_flat)
+    edge_loss = 100 * criterion(edge_probs_flat, true_edge_flat)
 
-    loss = seg_loss + edge_loss
+    loss = (seg_loss + edge_loss)/ 10
+    if(torch.isnan(loss)):
+        print('\nnan issue!!\n')
+        print('seg_loss', seg_loss)
+        print('edge_loss', edge_loss)
+        exit(0)
     return loss
 
 def train(dataset, model, criterion, optimizer, validation, args, logger):
 
-    # latest_model_path = find_latest_model_path(args.model_dir)
+    latest_model_path = find_latest_model_path(args.model_dir)
     # latest_model_path = os.path.join(*[args.model_dir, 'model_start.pt'])
-    latest_model_path = None
+    # latest_model_path = args.snapshot
     best_model_path = os.path.join(*[args.model_dir, 'model_best.pt'])
 
     if latest_model_path is not None:
@@ -168,7 +173,7 @@ def train(dataset, model, criterion, optimizer, validation, args, logger):
 
         adjust_learning_rate(optimizer, epoch, args.lr)
 
-        tq = tqdm.tqdm(total=(len(train_loader) * args.batch_size))
+        tq = tqdm.tqdm(total=(len(train_loader) * args.batch_size), ncols=150)
         tq.set_description(f'Epoch {epoch}')
 
         losses = AverageMeter()
@@ -203,7 +208,7 @@ def train(dataset, model, criterion, optimizer, validation, args, logger):
 
         #save the model of the current epoch
         epoch_model_path = os.path.join(*[args.model_dir, f'model_epoch_{epoch}.pt'])
-        if(epoch % 10 == 0):
+        if(epoch % 5 == 0):
             torch.save({
                 'model': model.state_dict(),
                 'epoch': epoch,
@@ -243,7 +248,7 @@ def predict(test_loader, model, latest_model_path, save_dir = './result/test_loa
     pred_list = []
     gt_list = []
     denorm = Denormalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-    bar = tqdm.tqdm(total=len(test_loader))
+    bar = tqdm.tqdm(total=len(test_loader), ncols=100)
     with torch.no_grad():
         for idx, (img, lab, edge) in enumerate(test_loader, 1):
             # val_data  = Variable(img).cuda()
@@ -253,7 +258,7 @@ def predict(test_loader, model, latest_model_path, save_dir = './result/test_loa
             image = (denorm(img) * 255).squeeze(0).contiguous().cpu().numpy()
             image = image.transpose(2, 1, 0).astype(np.uint8)
             mask = torch.sigmoid(pred.squeeze(0)).contiguous().cpu().numpy()
-            label = lab.squeeze(0).contiguous().cpu().numpy()
+            label = lab.contiguous().cpu().numpy()
 
             pred_list.append(mask)
             gt_list.append(label)
@@ -316,16 +321,17 @@ def predict(test_loader, model, latest_model_path, save_dir = './result/test_loa
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
-    parser.add_argument('--n_epoch', default=10, type=int, metavar='N', help='number of total epochs to run')
-    parser.add_argument('--lr', default=0.0001, type=float, metavar='LR', help='initial learning rate')
+    parser.add_argument('--n_epoch', default=100, type=int, metavar='N', help='number of total epochs to run')
+    parser.add_argument('--lr', default=0.001, type=float, metavar='LR', help='initial learning rate')
     parser.add_argument('--momentum', default=0.9, type=float, metavar='M', help='momentum')
     parser.add_argument('--print_freq', default=100, type=int, metavar='N', help='print frequency (default: 10)')
     parser.add_argument('--weight_decay', default=5e-4, type=float, metavar='W', help='weight decay (default: 1e-4)')
-    parser.add_argument('--batch_size',  default=4, type=int,  help='weight decay (default: 1e-4)')
-    parser.add_argument('--num_workers', default=2, type=int, help='output dataset directory')
-    parser.add_argument('--data_dir',type=str, default='/nfs/wj/DamCrack', help='input dataset directory')
+    parser.add_argument('--batch_size',  default=32, type=int,  help='weight decay (default: 1e-4)')
+    parser.add_argument('--num_workers', default=8, type=int, help='output dataset directory')
+    parser.add_argument('--data_dir',type=str, default='/mnt/nfs/wj/192_255_segmentation', help='input dataset directory')
     # /home/wj/dataset/seg_dataset /nfs/wj/DamCrack /nfs/wj/192_255_segmentation
-    parser.add_argument('--model_dir', type=str, default='checkpoints/stage2', help='output dataset directory')
+    parser.add_argument('--model_dir', type=str, default='/home/wj/local/crack_segmentation/unet/checkpoints/gateconv_fineseg', help='output dataset directory')
+    parser.add_argument('--snapshot', type=str, default=None, help='pretrained model')
     parser.add_argument('--model_type', type=str, required=False, default='gate', choices=['vgg16', 'vgg16V2', 'vgg16V3', 'gate'])
     parser.add_argument("--deconv", action='store_true', default=False)
 
@@ -350,11 +356,11 @@ if __name__ == '__main__':
     # train_dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
 
 # 第二阶段训练
-    TRAIN_IMG  = os.path.join(args.data_dir, 'image')
-    TRAIN_MASK = os.path.join(args.data_dir, 'label')
+    TRAIN_IMG  = os.path.join(args.data_dir, 'imgs')
+    TRAIN_MASK = os.path.join(args.data_dir, 'masks')
 
 
-    train_img_names  = [path.name for path in Path(TRAIN_IMG).glob('*.jpg')]
+    train_img_names  = [path.name for path in Path(TRAIN_IMG).glob('*.png')]
     train_mask_names = [path.name for path in Path(TRAIN_MASK).glob('*.png')]
     print(f'total train images = {len(train_img_names)}')
 
@@ -387,9 +393,6 @@ if __name__ == '__main__':
     model = torch.nn.DataParallel(model, device_ids=[0,1])
     model.to(device)
 
-    long_id = '%s_%s' % (str(args.lr), datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S'))
-    logger = BoardLogger(long_id)
-
     optimizer = torch.optim.SGD(model.parameters(), args.lr,
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay)
@@ -398,6 +401,8 @@ if __name__ == '__main__':
     criterion = torch.nn.BCEWithLogitsLoss().to(device)
     # criterion = BinaryFocalLoss()
 
+    long_id = '%s_%s' % (str(args.lr), datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S'))
+    logger = BoardLogger(long_id)
     train(_dataset, model, criterion, optimizer, validate, args, logger)
 
     np.random.seed(0)
