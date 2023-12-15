@@ -29,16 +29,10 @@ class Parser():
 
         parser = ArgumentParser()
 
-        parser.add_argument('--dir', default='/mnt/nfs/wj/data', help='Directory with testing images')
-        parser.add_argument('--model',default='/home/wj/local/crack_segmentation/CascadePSP/weights/1_2023-08-03_15:28:58/model_246720', help='Pretrained model')
-        parser.add_argument('--output', default='/home/wj/local/crack_segmentation/CascadePSP/results_box', help='Output directory')
-
-        parser.add_argument('--global_only', help='Global step only', action='store_true')
-
-        parser.add_argument('--L', help='Parameter L used in the paper', type=int, default=256)
-        parser.add_argument('--stride', help='stride', type=int, default=64)
-
-        parser.add_argument('--clear', help='Clear pytorch cache?', action='store_true')
+        parser.add_argument('--dir', default='/mnt/nfs/wj/data/image', help='Directory with testing images')
+        parser.add_argument('--seg', default='/mnt/hangzhou_116_homes/wj/result/0825/unet1/result_img448', help='Directory with testing images')
+        parser.add_argument('--model',default='/home/wj/local/crack_segmentation/CascadePSP/weights/1_2023-08-24_07:23:11/model_300690', help='Pretrained model')
+        parser.add_argument('--output', default='/home/wj/local/crack_segmentation/CascadePSP/results', help='Output directory')
 
         parser.add_argument('--type', type=str, default='out', choices=['metric', 'out'])
 

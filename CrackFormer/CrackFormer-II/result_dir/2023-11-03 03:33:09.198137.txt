@@ -1,0 +1,11 @@
+/home/wj/local/crack_segmentation/CrackFormer/CrackFormer-II/checkpoints/crack315_0.pth
+test_loader
+threshold:1 | accuracy:0.99734 | precision:0.23050 | recall:0.01489 | f1:0.02798 
+threshold:2 | accuracy:0.99734 | precision:0.22388 | recall:0.01389 | f1:0.02617 
+threshold:3 | accuracy:0.99734 | precision:0.21944 | recall:0.01330 | f1:0.02508 
+threshold:4 | accuracy:0.99734 | precision:0.21109 | recall:0.01241 | f1:0.02345 
+threshold:5 | accuracy:0.99734 | precision:0.21120 | recall:0.01215 | f1:0.02298 
+threshold:6 | accuracy:0.99734 | precision:0.20929 | recall:0.01186 | f1:0.02244 
+threshold:7 | accuracy:0.99734 | precision:0.20761 | recall:0.01152 | f1:0.02183 
+threshold:8 | accuracy:0.99734 | precision:0.20300 | recall:0.01104 | f1:0.02094 
+threshold:9 | accuracy:0.99734 | precision:0.19431 | recall:0.01012 | f1:0.01923 

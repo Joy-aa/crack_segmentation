@@ -1,0 +1,2 @@
+/home/wj/local/crack_segmentation/GSCNN/checkpoints/pretrain/model_best.pt
+threshold:0.5 | accuracy:0.98010 | precision:0.48549 | recall:0.08985 | f1:0.15164 

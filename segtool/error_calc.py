@@ -308,50 +308,111 @@ def error_calc(image, label):
     return res
 
 
+def preprocess(img):
+    # 闭操作，连接一些细小的断裂，可以不要
+    kernel = np.ones((3,3),np.uint8)
+    cvclose = cv.morphologyEx(img,cv.MORPH_CLOSE,kernel) #闭操作
+    return cvclose
+
+def findBox(img):
+    contours, _ = cv.findContours(img, cv.RETR_TREE, cv.CHAIN_APPROX_NONE)
+    cv_contours=[]
+    box = []
+    for i in range(len(contours)):
+        area = cv.contourArea(contours[i]); # 计算轮廓面积
+        length = cv.arcLength(contours[i], True); # 计算轮廓周长
+        if(length <= 0):
+            length = 1e-4
+        roundness = (4 * math.pi * area) / (length * length); # 圆形度
+        area = cv.contourArea(contours[i])
+        if(roundness > 0.3 or area < 20): # 这里设置去除的小面积区域的参数
+            cv_contours.append(contours[i])
+        else:
+            x, y, w, h = cv.boundingRect(contours[i])
+            box.append([x, y, x+w, y+h])
+            # cv.rectangle(img, (x,y), (x+w,y+h), (153,153,0), 5) 
+    cv.fillPoly(img, cv_contours, (0, 0, 0))
+    return img, box
+
 if __name__ == '__main__':
-    label_dir = '/mnt/nfs/wj/data/new_label'
+    # label_dir = '/mnt/nfs/wj/data/new_label'
+    label_dir = '/mnt/hangzhou_116_homes/wj/data/new_label'
     # label_dir = '/nfs/wj/data/new_label'
     mask_dir = '/home/wj/local/crack_segmentation/CrackFormer/CrackFormer-II/test_result'
     # mask_dir = '/mnt/nfs/wj/test_result'
 
     paths = [path for path in Path(mask_dir).glob('*.*')]
+    paths = paths[:1]
     # path = paths[0]
     d = datetime.today()
     datetime.strftime(d,'%Y-%m-%d %H-%M-%S')
-    os.makedirs('./work_dir', exist_ok=True)
-    with open(os.path.join('./work_dir', str(d)+'.csv'), 'a', encoding='utf-8') as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerow(["img_name", "avg_width_error", "max_width_error", "length_error"])
-        total_length_error = 0
-        for path in paths:
+
+    total_length_error = 0
+    for path in paths:
             print(path)
             label_path = os.path.join(label_dir, path.stem + '.png')
             mask_path = os.path.join(mask_dir, path.name)
-            filepath = os.path.join('/mnt/nfs/wj/result-stride_0.7/Jun02_06_33_42/box', path.stem+'.txt')
-            # filepath = os.path.join('/nfs/wj/result-stride_0.7/Jun02_06_33_42/box', path.stem + '.txt')
-            boxes = []
-            with open(filepath, 'r', encoding='utf-8') as f:
-                for data in f.readlines():
-                    box = data.split(' ')[:-1]
-                    boxes.append(box)
+            
             label = cv.imread(label_path, 0)
             mask = cv.imread(mask_path, 0)
+
+            mask = preprocess(mask)
+            mask, boxes = findBox(mask)
+
             avg_width_error=0
             max_width_error=0
             length_error = 0
+            cnt = 0
             for box in boxes:
                 x1, y1, x2, y2 = box
                 x1 = int(x1)
                 x2 = int(x2)
                 y1 = int(y1)
                 y2 = int(y2)
+                print(box)
                 label_pat = label[y1:y2, x1:x2]
                 mask_pat = mask[y1:y2, x1:x2]
-                res = error_calc(mask_pat, label_pat)
-                avg_width_error += abs(1 - res[-3]) / len(boxes)
-                max_width_error += abs(1 - res[-2]) / len(boxes)
-                length_error += abs(1 - res[-1]) / len(boxes)
-            writer.writerow([path.name, avg_width_error, max_width_error, length_error])
-            total_length_error += length_error / len(paths)
-        print(total_length_error)
-        writer.writerow([total_length_error])
+                cv.imwrite('./work_dir/'+str(cnt)+'.png', mask_pat)
+                # res = error_calc(mask_pat, label_pat)
+                # avg_width_error += abs(1 - res[-3]) / len(boxes)
+                # max_width_error += abs(1 - res[-2]) / len(boxes)
+                # length_error += abs(1 - res[-1]) / len(boxes)
+                cnt += 1
+            # total_length_error += length_error / len(paths)
+    # os.makedirs('./work_dir', exist_ok=True)
+    # with open(os.path.join('./work_dir', str(d)+'.csv'), 'a', encoding='utf-8') as csvfile:
+    #     writer = csv.writer(csvfile)
+    #     writer.writerow(["img_name", "avg_width_error", "max_width_error", "length_error"])
+    #     total_length_error = 0
+    #     for path in paths:
+    #         print(path)
+    #         label_path = os.path.join(label_dir, path.stem + '.png')
+    #         mask_path = os.path.join(mask_dir, path.name)
+    #         filepath = os.path.join('/mnt/nfs/wj/result-stride_0.7/Jun02_06_33_42/box', path.stem+'.txt')
+    #         # filepath = os.path.join('/nfs/wj/result-stride_0.7/Jun02_06_33_42/box', path.stem + '.txt')
+    #         boxes = []
+    #         with open(filepath, 'r', encoding='utf-8') as f:
+    #             for data in f.readlines():
+    #                 box = data.split(' ')[:-1]
+    #                 boxes.append(box)
+    #         label = cv.imread(label_path, 0)
+    #         mask = cv.imread(mask_path, 0)
+    #         avg_width_error=0
+    #         max_width_error=0
+    #         length_error = 0
+    #         for box in boxes:
+    #             x1, y1, x2, y2 = box
+    #             x1 = int(x1)
+    #             x2 = int(x2)
+    #             y1 = int(y1)
+    #             y2 = int(y2)
+    #             label_pat = label[y1:y2, x1:x2]
+    #             mask_pat = mask[y1:y2, x1:x2]
+    #             res = error_calc(mask_pat, label_pat)
+    #             avg_width_error += abs(1 - res[-3]) / len(boxes)
+    #             max_width_error += abs(1 - res[-2]) / len(boxes)
+    #             length_error += abs(1 - res[-1]) / len(boxes)
+    #         writer.writerow([path.name, avg_width_error, max_width_error, length_error])
+    #         total_length_error += length_error / len(paths)
+    #     print(total_length_error)
+    #     writer.writerow([total_length_error])
