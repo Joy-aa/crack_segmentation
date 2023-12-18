@@ -158,7 +158,7 @@ if __name__ == "__main__":
                         metrics[i-1]['precision'] += metric['precision']
                         metrics[i-1]['recall'] += metric['recall']
                         metrics[i-1]['f1'] += metric['f1']
-                        metric['miou'] += metric['miou']
+                        metrics['miou'] += metric['miou']
     print(metrics)
     d = datetime.today()
     datetime.strftime(d,'%Y-%m-%d %H-%M-%S')

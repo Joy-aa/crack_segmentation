@@ -244,37 +244,36 @@ def predict(test_loader, model, latest_model_path, save_dir = './result/test_loa
     denorm = Denormalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     bar = tqdm.tqdm(total=len(test_loader))
     with torch.no_grad():
-        for idx, (img, lab) in enumerate(test_loader, 1):
+        for idx, (img, lab, edge) in enumerate(test_loader, 1):
             # val_data  = Variable(img).cuda()
             val_data = Variable(img).to(device)
-            pred = model(val_data)
+            pred, edge_out = model(val_data)
 
             image = (denorm(img) * 255).squeeze(0).contiguous().cpu().numpy()
             image = image.transpose(2, 1, 0).astype(np.uint8)
-            mask = torch.sigmoid(pred[0, 0]).unsqueeze(0).contiguous().cpu().numpy()
+            mask = torch.sigmoid(pred.squeeze(0)).contiguous().cpu().numpy()
             label = lab.squeeze(0).contiguous().cpu().numpy()
 
             pred_list.append(mask)
             gt_list.append(label)
             
-            # mask = (mask.transpose(2, 1, 0)*255).astype('uint8')
-            # label = (label.transpose(2, 1, 0)*255).astype('uint8')
-            # mask[mask>127] = 255
-            # mask[mask < 255] = 0
-            # label[label>0] = 255
+            mask = (mask.transpose(2, 1, 0)*255).astype('uint8')
+            label = (label.transpose(2, 1, 0)*255).astype('uint8')
+            mask[mask>127] = 255
+            label[label>0] = 255
             
-            # zeros = np.zeros(mask.shape)
-            # mask = np.concatenate((mask,zeros,zeros),axis=-1).astype(np.uint8)
-            # label = np.concatenate((zeros,zeros,label),axis=-1).astype(np.uint8)
+            zeros = np.zeros(mask.shape)
+            mask = np.concatenate((mask,zeros,zeros),axis=-1).astype(np.uint8)
+            label = np.concatenate((zeros,zeros,label),axis=-1).astype(np.uint8)
             
-            # temp = cv2.addWeighted(label,1,mask,1,0)
-            # res = cv2.addWeighted(image,0.6,temp,0.4,0)
+            temp = cv2.addWeighted(label,1,mask,1,0)
+            res = cv2.addWeighted(image,0.6,temp,0.4,0)
 
             if idx in vis_sample_id:
                 mask = (mask.transpose(2, 1, 0)*255).astype('uint8')
                 mask[mask > 127] = 255
                 mask[mask < 255] = 0
-                # crackInfos = measure(mask=mask)
+                crackInfos = measure(mask=mask)
 
                 label = (label.transpose(2, 1, 0)*255).astype('uint8')
                 label[label>0] = 255
@@ -287,13 +286,20 @@ def predict(test_loader, model, latest_model_path, save_dir = './result/test_loa
                 temp = cv2.addWeighted(label,1,mask,1,0)
                 res = cv2.addWeighted(image,0.6,temp,0.4,0)
 
+                edge_pred = torch.sigmoid(edge_out.squeeze(0)).contiguous().cpu().numpy().transpose(2, 1, 0)
+                edge_mask = np.where(edge_pred > 0.7, edge_pred, zeros)
+                # edge_mask[edge_mask > 127] = 255
+                edge_mask = np.concatenate((zeros,zeros,edge_mask * 255),axis=-1).astype(np.uint8)
+                res_edge = cv2.addWeighted(image,0.6,edge_mask,0.4,0)
+
                 cv2.imwrite(os.path.join(save_dir,'%d_test.png' % idx), res)
+                cv2.imwrite(os.path.join(save_dir,'%d_test_edge.png' % idx), res_edge)
                 
-                # with open(os.path.join(save_dir,'%d_test.txt' % idx), 'a', encoding='utf-8') as fout:
-                #     for crack in crackInfos:
-                #         line =  "box:[{:d},{:d},{:d},{:d}] | length:{:.5f} | avg_width:{:.5f} | max_width:{:.5f} " \
-                #             .format( crack['box'][0], crack['box'][1], crack['box'][2], crack['box'][3], crack['length'],  crack['avg_width'],  crack['max_width']) + '\n'
-                #         fout.write(line)
+                with open(os.path.join(save_dir,'%d_test.txt' % idx), 'a', encoding='utf-8') as fout:
+                    for crack in crackInfos:
+                        line =  "box:[{:d},{:d},{:d},{:d}] | length:{:.5f} | avg_width:{:.5f} | max_width:{:.5f} " \
+                            .format( crack['box'][0], crack['box'][1], crack['box'][2], crack['box'][3], crack['length'],  crack['avg_width'],  crack['max_width']) + '\n'
+                        fout.write(line)
             bar.update(1)
     bar.close
 
@@ -329,10 +335,10 @@ if __name__ == '__main__':
     parser.add_argument('--weight_decay', default=5e-4, type=float, metavar='W', help='weight decay (default: 1e-4)')
     parser.add_argument('--batch_size',  default=4, type=int,  help='weight decay (default: 1e-4)')
     parser.add_argument('--num_workers', default=2, type=int, help='output dataset directory')
-    parser.add_argument('--data_dir',type=str, default='/mnt/hangzhou_116_homes/DamDetection/data/finesegDataset/dataV1', help='input dataset directory')
+    parser.add_argument('--data_dir',type=str, default='/nfs/wj/DamCrack', help='input dataset directory')
     # /home/wj/dataset/seg_dataset /nfs/wj/DamCrack /nfs/wj/192_255_segmentation
-    parser.add_argument('--model_dir', type=str, default='unet/checkpoints', help='output dataset directory')
-    parser.add_argument('--model_type', type=str, required=False, default='vgg16', choices=['vgg16', 'vgg16V2', 'vgg16V3', 'gate'])
+    parser.add_argument('--model_dir', type=str, default='checkpoints/stage2', help='output dataset directory')
+    parser.add_argument('--model_type', type=str, required=False, default='gate', choices=['vgg16', 'vgg16V2', 'vgg16V3', 'gate'])
     parser.add_argument("--deconv", action='store_true', default=False)
 
     args = parser.parse_args()
@@ -420,5 +426,5 @@ if __name__ == '__main__':
         new_k = k.replace('module.', '') if 'module' in k else k
         weights_dict[new_k] = v
     model.load_state_dict(weights_dict)
-    predict(test_loader, model, latest_model_path, save_dir=os.path.join(args.model_dir, 'test_visual1'), vis_sample_id=vis_sample_id)
+    predict(test_loader, model, latest_model_path, save_dir=os.path.join(args.model_dir, 'test_visual'), vis_sample_id=vis_sample_id)
 
