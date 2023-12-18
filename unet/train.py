@@ -168,7 +168,7 @@ def train(dataset, model, criterion, optimizer, validation, args, logger):
     total_iter = 0
     for epoch in range(epoch, args.n_epoch + 1):
 
-        train_size = int(len(dataset)*0.9)
+        train_size = int(len(dataset)*0.7)
         train_dataset, valid_dataset = random_split(dataset, [train_size, len(dataset) - train_size])
         train_loader = torch.utils.data.DataLoader(train_dataset, args.batch_size, shuffle=True, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
         valid_loader = torch.utils.data.DataLoader(valid_dataset, 1, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
@@ -378,7 +378,7 @@ if __name__ == '__main__':
 
     # train_dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
     train_dataset = CrackDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
-    train_size = int(len(train_dataset)*0.9)
+    train_size = int(len(train_dataset)*0.7)
     _dataset, test_dataset = random_split(train_dataset, [train_size, len(train_dataset) - train_size],torch.Generator().manual_seed(42))
     # train_dataset, valid_dataset = random_split(_dataset, [0.9, 0.1],torch.Generator().manual_seed(42))
     # train_loader = torch.utils.data.DataLoader(train_dataset, args.batch_size, shuffle=True, pin_memory=torch.cuda.is_available(), num_workers=4)
