@@ -25,11 +25,7 @@ from unet.network.build_unet import BinaryFocalLoss, dice_loss
 from segtool.metric import calc_metric
 import cv2
 
-<<<<<<< HEAD
-os.environ["CUDA_VISIBLE_DEVICES"] = ','.join(map(str, [0])) 
-=======
 os.environ["CUDA_VISIBLE_DEVICES"] = ','.join(map(str, [0, 1])) 
->>>>>>> ac79be0045d14f416be9078b8b075926d9a31b88
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print(torch.cuda.device_count())
 
@@ -113,45 +109,6 @@ def calc_loss(masks_pred, target_var, r=1):
     # loss += dice_loss(torch.sigmoid(masks_pred.squeeze(1)), target_var.squeeze(1).float(), multiclass=False)
     return loss
 
-def calc_dual_loss(masks_pred, target_var, r=1):
-    segin, edgein = masks_pred
-    segmask, edgemask = target_var
-
-    masks_probs_flat = segin.view(-1)
-    true_masks_flat  = segmask.view(-1)
-    
-    seg_loss = criterion(masks_probs_flat, true_masks_flat)
-    # seg_loss += dice_loss(torch.sigmoid(segin.squeeze(1)), segmask.float(), multiclass=False)
-
-    edge_probs_flat = edgein.view(-1)
-    true_edge_flat = edgemask.view(-1)
-    edge_loss = 20 * criterion(edge_probs_flat, true_edge_flat)
-
-    loss = (seg_loss + edge_loss)/ 10
-    if(torch.isnan(loss)):
-        print('\nnan issue!!\n')
-        print('seg_loss', seg_loss)
-        print('edge_loss', edge_loss)
-        exit(0)
-    return loss
-
-def calc_dual_loss(masks_pred, target_var, r=1):
-    segin, edgein = masks_pred
-    segmask, edgemask = target_var
-
-    masks_probs_flat = segin.view(-1)
-    true_masks_flat  = segmask.view(-1)
-    
-    seg_loss = r * criterion(masks_probs_flat, true_masks_flat)
-    seg_loss += dice_loss(torch.sigmoid(segin.squeeze(1)), segmask.float(), multiclass=False)
-
-    edge_probs_flat = edgein.view(-1)
-    true_edge_flat = edgemask.view(-1)
-    edge_loss = 20 * criterion(edge_probs_flat, true_edge_flat)
-
-    loss = seg_loss + edge_loss
-    return loss
-
 def train(dataset, model, criterion, optimizer, validation, args, logger):
 
     # latest_model_path = find_latest_model_path(args.model_dir)
@@ -204,14 +161,13 @@ def train(dataset, model, criterion, optimizer, validation, args, logger):
 
         losses = AverageMeter()
         model.train()
-        for i, (input, target, edge) in enumerate(train_loader):
+        for i, (input, target) in enumerate(train_loader):
             input_var  = Variable(input).to(device)
             target_var = Variable(target).to(device)
-            edge_var = Variable(edge).cuda()
 
             masks_pred = model(input_var)
 
-            loss = calc_dual_loss(masks_pred, (target_var, edge_var), 10)
+            loss = calc_loss(masks_pred, target_var, 10)
             losses.update(loss)
             # total_iter = 
             if (i+total_iter) % args.print_freq == 0:
@@ -256,11 +212,11 @@ def validate(model, val_loader, criterion):
     losses = AverageMeter()
     model.eval()
     with torch.no_grad():
-        for i, (input, target, edge) in enumerate(val_loader):
+        for i, (input, target) in enumerate(val_loader):
             input_var = Variable(input).to(device)
             target_var = Variable(target).to(device)
 
-            pred, edge_out = model(input_var)
+            pred = model(input_var)
             loss = calc_loss(pred, target_var, 10)
 
             losses.update(loss.item())
@@ -276,10 +232,10 @@ def predict(test_loader, model, latest_model_path, save_dir = './result/test_loa
     denorm = Denormalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     bar = tqdm.tqdm(total=len(test_loader), ncols=100)
     with torch.no_grad():
-        for idx, (img, lab, edge) in enumerate(test_loader, 1):
+        for idx, (img, lab) in enumerate(test_loader, 1):
             # val_data  = Variable(img).cuda()
             val_data = Variable(img).to(device)
-            pred, edge_out = model(val_data)
+            pred = model(val_data)
 
             image = (denorm(img) * 255).squeeze(0).contiguous().cpu().numpy()
             image = image.transpose(2, 1, 0).astype(np.uint8)
@@ -306,14 +262,7 @@ def predict(test_loader, model, latest_model_path, save_dir = './result/test_loa
                 temp = cv2.addWeighted(label,1,mask,1,0)
                 res = cv2.addWeighted(image,0.6,temp,0.4,0)
 
-                edge_pred = torch.sigmoid(edge_out.squeeze(0)).contiguous().cpu().numpy().transpose(2, 1, 0)
-                edge_mask = np.where(edge_pred > 0.7, edge_pred, zeros)
-                # edge_mask[edge_mask > 127] = 255
-                edge_mask = np.concatenate((zeros,zeros,edge_mask * 255),axis=-1).astype(np.uint8)
-                res_edge = cv2.addWeighted(image,0.6,edge_mask,0.4,0)
-
                 cv2.imwrite(os.path.join(save_dir,'%d_test.png' % idx), res)
-                cv2.imwrite(os.path.join(save_dir,'%d_test_edge.png' % idx), res_edge)
                 
                 with open(os.path.join(save_dir,'%d_test.txt' % idx), 'a', encoding='utf-8') as fout:
                     for crack in crackInfos:
@@ -400,8 +349,8 @@ if __name__ == '__main__':
 
     # mask_tfms = transforms.Compose([transforms.ToTensor()])
 
-    # train_dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
-    train_dataset = CrackDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
+    train_dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
+    # train_dataset = CrackDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
     train_size = int(len(train_dataset)*0.7)
     _dataset, test_dataset = random_split(train_dataset, [train_size, len(train_dataset) - train_size],torch.Generator().manual_seed(42))
     # train_dataset, valid_dataset = random_split(_dataset, [0.9, 0.1],torch.Generator().manual_seed(42))
