@@ -74,6 +74,9 @@ sobel_compute = SobelComputer()
 # Learning rate decay scheduling
 scheduler = optim.lr_scheduler.MultiStepLR(optimizer, para['steps'], para['gamma'])
 
+torch.set_num_threads(1)
+torch.backends.cudnn.benchmark = True
+
 saver = ModelSaver(long_id)
 report_interval = 1000
 save_im_interval = 200

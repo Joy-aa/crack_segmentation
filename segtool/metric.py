@@ -3,6 +3,10 @@ import numpy as np
 from datetime import datetime
 import torchvision.transforms as transforms
 import torch
+from pathlib import Path
+from tqdm import tqdm
+import cv2 as cv
+import os
 
 def tensorWriter(metric, value, iter):
     writer = SummaryWriter()
@@ -19,6 +23,17 @@ def getpred(mask, pred, threshold = 0, max_value = 1):
     # pred_mask = pred[:, 0, :, :].contiguous()
     # mask = mask[:, 0, :, :].contiguous()
     return mask, pred
+
+def calc_miou(gt_mask, pred_mask):
+    mask = gt_mask.flatten()
+    pred = pred_mask.flatten()
+    correct = np.bincount(mask[pred == mask], minlength=2)
+    pred_count = np.bincount(pred, minlength=2)
+    total = np.bincount(mask, minlength=2)
+    union = pred_count + total - correct
+    union[union == 0] = 1
+    iou = correct / union
+    return iou.mean()
 
 def calc_accuracy(mask, pred_mask):
     mask_acc = pred_mask.eq(mask.view_as(pred_mask)).sum().item() / mask.numel()
@@ -60,26 +75,19 @@ def calc_metric(pred_list, gt_list, mode='list', threshold = 0, max_value = 1):
                 'neg_accuracy': 0,
                 'precision': 0,
                 'recall': 0,
-                'f1': 0,}
+                'f1': 0,
+                'miou': 0}
     if mode == 'list':
         pred_arr = np.array(pred_list)
         gt_arr = np.array(gt_list)
-        # print(pred_arr.shape)
-        # print(gt_arr.shape)
         th = threshold * max_value
         mask_arr = pred_arr.copy()
         mask_arr[pred_arr > th] = 1
         mask_arr[pred_arr <= th] = 0
-        # print(np.sum(pred_arr == 0))
-        # print(np.sum(pred_arr == 1))
         gt_arr[gt_arr > 0] = 1
-        # print(np.sum(gt_arr == 0))
-        # print(np.sum(gt_arr == 1))
         pred_mask = torch.tensor(mask_arr)
         mask = torch.tensor(gt_arr)
     elif mode == 'tensor':
-        # print(pred_list.shape)
-        # print(gt_list.shape)
         mask, pred_mask = getpred(gt_list, pred_list, threshold, max_value)
 
     else:
@@ -90,13 +98,10 @@ def calc_metric(pred_list, gt_list, mode='list', threshold = 0, max_value = 1):
     metric['precision'] = calc_precision(mask, pred_mask)
     metric['recall'] = calc_recall(mask, pred_mask)
     metric['f1'] = calc_f1(mask, pred_mask, metric['precision'], metric['recall'])
+    metric['miou'] = calc_miou(mask, pred_mask)
     return metric
 
 if __name__ == "__main__":
-    from pathlib import Path
-    from tqdm import tqdm
-    import cv2 as cv
-    import os
     DIR_PRED = '/home/wj/local/crack_segmentation/unet++/result_images'
     DIR_GT = '/mnt/nfs/wj/data/new_label'
     paths = [path for path in Path(DIR_PRED).glob('*.*')]
@@ -112,23 +117,31 @@ if __name__ == "__main__":
         filepath = os.path.join('/mnt/nfs/wj/result-stride_0.7/Jun02_06_33_42/box', path.stem+'.txt')
         boxes = []
         with open(filepath, 'r', encoding='utf-8') as f:
-            for data in f.readlines():
-                box = data.split(' ')[:-1]
-                boxes.append(box)
-        for box in boxes:
-            x1, y1, x2, y2 = box
-            x1 = int(x1)
-            x2 = int(x2)
-            y1 = int(y1)
-            y2 = int(y2)
-            img_pat = mask[y1:y2,x1:x2]
-            gt_pat = gt[y1:y2, x1:x2]
-            ori_shape = gt_pat.shape
-            img_pat = cv.resize(img_pat, (128, 128), cv.INTER_AREA)
-            gt_pat = cv.resize(gt_pat, (128, 128), cv.INTER_AREA)
-            pred_list.append(img_pat)
-            gt_list.append(gt_pat)
+            h, w = gt.shape
+            patch_size=64
+            for line in f.readlines():
+                data = line.split(' ')
+                
+                xmin, ymin, xmax, ymax = list(map(int, data[:4]))
+                offset = 2 * patch_size + 64
+                dx = xmin - patch_size
+                if dx < 0:
+                    dx = 0
+                if xmin + 64 + patch_size >= w:
+                    dx = w - offset
+
+                dy = ymin - patch_size
+                if dy < 0:
+                    dy = 0
+                if ymin + 64 + patch_size >= h:
+                    dy = h - offset
+
+                cut_gt= gt[dy:dy+offset, dx:dx+offset]
+                cut_mask = mask[dy:dy+offset, dx:dx+offset]
+                gt_list.append(cut_gt)
+                pred_list.append(cut_mask)
         
+        # calc_miou()
         for i in range(1, 10):
                     threshold = i / 10
                     metric = calc_metric(pred_list, gt_list, mode='list', threshold=threshold)
@@ -137,6 +150,7 @@ if __name__ == "__main__":
                     metric['precision'] = metric['precision'] / len(paths)
                     metric['recall'] = metric['recall'] / len(paths)
                     metric['f1'] = metric['f1'] / len(paths)
+                    metric['miou'] = metric['miou'] / len(paths)
                     if len(metrics) < i:
                         metrics.append(metric)
                     else:
@@ -144,6 +158,7 @@ if __name__ == "__main__":
                         metrics[i-1]['precision'] += metric['precision']
                         metrics[i-1]['recall'] += metric['recall']
                         metrics[i-1]['f1'] += metric['f1']
+                        metrics['miou'] += metric['miou']
     print(metrics)
     d = datetime.today()
     datetime.strftime(d,'%Y-%m-%d %H-%M-%S')

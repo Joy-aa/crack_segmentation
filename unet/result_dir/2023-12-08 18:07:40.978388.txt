@@ -1,0 +1,10 @@
+checkpoints/gateconv/model_best.pt
+threshold:1 | accuracy:0.99102 | precision:0.69100 | recall:0.88703 | f1:0.77684 
+threshold:2 | accuracy:0.99232 | precision:0.74771 | recall:0.85148 | f1:0.79622 
+threshold:3 | accuracy:0.99286 | precision:0.78208 | recall:0.82426 | f1:0.80262 
+threshold:4 | accuracy:0.99314 | precision:0.80876 | recall:0.79947 | f1:0.80409 
+threshold:5 | accuracy:0.99328 | precision:0.83188 | recall:0.77471 | f1:0.80228 
+threshold:6 | accuracy:0.99330 | precision:0.85341 | recall:0.74791 | f1:0.79719 
+threshold:7 | accuracy:0.99321 | precision:0.87564 | recall:0.71613 | f1:0.78789 
+threshold:8 | accuracy:0.99294 | precision:0.90028 | recall:0.67370 | f1:0.77068 
+threshold:9 | accuracy:0.99224 | precision:0.93236 | recall:0.60326 | f1:0.73255 

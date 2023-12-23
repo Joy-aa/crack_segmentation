@@ -6,6 +6,7 @@ weights/
 output/
 visual/
 .vscode
+checkpoints/
 
 # Mac directory meta file
 .DS_Store

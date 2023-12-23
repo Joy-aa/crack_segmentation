@@ -21,10 +21,14 @@ import sys
 sys.path.append("/home/wj/local/crack_segmentation")
 from metric import *
 <<<<<<< HEAD
+<<<<<<< HEAD
 input_size=[416, 416]
 =======
 input_size=[160,160]
 >>>>>>> 9b69e40b4731cb2975426104432bd00ad610f8d9
+=======
+input_size=[160,160]
+>>>>>>> ac79be0045d14f416be9078b8b075926d9a31b88
 
 class Parser():
     def parse(self):
@@ -34,6 +38,7 @@ class Parser():
         parser = ArgumentParser()
 
 <<<<<<< HEAD
+<<<<<<< HEAD
         parser.add_argument('--dir', default='/mnt/nfs/wj/data/image', help='Directory with testing images')
         parser.add_argument('--seg', default='/mnt/hangzhou_116_homes/wj/result/0825/unet1/result_img448', help='Directory with testing images')
         parser.add_argument('--model',default='/home/wj/local/crack_segmentation/CascadePSP/weights/1_2023-08-24_07:23:11/model_300690', help='Pretrained model')
@@ -41,6 +46,10 @@ class Parser():
         parser.add_argument('--dir', default='/nfs/wj/data', help='Directory with testing images')
         parser.add_argument('--model',default='/home/wj/local/crack_segmentation/CascadePSP/weights/1_2023-08-04_00:07:51/model_250390', help='Pretrained model')
 >>>>>>> 9b69e40b4731cb2975426104432bd00ad610f8d9
+=======
+        parser.add_argument('--dir', default='/nfs/wj/data', help='Directory with testing images')
+        parser.add_argument('--model',default='/home/wj/local/crack_segmentation/CascadePSP/weights/1_2023-08-04_00:07:51/model_250390', help='Pretrained model')
+>>>>>>> ac79be0045d14f416be9078b8b075926d9a31b88
         parser.add_argument('--output', default='/home/wj/local/crack_segmentation/CascadePSP/results', help='Output directory')
 
         # parser.add_argument('--global_only', help='Global step only', action='store_true')

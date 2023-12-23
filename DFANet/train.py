@@ -17,6 +17,8 @@ import sys, time
 import torch.nn.functional as F
 from utils.metrics import compute_iou_batch
 import numpy as np
+from utils.Visdom import Visualizer
+
 import sys
 sys.path.append("/home/wj/local/crack_segmentation")
 from LossFunctions import dice_loss
@@ -27,21 +29,26 @@ class Trainer(object):
         self.mode = mode
         self.model = model
         self.cuda = torch.cuda.is_available()
+        # self.cuda = False
         self.model_dir = model_dir
         self.optim = optim
         self.epoch = 0
         self.config = config
         self.scheduler = scheduler
         self.set_log_dir()
+        self.vis = Visualizer(env='dfanet')
+        # self.writer = SummaryWriter(log_dir=self.log_dir)
         
     def train(self, train_loader, val_loader, loss_function, num_epochs):
 
-        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+        # device = torch.device("cpu")
         dataloaders = {'train': train_loader, 'val': val_loader}
 
         writer = SummaryWriter(log_dir=self.log_dir)
         self.model = self.model.to(device)
         for epoch in range(self.epoch, num_epochs):
+            self.vis.log('Start Epoch %d ...' % epoch, 'train info')
             since = time.time()
             print('Epoch {}/{}'.format(epoch, num_epochs - 1))
             for phase in ['train', 'val']:
@@ -54,7 +61,6 @@ class Trainer(object):
                 process_bar = ShowProcess(bar_steps)
                 total = 0
 
-                ious = []
                 #########################################################
                 #               
                 #########################################################
@@ -69,11 +75,11 @@ class Trainer(object):
                         outputs = self.model(inputs)
                         loss = loss_function(outputs, labels) + dice_loss(F.sigmoid(outputs.squeeze(1)), labels.squeeze(1).float(), multiclass=False)
                         #preds = F.interpolate(outputs[0], size=labels.size()[2:], mode='bilinear', align_corners=True)
-                        preds_np=outputs.detach().cpu().numpy()
-                        labels_np = labels.detach().cpu().numpy().squeeze()
+                        # preds_np=outputs.detach().cpu().numpy()
+                        # labels_np = labels.detach().cpu().numpy().squeeze()
 
-                        iou = compute_iou_batch(preds_np, labels_np)
-                        ious.append(iou)
+                        # iou = compute_iou_batch(preds_np, labels_np)
+                        # ious.append(iou)
                         #backward+optimize only if in training phase
                         if phase == 'train':
                             loss.backward()
@@ -85,13 +91,20 @@ class Trainer(object):
                     total += inputs.size(0)
                     running_loss += loss.item() * inputs.size(0)
                     process_bar.show_process()
+
+                    if i % 400 == 0:
+                        self.vis.img_many({
+                            '{}_img'.format(phase): inputs.cpu(),
+                            '{}_output'.format(phase): torch.sigmoid(outputs.contiguous().cpu()),
+                            '{}_lab'.format(phase): labels.cpu(),
+                        })
+
                 process_bar.close()
                 epoch_loss = running_loss / total
-                iou=np.mean(ious)
-                print('{} Loss: {:.4f} iou:{:.4f} '.format(phase, epoch_loss,iou))
+                # iou=np.mean(ious)
+                print('{} Loss: {:.4f} '.format(phase, epoch_loss))
                 
                 writer.add_scalar('{}_loss'.format(phase), epoch_loss, epoch)
-                writer.add_scalar('{}_iou'.format(phase),iou,epoch)
                 
 
             time_elapsed = time.time() - since
@@ -199,7 +212,7 @@ class Trainer(object):
         #should convert the initialized model to a CUDA optimized model using
         #model.to(torch.device("cuda"))
         if self.cuda:
-            self.device = torch.device("cuda")
+            self.device = torch.device("cuda:1")
             self.model.to(self.device)
 
         self.optim.load_state_dict(checkpoint['optimizer_state_dict'])
@@ -216,7 +229,8 @@ class Trainer(object):
         """
         import numpy as np
         assert self.mode == "inference", "Create model in inference mode."
-        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        # device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+        device = torch.device("cpu")
         self.model.eval()
         with torch.no_grad():
             image=image.transpose((2, 0, 1))
@@ -239,8 +253,8 @@ class Trainer(object):
             return preds
             
 
-    def evaluate(self, val_laoder):
-        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    def evaluate(self, val_laoder, loss_function):
+        device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
 
         aTP=0
         aFP=0
@@ -254,6 +268,11 @@ class Trainer(object):
                 inputs, labels = inputs.to(device), labels.to(device)
 
                 outputs = self.model(inputs)
+
+                loss = loss_function(outputs, labels) + dice_loss(F.sigmoid(outputs.squeeze(1)), labels.squeeze(1).float(), multiclass=False)
+                total += inputs.size(0)
+                running_loss += loss.item() * inputs.size(0)
+
                 preds = torch.round(F.sigmoid(outputs))
 
                 FP=preds-labels
@@ -273,6 +292,7 @@ class Trainer(object):
         F1=2*P*R/(P+R)
         Mr=(aFP+aFN)/(aTP+aTN+aFN+aFP)
         Acc=(aTP+aTN)/(aTP+aTN+aFN+aFP)
+        epoch_loss = running_loss / total
         
         print(' P:{:.4} R:{:.4} F1:{:.4} Mr:{:.4} Acc:{:.4}'.format(P, R, F1, Mr,Acc))
        
