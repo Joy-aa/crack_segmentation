@@ -17,7 +17,7 @@ from simple_Unetpp import UnetPlusPlus, load_model
 from tqdm import tqdm
 import datetime
 import csv
-from metric import calc_metric
+from segtool.metric import calc_metric
 
 def evaluate_img(model, img, test_tfms):
     X = test_tfms(Image.fromarray(img))

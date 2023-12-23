@@ -1,0 +1,3 @@
+512x512
+/mnt/nfs/wj/checkpoints/gscnn/fineSeg/model_best.pt
+threshold:3360 | accuracy:0.99564 | precision:0.54457 | recall:0.48050 | f1:0.46955 

@@ -390,15 +390,6 @@ if __name__ == '__main__':
     # test_loader = torch.utils.data.DataLoader(test_dataset, 1, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=4)
 
 
-<<<<<<< HEAD
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
-    device = torch.device("cuda")
-    # device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
-    num_gpu = torch.cuda.device_count()
-
-    model = create_model(args.model_type)
-    model = torch.nn.DataParallel(model, device_ids=range(num_gpu))
-=======
     # os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
     # device = torch.device("cuda")
     # print(device)
@@ -407,7 +398,6 @@ if __name__ == '__main__':
 
     model = create_model(args.model_type, args.deconv)
     # model = torch.nn.DataParallel(model, device_ids=[0,1])
->>>>>>> 559af3a96ac154bd1f0f67bc5c2e95530b6661c3
     model.to(device)
 
     long_id = 'unet_crackls315_%s_%s' % (str(args.lr), datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S'))
@@ -422,12 +412,9 @@ if __name__ == '__main__':
     # criterion = BinaryFocalLoss()
 
     train(_dataset, model, criterion, optimizer, validate, args, logger)
-<<<<<<< HEAD
-=======
 
     np.random.seed(0)
     vis_sample_id = np.random.randint(0, len(test_loader), 50, np.int32)  # sample idxs for visualization
->>>>>>> 559af3a96ac154bd1f0f67bc5c2e95530b6661c3
 
     latest_model_path = os.path.join(args.model_dir, 'model_best.pt')
     state = torch.load(latest_model_path)
@@ -439,10 +426,5 @@ if __name__ == '__main__':
     #     new_k = k.replace('module.', '') if 'module' in k else k
     #     weights_dict[new_k] = v
     # model.load_state_dict(weights_dict)
-<<<<<<< HEAD
-
-    predict(test_loader, model, latest_model_path, save_dir='/home/wj/local/crack_segmentation/unet/result/crackls315/test_loader', device=device)
-=======
     predict(test_loader, model, latest_model_path, save_dir=os.path.join(args.model_dir, 'test_visual'), vis_sample_id=vis_sample_id)
->>>>>>> 559af3a96ac154bd1f0f67bc5c2e95530b6661c3
 
