@@ -58,7 +58,7 @@ class AverageMeter(object):
 
 def adjust_learning_rate(optimizer, epoch, lr):
     """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
-    lr = lr * (0.1 ** (epoch // 10))
+    lr = lr * (0.1 ** (epoch // 20))
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
@@ -130,12 +130,12 @@ def train(dataset, model, criterion, optimizer, validation, args, logger, criter
     # train_size = int(len(dataset)*0.9)
     train_dataset, valid_dataset = random_split(dataset, [0.9, 0.1])
     train_loader = torch.utils.data.DataLoader(train_dataset, args.batch_size, shuffle=True, drop_last=True, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
-    valid_loader = torch.utils.data.DataLoader(valid_dataset, args.batch_size, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
+    valid_loader = torch.utils.data.DataLoader(valid_dataset, 4, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
     for epoch in range(epoch, args.max_epoch + 1):
 
         adjust_learning_rate(optimizer, epoch, args.lr)
 
-        tq = tqdm.tqdm(total=(len(train_loader) * args.batch_size))
+        tq = tqdm.tqdm(total=(len(train_loader) * args.batch_size), ncols=150)
         tq.set_description(f'Epoch {epoch}')
 
         model.train()
@@ -241,7 +241,7 @@ def train(dataset, model, criterion, optimizer, validation, args, logger, criter
             }, best_model_path)
 
 def validate(model, val_loader, criterion):
-    tq = tqdm.tqdm(total=(len(val_loader) * 4))
+    tq = tqdm.tqdm(total=(len(val_loader) * 4), ncols=100)
     tq.set_description(f'validating:')
     
     val_loss = AverageMeter()
@@ -276,7 +276,7 @@ def predict(test_loader, model, latest_model_path, save_dir = './result/test_loa
     pred_list = []
     gt_list = []
     denorm = Denormalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-    bar = tqdm.tqdm(total=len(test_loader))
+    bar = tqdm.tqdm(total=len(test_loader), ncols=100)
     with torch.no_grad():
         for idx, (img, lab, edge) in enumerate(test_loader, 1):
             # val_data  = Variable(img).cuda()
@@ -360,11 +360,11 @@ if __name__ == '__main__':
     parser.add_argument('--img_wt_loss', action='store_true', default=False,help='per-image class-weighted loss')
     parser.add_argument('--edge_weight', type=float, default=1.0,help='Edge loss weight for joint loss')
     parser.add_argument('--seg_weight', type=float, default=1.0,help='Segmentation loss weight for joint loss')
-    parser.add_argument('--att_weight', type=float, default=0,help='Attention loss weight for joint loss')
-    parser.add_argument('--dual_weight', type=float, default=0,help='Dual loss weight for joint loss')
+    parser.add_argument('--att_weight', type=float, default=1.0,help='Attention loss weight for joint loss')
+    parser.add_argument('--dual_weight', type=float, default=1.0,help='Dual loss weight for joint loss')
     # parser.add_argument('--data_dir',type=str, help='input dataset directory')
     # /home/wj/dataset/seg_dataset /nfs/wj/DamCrack /nfs/wj/192_255_segmentation
-    parser.add_argument('--model_dir', type=str, default='/home/wj/local/crack_segmentation/GSCNN/checkpoints/dice_loss', help='output dataset directory')
+    parser.add_argument('--model_dir', type=str, default='/home/wj/local/crack_segmentation/GSCNN/checkpoints/cutDataset', help='output dataset directory')
     parser.add_argument('--arch', type=str, default='network.gscnn.GSCNN')
     parser.add_argument('--trunk', type=str, default='resnet50', help='trunk model, can be: resnet101 (default), resnet50')
     parser.add_argument('-wb', '--wt_bound', type=float, default=1.0)
@@ -376,8 +376,8 @@ if __name__ == '__main__':
     parser.add_argument('--amsgrad', action='store_true', default=False)
     parser.add_argument('--lr_schedule', type=str, default='poly',help='name of lr schedule: poly')
     parser.add_argument('--poly_exp', type=float, default=1.0,help='polynomial LR exponent')
-    parser.add_argument('--snapshot', type=str, default=None)
-    # parser.add_argument('--snapshot', type=str, default='/home/wj/local/crack_segmentation/GSCNN/checkpoints/pretrain/gscnn_initial_epoch_50.pt')
+    # parser.add_argument('--snapshot', type=str, default=None)
+    parser.add_argument('--snapshot', type=str, default='/home/wj/local/crack_segmentation/GSCNN/checkpoints/pretrain/gscnn_initial_epoch_50.pt')
     parser.add_argument('--restore_optimizer', action='store_true', default=False)
     args = parser.parse_args()
     args.dataset_cls = crack
@@ -414,7 +414,6 @@ if __name__ == '__main__':
 
     long_id = 'damcrack_%s_%s' % (str(args.lr), datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S'))
     logger = BoardLogger(long_id)
-
     train(_dataset, model, criterion, optim, validate, args, logger, criterion_val)
 
     np.random.seed(0)

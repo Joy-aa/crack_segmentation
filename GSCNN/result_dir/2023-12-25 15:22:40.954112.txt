@@ -1,0 +1,6 @@
+/home/wj/local/crack_segmentation/GSCNN/checkpoints/cutDataset/gscnn_epoch_50.pt
+threshold:0.5 | accuracy:0.98455 | precision:0.74942 | recall:0.83756 | f1:0.79104 
+/home/wj/local/crack_segmentation/GSCNN/checkpoints/cutDataset/gscnn_epoch_30.pt
+threshold:0.5 | accuracy:0.98438 | precision:0.74672 | recall:0.83611 | f1:0.78889 
+/home/wj/local/crack_segmentation/GSCNN/checkpoints/cutDataset/gscnn_epoch_20.pt
+threshold:0.5 | accuracy:0.98288 | precision:0.72034 | recall:0.83308 | f1:0.77262 

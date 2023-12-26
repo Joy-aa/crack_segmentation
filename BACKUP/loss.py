@@ -10,7 +10,6 @@ import logging
 import numpy as np
 from config import cfg
 from my_functionals.DualTaskLoss import DualTaskLoss
-from torch import Tensor
 
 def get_loss(args):
     '''
@@ -45,8 +44,6 @@ class JointEdgeSegLoss(nn.Module):
                  edge_weight=1, seg_weight=1, att_weight=1, dual_weight=1, edge='none'):
         super(JointEdgeSegLoss, self).__init__()
         self.num_classes = classes
-
-        # self.seg_loss = DiceLoss(multiclass=False)
         if mode == 'train':
             self.seg_loss = ImageBasedCrossEntropyLoss2d(
                     classes=classes, ignore_index=ignore_index, upper_bound=upper_bound).cuda()
@@ -66,7 +63,6 @@ class JointEdgeSegLoss(nn.Module):
     
         log_p = input.transpose(1, 2).transpose(2, 3).contiguous().view(1, -1)
         target_t = target.transpose(1, 2).transpose(2, 3).contiguous().view(1, -1)
-        # target_t = target.view(1, -1) # 摊平了
         target_trans = target_t.clone()
 
         pos_index = (target_t ==1)
@@ -97,23 +93,19 @@ class JointEdgeSegLoss(nn.Module):
 
     def edge_attention(self, input, target, edge):
         n, c, h, w = input.size()
-        filler = torch.ones_like(target)
+        filler = torch.ones_like(target) * 255
         return self.seg_loss(input, 
                              torch.where(edge.max(1)[0] > 0.8, target, filler))
 
     def forward(self, inputs, targets):
         segin, edgein = inputs
-        # edgein = torch.sigmoid(edgein)
         segmask, edgemask = targets
 
         losses = {}
 
         losses['seg_loss'] = self.seg_weight * self.seg_loss(segin, segmask)
         losses['edge_loss'] = self.edge_weight * 20 * self.bce2d(edgein, edgemask)
-        attention_edge = self.edge_attention(segin, segmask, edgein)
-        if(torch.isnan(attention_edge)):
-            attention_edge = torch.zeros_like(attention_edge)
-        losses['att_loss'] = self.att_weight * attention_edge
+        losses['att_loss'] = self.att_weight * self.edge_attention(segin, segmask, edgein)
         losses['dual_loss'] = self.dual_weight * self.dual_task(segin, segmask)
               
         return losses
@@ -126,14 +118,14 @@ class ImageBasedCrossEntropyLoss2d(nn.Module):
         super(ImageBasedCrossEntropyLoss2d, self).__init__()
         logging.info("Using Per Image based weighted loss")
         self.num_classes = classes
-        self.nll_loss = nn.NLLLoss(weight, size_average, ignore_index)
-        self.celoss = nn.CrossEntropyLoss(weight, ignore_index, reduction = 'mean')
+        self.nll_loss = nn.NLLLoss2d(weight, size_average, ignore_index)
         self.norm = norm
         self.upper_bound = upper_bound
         self.batch_weights = cfg.BATCH_WEIGHTING
 
     def calculateWeights(self, target):
-        hist = np.histogram(target.flatten(), range(self.num_classes + 1), density=True)[0]
+        hist = np.histogram(target.flatten(), range(
+            self.num_classes + 1), normed=True)[0]
         if self.norm:
             hist = ((hist != 0) * self.upper_bound * (1 / hist)) + 1
         else:
@@ -152,9 +144,8 @@ class ImageBasedCrossEntropyLoss2d(nn.Module):
                 weights = self.calculateWeights(target_cpu[i])
                 self.nll_loss.weight = torch.Tensor(weights).cuda()
             
-            loss += self.nll_loss(F.log_softmax(inputs[i].unsqueeze(0), dim=1),
+            loss += self.nll_loss(F.log_softmax(inputs[i].unsqueeze(0)),
                                           targets[i].unsqueeze(0))
-            # loss += self.celoss(inputs[i].unsqueeze(0), targets[i].unsqueeze(0))
         return loss
 
 
@@ -163,72 +154,7 @@ class CrossEntropyLoss2d(nn.Module):
     def __init__(self, weight=None, size_average=True, ignore_index=255):
         super(CrossEntropyLoss2d, self).__init__()
         logging.info("Using Cross Entropy Loss")
-        self.nll_loss = nn.NLLLoss(weight, size_average, ignore_index)
+        self.nll_loss = nn.NLLLoss2d(weight, size_average, ignore_index)
 
     def forward(self, inputs, targets):
-        return self.nll_loss(F.log_softmax(inputs, dim=1), targets)
-
-
-class DiceLoss(nn.Module):
-    def __init__(self, multiclass: bool = False, reduce_batch_first: bool = False, epsilon: float = 1e-6):
-        super(DiceLoss, self).__init__()
-        logging.info("Using Dice Loss")
-        self.epsilon = epsilon
-        self.reduce_batch_first = reduce_batch_first
-        self.multiclass = multiclass
-
-    def calc_loss(self, inputs: Tensor, target: Tensor, beta=1, smooth = 1e-5):
-        n, c, h, w = inputs.size()
-        # nt, ht, wt, ct = target.size()
-        # if h != ht and w != wt:
-        #     inputs = F.interpolate(inputs, size=(ht, wt), mode="bilinear", align_corners=True)
-            
-        temp_inputs = torch.softmax(inputs.transpose(1, 2).transpose(2, 3).contiguous().view(n, -1, c),-1)
-        temp_target = target.view(n, -1, c)
-    
-        #--------------------------------------------#
-        #   计算dice loss
-        #--------------------------------------------#
-        tp = torch.sum(temp_target[...,:-1] * temp_inputs, axis=[0,1])
-        fp = torch.sum(temp_inputs                       , axis=[0,1]) - tp
-        fn = torch.sum(temp_target[...,:-1]              , axis=[0,1]) - tp
-    
-        score = ((1 + beta ** 2) * tp + smooth) / ((1 + beta ** 2) * tp + beta ** 2 * fn + fp + smooth)
-        dice_loss = 1 - torch.mean(score)
-        return dice_loss
-
-    
-    def dice_coeff(self, input: Tensor, target: Tensor):
-        # Average of Dice coefficient for all batches, or for a single mask
-        assert input.size() == target.size()
-        # print(input.dim())
-        assert input.dim() == 3 or not self.reduce_batch_first
-
-        sum_dim = (-1, -2) if input.dim() == 2 or not self.reduce_batch_first else (-1, -2, -3)
-
-        inter = 2 * (input * target).sum(dim=sum_dim)
-        sets_sum = input.sum(dim=sum_dim) + target.sum(dim=sum_dim)
-        sets_sum = torch.where(sets_sum == 0, inter, sets_sum)
-
-        dice = (inter + self.epsilon) / (sets_sum + self.epsilon)
-        return dice.mean()
-
-
-    def multiclass_dice_coeff(self, input: Tensor, target: Tensor):
-        # Average of Dice coefficient for all classes
-        return self.dice_coeff(input.flatten(0, 1), target.flatten(0, 1), self.reduce_batch_first, self.epsilon)
-
-
-    def forward(self, input: Tensor, target: Tensor):
-        n, c, h, w = input.size()
-        temp_inputs = torch.softmax(input.transpose(1, 2).transpose(2, 3).contiguous().view(n, -1, c),-1)
-        preds = torch.gt(temp_inputs[...,1], temp_inputs[...,0]).int().squeeze(-1)
-        # preds = torch.argmax(temp_inputs, dim=-1)
-
-        # target = target.view(n, -1)
-        mask = preds.view(n, h, w)
-        # Dice loss (objective to minimize) between 0 and 1
-        fn = self.multiclass_dice_coeff if self.multiclass else self.dice_coeff
-        return 1 - fn(mask, target)
-        # return self.calc_loss(input, target)
-
+        return self.nll_loss(F.log_softmax(inputs), targets)
