@@ -1,0 +1,10 @@
+/home/wj/local/crack_segmentation/unet++/result/crackls315_out2/checkpoints/Unet++_step2_50.pth
+threshold:1 | accuracy:0.99696 | precision:0.41816 | recall:0.46200 | f1:0.43899 
+threshold:2 | accuracy:0.99734 | precision:0.47934 | recall:0.41046 | f1:0.44224 
+threshold:3 | accuracy:0.99750 | precision:0.51969 | recall:0.37512 | f1:0.43572 
+threshold:4 | accuracy:0.99759 | precision:0.54971 | recall:0.34336 | f1:0.42270 
+threshold:5 | accuracy:0.99765 | precision:0.57979 | recall:0.31568 | f1:0.40879 
+threshold:6 | accuracy:0.99769 | precision:0.60847 | recall:0.28786 | f1:0.39082 
+threshold:7 | accuracy:0.99771 | precision:0.63797 | recall:0.25673 | f1:0.36613 
+threshold:8 | accuracy:0.99771 | precision:0.66909 | recall:0.21861 | f1:0.32954 
+threshold:9 | accuracy:0.99769 | precision:0.72127 | recall:0.16673 | f1:0.27086 

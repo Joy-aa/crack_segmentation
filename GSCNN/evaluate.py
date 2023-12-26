@@ -30,7 +30,7 @@ def evaluate_img(model, img, test_tfms):
     n, c, h, w = pred.size()
     temp_inputs = torch.softmax(pred.transpose(1, 2).transpose(2, 3).contiguous().view(n, -1, c),-1)
     preds = torch.gt(temp_inputs[...,1], temp_inputs[...,0]).int().squeeze(-1)
-    mask = preds.squeeze(0).view(h,w).contiguous().cpu().numpy()
+    mask = preds.squeeze(0).view(h,w).contiguous().cpu().numpy().astype('uint8')
 
     return mask
 
@@ -56,7 +56,7 @@ if __name__ == '__main__':
     parser.add_argument('--restore_optimizer', action='store_true', default=False)
 
     parser.add_argument('--img_dir',type=str, default='/mnt/hangzhou_116_homes/DamDetection/data', help='input dataset directory')
-    parser.add_argument('--model_path', type=str, default='/home/wj/local/crack_segmentation/GSCNN/checkpoints/fineSeg/model_best.pt', help='trained model path')
+    parser.add_argument('--model_path', type=str, default="/mnt/nfs/wj/checkpoints/gscnn/fineSeg/model_best.pt", help='trained model path')
     parser.add_argument('--type', type=str, default='metric' , choices=['out', 'metric'])
     parser.add_argument('--eval_type', type=str, default='512x512' , choices=['512x512', 'test_with_box_192'])
     args = parser.parse_args()
@@ -93,7 +93,12 @@ if __name__ == '__main__':
     channel_stds  = [0.229, 0.224, 0.225]
 
     paths = [path for path in Path(DIR_IMG).glob('*.*')]
-    metrics=[]
+    metrics = {
+        'accuracy': 0,
+        'precision': 0,
+        'recall': 0,
+        'f1': 0,
+    }
     for path in tqdm(paths):
         print(path)
         pred_list = []
@@ -155,8 +160,9 @@ if __name__ == '__main__':
         if out_pred_dir != '':
             mask = np.expand_dims(img_1, axis=0)
             label = np.expand_dims(lab, axis=0)
-            mask = (mask.transpose(2, 1, 0)*255).astype('uint8')
-            label = label.transpose(2, 1, 0).astype('uint8')
+            mask = (mask.transpose(1, 2, 0)*255).astype('uint8')
+            label = label.transpose(1, 2, 0).astype('uint8')
+            # image = img_0.transpose(1, 0, 2).astype(np.uint8)
             zeros = np.zeros(mask.shape)
             mask = np.concatenate((mask,zeros,zeros),axis=-1).astype(np.uint8)
             label = np.concatenate((zeros,zeros,label),axis=-1).astype(np.uint8)
@@ -167,21 +173,22 @@ if __name__ == '__main__':
             cv.imwrite(filename=join(out_pred_dir, f'{path.stem}.jpg'), img=res)
 
         if args.type == 'metric':
-            for i in range(1, 10):
-                threshold = i / 10
+            # for i in range(1, 10):
+                # threshold = i / 10
+                threshold = 0.5
                 metric = calc_metric(pred_list, gt_list, mode='list', threshold=threshold)
                 print(metric)
                 metric['accuracy'] = metric['accuracy'] / len(paths)
                 metric['precision'] = metric['precision'] / len(paths)
                 metric['recall'] = metric['recall'] / len(paths)
                 metric['f1'] = metric['f1'] / len(paths)
-                if len(metrics) < i:
-                    metrics.append(metric)
-                else:
-                    metrics[i-1]['accuracy'] += metric['accuracy']
-                    metrics[i-1]['precision'] += metric['precision']
-                    metrics[i-1]['recall'] += metric['recall']
-                    metrics[i-1]['f1'] += metric['f1']
+                # if len(metrics) < i:
+                #     metrics.append(metric)
+                # else:
+                metrics['accuracy'] += metric['accuracy']
+                metrics['precision'] += metric['precision']
+                metrics['recall'] += metric['recall']
+                metrics['f1'] += metric['f1']
 
         gc.collect()
     print(metrics)
@@ -192,7 +199,7 @@ if __name__ == '__main__':
         with open(os.path.join('./result_dir', str(d)+'.txt'), 'a', encoding='utf-8') as fout:
                 fout.write(args.eval_type+'\n')
                 fout.write(args.model_path+'\n')
-                for i in range(1, 10): 
-                    line =  "threshold:{:d} | accuracy:{:.5f} | precision:{:.5f} | recall:{:.5f} | f1:{:.5f} " \
-                        .format(i, metrics[i-1]['accuracy'],  metrics[i-1]['precision'],  metrics[i-1]['recall'],  metrics[i-1]['f1']) + '\n'
-                    fout.write(line)
+                # for i in range(1, 10): 
+                line =  "threshold:{:d} | accuracy:{:.5f} | precision:{:.5f} | recall:{:.5f} | f1:{:.5f} " \
+                    .format(i, metrics['accuracy'],  metrics['precision'],  metrics['recall'],  metrics['f1']) + '\n'
+                fout.write(line)

@@ -57,7 +57,7 @@ class AverageMeter(object):
 
 def adjust_learning_rate(optimizer, epoch, lr):
     """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
-    lr = lr * (0.1 ** (epoch // 10))
+    lr = lr * (0.1 ** (epoch // 15))
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
@@ -96,8 +96,7 @@ def train(dataset, model, criterion, optimizer, validation, args, logger):
 
     if latest_model_path is not None:
         state = torch.load(latest_model_path)
-        # epoch = state['epoch']
-        epoch = 0
+        epoch = state['epoch']
         model.load_state_dict(state['model'])
         # weights = state['model']
         # weights_dict = {}
@@ -144,14 +143,14 @@ def train(dataset, model, criterion, optimizer, validation, args, logger):
             input_var  = Variable(input).cuda()
             target_var = Variable(target).cuda()
 
-            masks_pred = model(input_var)
+            masks_pred = model(input_var)[1]
 
             loss = calc_loss(masks_pred, target_var, criterion, 10)
             losses.update(loss)
 
-            if (i+total_iter) % args.print_freq == 0:
-                logger.log_scalar('train/lr', optimizer.param_groups[0]['lr'], i+total_iter)
-                logger.log_scalar('train/loss', losses.avg, i+total_iter)
+            # if (i+total_iter) % args.print_freq == 0:
+            #     logger.log_scalar('train/lr', optimizer.param_groups[0]['lr'], epoch)
+            #     logger.log_scalar('train/loss', losses.avg, epoch)
 
             tq.set_postfix(loss='{:.5f}'.format(losses.avg))
             tq.update(args.batch_size)
@@ -161,6 +160,8 @@ def train(dataset, model, criterion, optimizer, validation, args, logger):
             loss.backward()
             optimizer.step()
 
+        logger.log_scalar('train/lr', optimizer.param_groups[0]['lr'], epoch)
+        logger.log_scalar('train/loss', losses.avg, epoch)
         total_iter += len(train_loader)
         valid_metrics = validation(model, valid_loader, criterion)
         valid_loss = valid_metrics['valid_loss']
@@ -177,7 +178,7 @@ def train(dataset, model, criterion, optimizer, validation, args, logger):
                 'epoch': epoch,
                 'valid_loss': valid_loss,
                 'train_loss': losses.avg
-            }, f'checkpoints/Unet++_step2_{epoch}.pth')
+            }, f'{args.model_dir}/Unet++_step2_{epoch}.pth')
 
         if valid_loss < min_val_los:
             min_val_los = valid_loss
@@ -200,7 +201,7 @@ def validate(model, val_loader, criterion):
             input_var = Variable(input).cuda()
             target_var = Variable(target).cuda()
 
-            output = model(input_var)
+            output = model(input_var)[1]
             loss = calc_loss(output, target_var, criterion, 10)
             losses.update(loss.item())
 
@@ -216,7 +217,7 @@ def predict(test_loader, model, latest_model_path, save_dir = './result/test_loa
     with torch.no_grad():
         for idx, (img, lab) in enumerate(test_loader, 1):
             val_data  = Variable(img).cuda()
-            pred = model(val_data)
+            pred = model(val_data)[1]
             pred = torch.sigmoid(pred.squeeze(1).contiguous().cpu()).numpy()
             lab = lab.squeeze(1).numpy()
             pred_list.append(pred)
@@ -257,7 +258,7 @@ def predict(test_loader, model, latest_model_path, save_dir = './result/test_loa
     datetime.datetime.strftime(d,'%Y-%m-%d %H-%M-%S')
     os.makedirs('./result_dir', exist_ok=True)
     with open(os.path.join('./result_dir', str(d)+'.txt'), 'a', encoding='utf-8') as fout:
-                fout.write(latest_model_path+'\n')
+                fout.write(str(latest_model_path)+'\n')
                 for i in range(1, 10): 
                     line =  "threshold:{:d} | accuracy:{:.5f} | precision:{:.5f} | recall:{:.5f} | f1:{:.5f} " \
                         .format(i, metrics[i-1]['accuracy'],  metrics[i-1]['precision'],  metrics[i-1]['recall'],  metrics[i-1]['f1']) + '\n'
@@ -266,7 +267,7 @@ def predict(test_loader, model, latest_model_path, save_dir = './result/test_loa
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
-    parser.add_argument('--n_epoch', default=20, type=int, metavar='N', help='number of total epochs to run')
+    parser.add_argument('--n_epoch', default=50, type=int, metavar='N', help='number of total epochs to run')
     parser.add_argument('--lr', default=0.001, type=float, metavar='LR', help='initial learning rate')
     parser.add_argument('--momentum', default=0.9, type=float, metavar='M', help='momentum')
     parser.add_argument('--print_freq', default=100, type=int, metavar='N', help='print frequency (default: 10)')
@@ -329,7 +330,7 @@ if __name__ == '__main__':
     device = torch.device("cuda")
     # device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     num_gpu = torch.cuda.device_count()
-    model = UnetPlusPlus(num_classes=1)
+    model = UnetPlusPlus(num_classes=1, deep_supervision=True)
     model = torch.nn.DataParallel(model, device_ids=range(num_gpu))
     model.to(device)
     criterion = nn.BCEWithLogitsLoss()
@@ -338,7 +339,7 @@ if __name__ == '__main__':
                                 momentum=args.momentum,
                                 weight_decay=args.weight_decay)
 
-    train(_dataset, model, criterion, optimizer, validate, args, logger)
+    # train(_dataset, model, criterion, optimizer, validate, args, logger)
 
     latest_model_path = find_latest_model_path(args.model_dir)
     state = torch.load(latest_model_path)
@@ -349,5 +350,5 @@ if __name__ == '__main__':
     #     new_k = k.replace('module.', '') if 'module' in k else k
     #     weights_dict[new_k] = v
     # model.load_state_dict(weights_dict)
-    predict(test_loader, model, latest_model_path, '/home/wj/local/crack_segmentation/unet++/result/cracksl315/test_loader')
+    predict(test_loader, model, latest_model_path, '/home/wj/local/crack_segmentation/unet++/result/crackls315_out3/test_loader')
     

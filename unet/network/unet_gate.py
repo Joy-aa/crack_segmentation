@@ -13,8 +13,6 @@ from torch.nn.modules.utils import _pair
 import numpy as np
 import cv2
 
-input_size = (480, 480)
-
 class Interpolate(nn.Module):
     def __init__(self, size=None, scale_factor=None, mode='nearest', align_corners=False):
         super(Interpolate, self).__init__()
@@ -235,7 +233,7 @@ class UNetGate(nn.Module):
         conv4 = self.conv4(self.pool(conv3))    #b, 512, h/8, w/8
         conv5 = self.conv5(self.pool(conv4))    #b, 512, h/16, w/16
 
-        center = self.center(self.pool(conv5))  #b, 256, h/32, w/32
+        # center = self.center(self.pool(conv5))  #b, 256, h/32, w/32
 
         x_size = x.size() 
         im_arr = x.cpu().numpy().transpose((0,2,3,1)).astype(np.uint8) 
@@ -255,8 +253,8 @@ class UNetGate(nn.Module):
         edge5 = self.gate5(edge_inp, d5)
         edge5 = self.d5(edge5)
         edge5 = F.interpolate(edge5, conv4.size()[2:], mode='bilinear', align_corners=True) #b, 64, h/16, w/16
-        dec5 = self.dec5(torch.cat([center, conv5], 1))  #input:256+512, h/32, w/32; output:256, h/16, w/16
-        fuse5 = self.fuse5(edge5, dec5)                  #input:64+256, h/16, w/16; output:256, h/8, w/8
+        # dec5 = self.dec5(torch.cat([center, conv5], 1))  #input:256+512, h/32, w/32; output:256, h/16, w/16
+        fuse5 = self.fuse5(edge5, conv5)                  #input:64+256, h/16, w/16; output:256, h/8, w/8
         
 
         edge4 = self.gate4(edge5, d4)

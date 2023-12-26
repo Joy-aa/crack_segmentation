@@ -111,7 +111,7 @@ def calc_loss(masks_pred, target_var, r=1):
 
 def train(dataset, model, criterion, optimizer, validation, args, logger):
 
-    # latest_model_path = find_latest_model_path(args.model_dir)
+    latest_model_path = find_latest_model_path(args.model_dir)
     # latest_model_path = os.path.join(*[args.model_dir, 'model_start.pt'])
     latest_model_path = args.snapshot
     best_model_path = os.path.join(*[args.model_dir, 'model_best.pt'])
