@@ -12,10 +12,10 @@ import torchvision.transforms as transforms
 from torch.utils.data import DataLoader, random_split
 import sys
 sys.path.append("/home/wj/local/crack_segmentation")
-from logger import BoardLogger
-from data_loader import ImgDataSet
-from LossFunctions import BinaryFocalLoss, dice_loss
-from metric import calc_metric
+from segtool.logger import BoardLogger
+from segtool.data_loader import ImgDataSet
+from segtool.LossFunctions import BinaryFocalLoss, dice_loss
+from segtool.metric import calc_metric
 import numpy as np
 import os
 import argparse

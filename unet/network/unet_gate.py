@@ -217,7 +217,7 @@ class UNetGate(nn.Module):
         self.fuse2 = Fuse(8 + num_filters, num_filters * 2 * 2, num_filters)
         self.fuse1 = Fuse(8 + num_filters, num_filters * 2 * 2, num_filters)
 
-        self.dec5 = DecoderBlockV2(512 + num_filters * 8, num_filters * 8 * 2, num_filters * 8, is_deconv)
+        self.dec5 = DecoderBlockV2(512, num_filters * 8 * 2, num_filters * 8, is_deconv)
         self.dec4 = DecoderBlockV2(512 + num_filters * 8, num_filters * 8 * 2, num_filters * 8, is_deconv)
         self.dec3 = DecoderBlockV2(256 + num_filters * 8, num_filters * 4 * 2, num_filters * 2, is_deconv)
         self.dec2 = DecoderBlockV2(128 + num_filters * 2, num_filters * 2 * 2, num_filters, is_deconv)
@@ -253,8 +253,9 @@ class UNetGate(nn.Module):
         edge5 = self.gate5(edge_inp, d5)
         edge5 = self.d5(edge5)
         edge5 = F.interpolate(edge5, conv4.size()[2:], mode='bilinear', align_corners=True) #b, 64, h/16, w/16
-        # dec5 = self.dec5(torch.cat([center, conv5], 1))  #input:256+512, h/32, w/32; output:256, h/16, w/16
-        fuse5 = self.fuse5(edge5, conv5)                  #input:64+256, h/16, w/16; output:256, h/8, w/8
+        dec5 = self.dec5(conv5)  #input:512, h/16, w/16; output:256, h/8, w/8
+        # dec5 =  F.interpolate(conv5, conv4.size()[2:], mode='bilinear', align_corners=True) #b, 512, h/8, w/8
+        fuse5 = self.fuse5(edge5,dec5)                  #input:64+256, h/8, w/8; output:256, h/8, w/8
         
 
         edge4 = self.gate4(edge5, d4)
@@ -283,9 +284,9 @@ class UNetGate(nn.Module):
         fuse1 = self.fuse1(edge1, dec1)
 
         edge_out = torch.sigmoid(self.edge_final(edge1))
-        if self.num_classes > 1:
-            seg_out = F.log_softmax(self.final(fuse1), dim=1)
-        else:
-            seg_out = self.final(fuse1)
+        # if self.num_classes > 1:
+        #     seg_out = F.log_softmax(self.final(fuse1), dim=1)
+        # else:
+        seg_out = self.final(fuse1)
 
         return seg_out, edge_out

@@ -33,7 +33,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 import numpy as np
-from custom_functional import compute_grad_mag
+from loss.custom_functional import compute_grad_mag
 
 def perturbate_input_(input, n_elements=200):
     N, C, H, W = input.shape
