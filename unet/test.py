@@ -120,7 +120,7 @@ if __name__ == '__main__':
             fout.write(str(path)+'\n')
             for i in range(1, 10):
                 threshold = i / 10
-                metric =  single_result(model=model,img=img_0,lab=gt,th=threshold,txt_path=txt_path)
+                metric = single_result(model=model,img=img_0,lab=gt,th=threshold,txt_path=txt_path)
                 line =  "threshold:{:d} | accuracy:{:.5f} | precision:{:.5f} | recall:{:.5f} | f1:{:.5f} " \
                     .format(i, metric['accuracy'],  metric['precision'],  metric['recall'],  metric['f1']) + '\n'
                 fout.write(line)

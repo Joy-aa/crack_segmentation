@@ -1,0 +1,2 @@
+/mnt/nfs/wj/data/image/creak_s6.JPG
+accuracy:0.99652 | precision:0.90865 | recall:0.99273 | f1:0.94883 

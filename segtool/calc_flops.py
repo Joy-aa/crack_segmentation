@@ -9,10 +9,10 @@ import os
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 # device = torch.device("cuda")
-input = torch.randn(1, 3, 192, 192).cuda()
+input = torch.randn(1, 3, 224, 224).cuda()
 
-model = UNetGate().cuda()
-# model = UNet16().cuda()
+# model = UNetGate().cuda()
+model = UNet16().cuda()
 # model = Model() 
 
 flops, params = profile(model, inputs=(input, )) 

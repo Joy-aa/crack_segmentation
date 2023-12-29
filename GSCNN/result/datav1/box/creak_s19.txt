@@ -1,0 +1,2 @@
+/mnt/nfs/wj/data/image/creak_s19.JPG
+accuracy:1.00000 | precision:1.00000 | recall:1.00000 | f1:1.00000 

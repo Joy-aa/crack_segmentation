@@ -1,0 +1,2 @@
+/mnt/nfs/wj/dataV2/image/creak_p13.jpg
+accuracy:0.94535 | precision:0.08000 | recall:0.25703 | f1:0.12202 

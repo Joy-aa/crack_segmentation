@@ -1,0 +1,6 @@
+/mnt/nfs/wj/dataV2/image/creak_p11.jpg
+accuracy:0.95633 | precision:0.15868 | recall:0.87861 | f1:0.26881 
+/mnt/nfs/wj/dataV2/image/creak_p11.jpg
+accuracy:0.95633 | precision:0.15868 | recall:0.87861 | f1:0.26881 
+/mnt/nfs/wj/dataV2/image/creak_p11.jpg
+accuracy:0.95633 | precision:0.15868 | recall:0.87861 | f1:0.26881 

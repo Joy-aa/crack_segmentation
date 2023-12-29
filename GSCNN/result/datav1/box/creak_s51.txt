@@ -1,0 +1,2 @@
+/mnt/nfs/wj/data/image/creak_s51.jpg
+accuracy:0.99751 | precision:0.96060 | recall:0.99905 | f1:0.97945 

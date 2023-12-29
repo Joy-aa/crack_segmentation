@@ -14,7 +14,7 @@ import sys
 sys.path.append("/home/wj/local/crack_segmentation")
 from segtool.logger import BoardLogger
 from segtool.measure import measure
-from segtool.data_loader import ImgDataSet, CrackDataSet
+from segtool.data_loader import ImgDataSet
 import os
 import datetime
 import argparse
@@ -249,7 +249,7 @@ def predict(test_loader, model, latest_model_path, save_dir = './result/test_loa
                 mask = (mask.transpose(2, 1, 0)*255).astype('uint8')
                 mask[mask > 127] = 255
                 mask[mask < 255] = 0
-                crackInfos = measure(mask=mask)
+                # crackInfos = measure(mask=mask)
 
                 label = (label.transpose(2, 1, 0)*255).astype('uint8')
                 label[label>0] = 255
@@ -264,11 +264,11 @@ def predict(test_loader, model, latest_model_path, save_dir = './result/test_loa
 
                 cv2.imwrite(os.path.join(save_dir,'%d_test.png' % idx), res)
                 
-                with open(os.path.join(save_dir,'%d_test.txt' % idx), 'a', encoding='utf-8') as fout:
-                    for crack in crackInfos:
-                        line =  "box:[{:d},{:d},{:d},{:d}] | length:{:.5f} | avg_width:{:.5f} | max_width:{:.5f} " \
-                            .format( crack['box'][0], crack['box'][1], crack['box'][2], crack['box'][3], crack['length'],  crack['avg_width'],  crack['max_width']) + '\n'
-                        fout.write(line)
+                # with open(os.path.join(save_dir,'%d_test.txt' % idx), 'a', encoding='utf-8') as fout:
+                #     for crack in crackInfos:
+                #         line =  "box:[{:d},{:d},{:d},{:d}] | length:{:.5f} | avg_width:{:.5f} | max_width:{:.5f} " \
+                #             .format( crack['box'][0], crack['box'][1], crack['box'][2], crack['box'][3], crack['length'],  crack['avg_width'],  crack['max_width']) + '\n'
+                #         fout.write(line)
             bar.update(1)
     bar.close
 
@@ -314,28 +314,9 @@ if __name__ == '__main__':
     os.makedirs(args.model_dir, exist_ok=True)
 
     # 第一阶段训练
-    TRAIN_IMG  = os.path.join(args.data_dir, 'images')
-    TRAIN_MASK = os.path.join(args.data_dir, 'labels')
-    train_img_names  = [path.name for path in Path(TRAIN_IMG).glob('*.jpg')]
-    train_mask_names = [path.name for path in Path(TRAIN_MASK).glob('*.png')]
-    print(f'total train images = {len(train_img_names)}')
-
-    channel_means = [0.485, 0.456, 0.406]
-    channel_stds  = [0.229, 0.224, 0.225]
-    train_tfms = transforms.Compose([transforms.ToTensor(),
-                                     transforms.Normalize(channel_means, channel_stds)])
-    val_tfms = transforms.Compose([transforms.ToTensor(),
-                                   transforms.Normalize(channel_means, channel_stds)])
-    mask_tfms = transforms.Compose([transforms.ToTensor()])
-
-    # train_dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
-
-# 第二阶段训练
-    # TRAIN_IMG  = os.path.join(args.data_dir, 'imgs')
-    # TRAIN_MASK = os.path.join(args.data_dir, 'masks')
-
-
-    # train_img_names  = [path.name for path in Path(TRAIN_IMG).glob('*.png')]
+    # TRAIN_IMG  = os.path.join(args.data_dir, 'images')
+    # TRAIN_MASK = os.path.join(args.data_dir, 'labels')
+    # train_img_names  = [path.name for path in Path(TRAIN_IMG).glob('*.jpg')]
     # train_mask_names = [path.name for path in Path(TRAIN_MASK).glob('*.png')]
     # print(f'total train images = {len(train_img_names)}')
 
@@ -343,15 +324,34 @@ if __name__ == '__main__':
     # channel_stds  = [0.229, 0.224, 0.225]
     # train_tfms = transforms.Compose([transforms.ToTensor(),
     #                                  transforms.Normalize(channel_means, channel_stds)])
-
     # val_tfms = transforms.Compose([transforms.ToTensor(),
     #                                transforms.Normalize(channel_means, channel_stds)])
-
     # mask_tfms = transforms.Compose([transforms.ToTensor()])
+
+    # train_dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
+
+# 第二阶段训练
+    TRAIN_IMG  = os.path.join(args.data_dir, 'imgs')
+    TRAIN_MASK = os.path.join(args.data_dir, 'masks')
+
+
+    train_img_names  = [path.name for path in Path(TRAIN_IMG).glob('*.png')]
+    train_mask_names = [path.name for path in Path(TRAIN_MASK).glob('*.png')]
+    print(f'total train images = {len(train_img_names)}')
+
+    channel_means = [0.485, 0.456, 0.406]
+    channel_stds  = [0.229, 0.224, 0.225]
+    train_tfms = transforms.Compose([transforms.ToTensor(),
+                                     transforms.Normalize(channel_means, channel_stds)])
+
+    val_tfms = transforms.Compose([transforms.ToTensor(),
+                                   transforms.Normalize(channel_means, channel_stds)])
+
+    mask_tfms = transforms.Compose([transforms.ToTensor()])
 
     train_dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
     # train_dataset = CrackDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
-    train_size = int(len(train_dataset)*0.7)
+    train_size = int(len(train_dataset)*0.9)
     _dataset, test_dataset = random_split(train_dataset, [train_size, len(train_dataset) - train_size],torch.Generator().manual_seed(42))
     # train_dataset, valid_dataset = random_split(_dataset, [0.9, 0.1],torch.Generator().manual_seed(42))
     # train_loader = torch.utils.data.DataLoader(train_dataset, args.batch_size, shuffle=True, pin_memory=torch.cuda.is_available(), num_workers=4)
@@ -376,9 +376,9 @@ if __name__ == '__main__':
     criterion = torch.nn.BCEWithLogitsLoss().to(device)
     # criterion = BinaryFocalLoss()
 
-    long_id = '%s_%s' % (str(args.lr), datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S'))
-    logger = BoardLogger(long_id)
-    train(_dataset, model, criterion, optimizer, validate, args, logger)
+    # long_id = '%s_%s' % (str(args.lr), datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S'))
+    # logger = BoardLogger(long_id)
+    # train(_dataset, model, criterion, optimizer, validate, args, logger)
 
     np.random.seed(0)
     vis_sample_id = np.random.randint(0, len(test_loader), 50, np.int32)  # sample idxs for visualization

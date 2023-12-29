@@ -1,6 +1,6 @@
 import sys
 sys.path.append('/home/wj/local/crack_segmentation')
-from metric import *
+from segtool.metric import *
 import os
 import numpy as np
 from pathlib import Path
@@ -17,6 +17,7 @@ from PIL import Image
 import gc
 from unet.network.build_unet import load_unet_vgg16, load_unet_resnet_101, load_unet_resnet_34
 from tqdm import tqdm
+from datetime import datetime
 
 
 def evaluate_img(model, img):

@@ -1,2 +1,0 @@
-/home/wj/local/crack_segmentation/GSCNN/checkpoints/dice_loss/model_best.pt
-threshold:0.5 | accuracy:0.98020 | precision:1.00000 | recall:0.00000 | f1:0.00000 

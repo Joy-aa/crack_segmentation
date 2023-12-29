@@ -1,0 +1,3 @@
+/mnt/nfs/wj/dataV2/image/creak_p19.jpg
+/mnt/nfs/wj/dataV2/image/creak_p19.jpg
+detection nothing! 

@@ -6,6 +6,7 @@ import loss
 import argparse
 from datasets import crack
 import os
+import time
 
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
 parser.add_argument('--max_epoch', default=50, type=int, metavar='N', help='number of total epochs to run')
@@ -42,16 +43,33 @@ args = parser.parse_args()
 args.dataset_cls = crack
 
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-# device = torch.device("cuda")
-input = torch.randn(1, 3, 192, 192).cuda()
+# os.environ["CUDA_VISIBLE_DEVICES"] = ','.join(map(str, [0])) 
+# device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+device = torch.device('cpu')
+print(torch.cuda.device_count())
 
-criterion, criterion_val = loss.get_loss(args)
-model = network.get_net(args, criterion)
-# model = Model() 
+dump_input = torch.ones(1,3,224,224).to(device)
 
-flops, params = profile(model, inputs=(input, )) 
+criterion = torch.nn.BCEWithLogitsLoss()
+model = network.get_model(network='network.gscnn.GSCNN', num_classes=2, criterion=criterion, trunk='resnet50')
+model.eval()
+model.to(device)
+
+flops, params = profile(model, inputs=(dump_input, )) 
 
 flops, params = clever_format([flops, params], "%.3f") 
 print(flops)
 print(params)
+
+
+# Warn-up
+for _ in range(10):
+    start = time.time()
+    outputs = model(dump_input)
+    torch.cuda.synchronize()
+    end = time.time()
+    print('Time:{}ms'.format((end-start)*1000))
+
+with torch.autograd.profiler.profile(enabled=True, use_cuda=True, record_shapes=False, profile_memory=False) as prof:
+    outputs = model(dump_input)
+print(prof.table())

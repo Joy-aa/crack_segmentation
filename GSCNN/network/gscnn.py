@@ -285,6 +285,7 @@ class GSCNN(nn.Module):
         for i in range(x_size[0]):
             canny[i] = cv2.Canny(im_arr[i],10,100)
         canny = torch.from_numpy(canny).cuda().float()
+        # canny = torch.from_numpy(canny).float()
 
         cs = self.res1(m1f)
         cs = F.interpolate(cs, x_size[2:],
