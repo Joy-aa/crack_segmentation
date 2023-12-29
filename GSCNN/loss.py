@@ -46,13 +46,13 @@ class JointEdgeSegLoss(nn.Module):
         super(JointEdgeSegLoss, self).__init__()
         self.num_classes = classes
 
-        self.seg_loss = DiceLoss(multiclass=False)
-        # if mode == 'train':
-        #     self.seg_loss = ImageBasedCrossEntropyLoss2d(
-        #             classes=classes, ignore_index=ignore_index, upper_bound=upper_bound).cuda()
-        # elif mode == 'val':
-        #     self.seg_loss = CrossEntropyLoss2d(size_average=True,
-        #                                        ignore_index=ignore_index).cuda()
+        # self.seg_loss = DiceLoss(multiclass=False)
+        if mode == 'train':
+            self.seg_loss = ImageBasedCrossEntropyLoss2d(
+                    classes=classes, ignore_index=ignore_index, upper_bound=upper_bound).cuda()
+        elif mode == 'val':
+            self.seg_loss = CrossEntropyLoss2d(size_average=True,
+                                               ignore_index=ignore_index).cuda()
 
         self.edge_weight = edge_weight
         self.seg_weight = seg_weight
