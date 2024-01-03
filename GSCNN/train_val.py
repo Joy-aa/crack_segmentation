@@ -88,9 +88,7 @@ def calc_loss(masks_pred, target_var, r=1):
     loss += dice_loss(torch.sigmoid(masks_pred.squeeze(1)), target_var.squeeze(1).float(), multiclass=False)
     return loss
 
-def train(dataset, model, criterion, optimizer, validation, args, logger, criterion_val):
-
-    # model.train()
+def train(dataset, model, criterion, optimizer, validation, args, logger, criterion_val, test_dataset):
 
     # latest_model_path = find_latest_model_path(args.model_dir)
     # latest_model_path = os.path.join(*[args.model_dir, 'model_start.pt'])
@@ -101,23 +99,19 @@ def train(dataset, model, criterion, optimizer, validation, args, logger, criter
         state = torch.load(latest_model_path)
         # epoch = state['epoch']
         epoch = 0
-        # model.load_state_dict(state['state_dict'])
         weights = state['state_dict']
         weights_dict = {}
         for k, v in weights.items():
             if k == 'module.criterion.seg_loss.nll_loss.weight':
-                # print(k)
                 continue
             weights_dict[k] = v
             # new_k = k.replace('module.', '') if 'module' in k else k
             # weights_dict[new_k] = v
         model.load_state_dict(weights_dict)
 
-        #if latest model path does exist, best_model_path should exists as well
-        # assert Path(best_model_path).exists() == True, f'best model path {best_model_path} does not exist'
-        #load the min loss so far
-        best_state = torch.load(latest_model_path)
-        min_val_los = best_state['valid_loss']
+        # best_state = torch.load(latest_model_path)
+        # min_val_los = best_state['valid_loss']
+        min_val_los = 0
 
         print(f'Restored model at epoch {epoch}. Min validation loss so far is : {min_val_los}')
         epoch += 1
@@ -127,10 +121,8 @@ def train(dataset, model, criterion, optimizer, validation, args, logger, criter
         epoch = 1
         min_val_los = 9999
 
-    # train_size = int(len(dataset)*0.9)
-    train_dataset, valid_dataset = random_split(dataset, [0.9, 0.1])
-    train_loader = torch.utils.data.DataLoader(train_dataset, args.batch_size, shuffle=True, drop_last=True, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
-    valid_loader = torch.utils.data.DataLoader(valid_dataset, 4, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
+    train_loader = torch.utils.data.DataLoader(dataset, args.batch_size, shuffle=True, drop_last=True, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
+    test_loader = torch.utils.data.DataLoader(test_dataset, 1, shuffle=False, pin_memory=False)
     for epoch in range(epoch, args.max_epoch + 1):
 
         adjust_learning_rate(optimizer, epoch, args.lr)
@@ -159,9 +151,6 @@ def train(dataset, model, criterion, optimizer, validation, args, logger, criter
             loss_dict = None
 
             if args.joint_edgeseg_loss:
-                # print(input_var.shape)
-                # print(target_var.shape)
-                # print(edge_var.shape)
                 loss_dict = model(input_var, gts=(target_var, edge_var))
                 
                 if args.seg_weight > 0:
@@ -214,10 +203,13 @@ def train(dataset, model, criterion, optimizer, validation, args, logger, criter
         logger.log_scalar('train/main_loss', train_main_loss.avg, epoch)
         logger.log_scalar('train/seg_loss', train_seg_loss.avg, epoch)
         logger.log_scalar('train/edge_loss', train_edge_loss.avg, epoch)
-        valid_metrics = validation(model, valid_loader, criterion_val)
-        valid_loss = valid_metrics['valid_loss']
-        logger.log_scalar('valid/loss', valid_loss, epoch)
-        print(f'\tvalid_loss = {valid_loss:.5f}')
+        valid_metrics = validation(test_loader, model)
+        valid_score = valid_metrics['f1']
+        logger.log_scalar('valid/f1', valid_metrics['f1'], epoch)
+        logger.log_scalar('valid/precision', valid_metrics['precision'], epoch)
+        logger.log_scalar('valid/recall', valid_metrics['recall'], epoch)
+
+        print(f'\tvalid_metric = {valid_score:.5f}')
         tq.close()
 
         #save the model of the current epoch
@@ -226,17 +218,17 @@ def train(dataset, model, criterion, optimizer, validation, args, logger, criter
             torch.save({
                 'state_dict': model.state_dict(),
                 'epoch': epoch,
-                'valid_loss': valid_loss,
+                'valid_loss': valid_score,
                 'train_loss': train_main_loss.avg
             }, epoch_model_path)
 
-        if valid_loss < min_val_los:
-            min_val_los = valid_loss
+        if valid_score > min_val_los:
+            min_val_los = valid_score
 
             torch.save({
                 'state_dict': model.state_dict(),
                 'epoch': epoch,
-                'valid_loss': valid_loss,
+                'valid_loss': valid_score,
                 'train_loss': train_main_loss.avg
             }, best_model_path)
 
@@ -267,12 +259,11 @@ def validate(model, val_loader, criterion):
 
     return {'valid_loss': val_loss.avg}
 
-def predict(test_loader, model, latest_model_path, save_dir = './result/test_loader', device = torch.device("cuda:0"), vis_sample_id = None):
-    if save_dir != '':
-        os.makedirs(save_dir, exist_ok=True)
+def predict(test_loader, model):
+    # if save_dir != '':
+    #     os.makedirs(save_dir, exist_ok=True)
 
     model.eval()
-    metrics=[]
     pred_list = []
     gt_list = []
     denorm = Denormalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
@@ -280,7 +271,7 @@ def predict(test_loader, model, latest_model_path, save_dir = './result/test_loa
     with torch.no_grad():
         for idx, (img, lab, edge) in enumerate(test_loader, 1):
             # val_data  = Variable(img).cuda()
-            val_data = Variable(img).to(device)
+            val_data = Variable(img).cuda()
             pred, edge_out= model(val_data)
 
             image = (denorm(img) * 255).squeeze(0).contiguous().cpu().numpy()
@@ -290,7 +281,6 @@ def predict(test_loader, model, latest_model_path, save_dir = './result/test_loa
             preds = torch.gt(temp_inputs[...,1], temp_inputs[...,0]).int().squeeze(-1)
             mask = preds.squeeze(0).view(h,w).contiguous().cpu().numpy()
             mask = np.expand_dims(mask, axis=0)
-            # mask = torch.sigmoid(pred.squeeze(0)).contiguous().cpu().numpy()
             label = lab.contiguous().cpu().numpy()
             
             mask = (mask.transpose(2, 1, 0)*255).astype('uint8')
@@ -302,24 +292,24 @@ def predict(test_loader, model, latest_model_path, save_dir = './result/test_loa
             pred_list.append(mask)
             gt_list.append(label)
 
-            if idx in vis_sample_id:
+            # if idx in vis_sample_id:
 
-                zeros = np.zeros(mask.shape)
-                mask = np.concatenate((mask,zeros,zeros),axis=-1).astype(np.uint8)
-                label = np.concatenate((zeros,zeros,label),axis=-1).astype(np.uint8)
+            #     zeros = np.zeros(mask.shape)
+            #     mask = np.concatenate((mask,zeros,zeros),axis=-1).astype(np.uint8)
+            #     label = np.concatenate((zeros,zeros,label),axis=-1).astype(np.uint8)
                 
-                temp = cv2.addWeighted(label,1,mask,1,0)
-                res = cv2.addWeighted(image,0.6,temp,0.4,0)
+            #     temp = cv2.addWeighted(label,1,mask,1,0)
+            #     res = cv2.addWeighted(image,0.6,temp,0.4,0)
 
-                # n, c, h, w = edge_out.size()
-                edge_pred = torch.sigmoid(edge_out.squeeze(0)).contiguous().cpu().numpy().transpose(2, 1, 0)
-                edge_mask = np.where(edge_pred > 0.7, edge_pred, zeros)
-                # edge_mask[edge_mask > 127] = 255
-                edge_mask = np.concatenate((zeros,zeros,edge_mask * 255),axis=-1).astype(np.uint8)
-                res_edge = cv2.addWeighted(image,0.6,edge_mask,0.4,0)
+            #     # n, c, h, w = edge_out.size()
+            #     edge_pred = torch.sigmoid(edge_out.squeeze(0)).contiguous().cpu().numpy().transpose(2, 1, 0)
+            #     edge_mask = np.where(edge_pred > 0.7, edge_pred, zeros)
+            #     # edge_mask[edge_mask > 127] = 255
+            #     edge_mask = np.concatenate((zeros,zeros,edge_mask * 255),axis=-1).astype(np.uint8)
+            #     res_edge = cv2.addWeighted(image,0.6,edge_mask,0.4,0)
 
-                cv2.imwrite(os.path.join(save_dir,'%d_test_seg.png' % idx), res)
-                cv2.imwrite(os.path.join(save_dir,'%d_test_edge.png' % idx), res_edge)
+            #     cv2.imwrite(os.path.join(save_dir,'%d_test_seg.png' % idx), res)
+            #     cv2.imwrite(os.path.join(save_dir,'%d_test_edge.png' % idx), res_edge)
 
             bar.update(1)
     bar.close
@@ -327,21 +317,22 @@ def predict(test_loader, model, latest_model_path, save_dir = './result/test_loa
     # for i in range(1, 10):
                 # threshold = i / 10
     metric = calc_metric(pred_list, gt_list, mode='list', threshold=0.5, max_value=255)
-    print(metric)
-    d = datetime.datetime.today()
-    datetime.datetime.strftime(d,'%Y-%m-%d %H-%M-%S')
-    os.makedirs('./result_dir', exist_ok=True)
-    with open(os.path.join('./result_dir', str(d)+'.txt'), 'a', encoding='utf-8') as fout:
-                fout.write(str(latest_model_path)+'\n')
-                # for i in range(1, 10): 
-                line =  "threshold:0.5 | accuracy:{:.5f} | precision:{:.5f} | recall:{:.5f} | f1:{:.5f} | miou:{:.5f} " \
-                    .format(metric['accuracy'],  metric['precision'],  metric['recall'],  metric['f1'],  metric['miou']) + '\n'
-                fout.write(line)
+    return metric
+    # print(metric)
+    # d = datetime.datetime.today()
+    # datetime.datetime.strftime(d,'%Y-%m-%d %H-%M-%S')
+    # os.makedirs('./result_dir', exist_ok=True)
+    # with open(os.path.join('./result_dir', str(d)+'.txt'), 'a', encoding='utf-8') as fout:
+    #             fout.write(str(latest_model_path)+'\n')
+    #             # for i in range(1, 10): 
+    #             line =  "threshold:0.5 | accuracy:{:.5f} | precision:{:.5f} | recall:{:.5f} | f1:{:.5f} " \
+    #                 .format(metric['accuracy'],  metric['precision'],  metric['recall'],  metric['f1']) + '\n'
+    #             fout.write(line)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
-    parser.add_argument('--max_epoch', default=50, type=int, metavar='N', help='number of total epochs to run')
-    parser.add_argument('--lr', default=0.0005, type=float, metavar='LR', help='initial learning rate')
+    parser.add_argument('--max_epoch', default=30, type=int, metavar='N', help='number of total epochs to run')
+    parser.add_argument('--lr', default=0.0002, type=float, metavar='LR', help='initial learning rate')
     parser.add_argument('--momentum', default=0.9, type=float, metavar='M', help='momentum')
     parser.add_argument('--print_freq', default=100, type=int, metavar='N', help='print frequency (default: 10)')
     parser.add_argument('--weight_decay', default=5e-4, type=float, metavar='W', help='weight decay (default: 1e-4)')
@@ -395,13 +386,9 @@ if __name__ == '__main__':
                                    transforms.Normalize(channel_means, channel_stds)])
     mask_tfms = transforms.Compose([transforms.ToTensor()])
 
-    # dataset = crack.CrackDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
-    # _dataset, test_dataset = random_split(dataset, [0.9, 0.1],torch.Generator().manual_seed(42))
-    # test_loader = torch.utils.data.DataLoader(test_dataset, 1, shuffle=False, pin_memory=False)
-
     _dataset = crack.CrackDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
     test_dataset = crack.CrackDataSet(img_dir=TEST_IMG, img_fnames=test_img_names, img_transform=train_tfms, mask_dir=TEST_MASK, mask_fnames=test_mask_names, mask_transform=mask_tfms)
-    test_loader = torch.utils.data.DataLoader(test_dataset, 1, shuffle=False, pin_memory=False)
+    # test_loader = torch.utils.data.DataLoader(test_dataset, 1, shuffle=False, pin_memory=False)
 
 
     os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
@@ -413,18 +400,18 @@ if __name__ == '__main__':
     model = network.get_net(args, criterion)
     optim, scheduler = optimizer.get_optimizer(args, model)
 
-    # long_id = 'damcrack_%s_%s' % (str(args.lr), datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S'))
-    # logger = BoardLogger(long_id)
-    # train(_dataset, model, criterion, optim, validate, args, logger, criterion_val)
+    long_id = 'damcrack_%s_%s' % (str(args.lr), datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S'))
+    logger = BoardLogger(long_id)
+    train(_dataset, model, criterion, optim, predict, args, logger, criterion_val, test_dataset)
 
-    np.random.seed(0)
-    vis_sample_id = np.random.randint(0, len(test_loader), 100, np.int32)  # sample idxs for visualization
+    # np.random.seed(0)
+    # vis_sample_id = np.random.randint(0, len(test_loader), 100, np.int32)  # sample idxs for visualization
 
     # latest_model_path = find_latest_model_path(args.model_dir)
-    latest_model_path = os.path.join(*[args.model_dir, 'gscnn_epoch_50.pt'])
-    state = torch.load(latest_model_path)
-    epoch = state['epoch']
-    model.load_state_dict(state['state_dict'])
+    # latest_model_path = os.path.join(*[args.model_dir, 'gscnn_epoch_50.pt'])
+    # state = torch.load(latest_model_path)
+    # epoch = state['epoch']
+    # model.load_state_dict(state['state_dict'])
     # weights = state['model']
     # weights_dict = {}
     # for k, v in weights.items():
@@ -432,5 +419,5 @@ if __name__ == '__main__':
     #     weights_dict[new_k] = v
     # model.load_state_dict(weights_dict)
 
-    predict(test_loader, model, latest_model_path, os.path.join(args.model_dir, 'test_visual'), device=device, vis_sample_id=vis_sample_id)
+    # predict(test_loader, model, latest_model_path, os.path.join(args.model_dir, 'test_visual'), device=device, vis_sample_id=vis_sample_id)
 

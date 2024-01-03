@@ -45,8 +45,6 @@ class JointEdgeSegLoss(nn.Module):
                  edge_weight=1, seg_weight=1, att_weight=1, dual_weight=1, edge='none'):
         super(JointEdgeSegLoss, self).__init__()
         self.num_classes = classes
-
-        # self.seg_loss = DiceLoss(multiclass=False)
         if mode == 'train':
             self.seg_loss = ImageBasedCrossEntropyLoss2d(
                     classes=classes, ignore_index=ignore_index, upper_bound=upper_bound).cuda()
@@ -66,7 +64,6 @@ class JointEdgeSegLoss(nn.Module):
     
         log_p = input.transpose(1, 2).transpose(2, 3).contiguous().view(1, -1)
         target_t = target.transpose(1, 2).transpose(2, 3).contiguous().view(1, -1)
-        # target_t = target.view(1, -1) # 摊平了
         target_trans = target_t.clone()
 
         pos_index = (target_t ==1)
@@ -97,13 +94,12 @@ class JointEdgeSegLoss(nn.Module):
 
     def edge_attention(self, input, target, edge):
         n, c, h, w = input.size()
-        filler = torch.ones_like(target)
+        filler = torch.ones_like(target) * 255
         return self.seg_loss(input, 
                              torch.where(edge.max(1)[0] > 0.8, target, filler))
 
     def forward(self, inputs, targets):
         segin, edgein = inputs
-        # edgein = torch.sigmoid(edgein)
         segmask, edgemask = targets
 
         losses = {}
@@ -114,6 +110,7 @@ class JointEdgeSegLoss(nn.Module):
         if(torch.isnan(attention_edge)):
             attention_edge = torch.zeros_like(attention_edge)
         losses['att_loss'] = self.att_weight * attention_edge
+        # losses['att_loss'] = self.att_weight * self.edge_attention(segin, segmask, edgein)
         losses['dual_loss'] = self.dual_weight * self.dual_task(segin, segmask)
               
         return losses
@@ -126,14 +123,14 @@ class ImageBasedCrossEntropyLoss2d(nn.Module):
         super(ImageBasedCrossEntropyLoss2d, self).__init__()
         logging.info("Using Per Image based weighted loss")
         self.num_classes = classes
-        self.nll_loss = nn.NLLLoss(weight, size_average, ignore_index)
-        self.celoss = nn.CrossEntropyLoss(weight, ignore_index, reduction = 'mean')
+        self.nll_loss = nn.NLLLoss2d(weight, size_average, ignore_index)
         self.norm = norm
         self.upper_bound = upper_bound
         self.batch_weights = cfg.BATCH_WEIGHTING
 
     def calculateWeights(self, target):
-        hist = np.histogram(target.flatten(), range(self.num_classes + 1), density=True)[0]
+        hist = np.histogram(target.flatten(), range(
+            self.num_classes + 1), density=True)[0]
         if self.norm:
             hist = ((hist != 0) * self.upper_bound * (1 / hist)) + 1
         else:
@@ -154,7 +151,6 @@ class ImageBasedCrossEntropyLoss2d(nn.Module):
             
             loss += self.nll_loss(F.log_softmax(inputs[i].unsqueeze(0), dim=1),
                                           targets[i].unsqueeze(0))
-            # loss += self.celoss(inputs[i].unsqueeze(0), targets[i].unsqueeze(0))
         return loss
 
 
@@ -163,11 +159,10 @@ class CrossEntropyLoss2d(nn.Module):
     def __init__(self, weight=None, size_average=True, ignore_index=255):
         super(CrossEntropyLoss2d, self).__init__()
         logging.info("Using Cross Entropy Loss")
-        self.nll_loss = nn.NLLLoss(weight, size_average, ignore_index)
+        self.nll_loss = nn.NLLLoss2d(weight, size_average, ignore_index)
 
     def forward(self, inputs, targets):
         return self.nll_loss(F.log_softmax(inputs, dim=1), targets)
-
 
 class DiceLoss(nn.Module):
     def __init__(self, multiclass: bool = False, reduce_batch_first: bool = False, epsilon: float = 1e-6):
@@ -232,3 +227,4 @@ class DiceLoss(nn.Module):
         return 1 - fn(mask, target)
         # return self.calc_loss(input, target)
 
+# self.seg_loss = DiceLoss(multiclass=False)

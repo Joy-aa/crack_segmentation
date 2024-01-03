@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 import datasets.edge_utils as edge_utils
 import torch 
 from config import cfg
+import cv2
 
 num_classes=2
 ignore_label = 255
