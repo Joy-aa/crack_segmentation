@@ -1,0 +1,10 @@
+checkpoints/crackseg9k/loss3/model_best.pt
+threshold:1 | accuracy:0.97991 | precision:0.74029 | recall:0.60343 | f1:0.66489 | miou:0.73875
+threshold:2 | accuracy:0.97991 | precision:0.74029 | recall:0.60343 | f1:0.66489 | miou:0.73875
+threshold:3 | accuracy:0.97991 | precision:0.74029 | recall:0.60343 | f1:0.66489 | miou:0.73875
+threshold:4 | accuracy:0.97991 | precision:0.74029 | recall:0.60343 | f1:0.66489 | miou:0.73875
+threshold:5 | accuracy:0.97991 | precision:0.74029 | recall:0.60343 | f1:0.66489 | miou:0.73875
+threshold:6 | accuracy:0.97991 | precision:0.74029 | recall:0.60343 | f1:0.66489 | miou:0.73875
+threshold:7 | accuracy:0.97991 | precision:0.74029 | recall:0.60343 | f1:0.66489 | miou:0.73875
+threshold:8 | accuracy:0.97991 | precision:0.74029 | recall:0.60343 | f1:0.66489 | miou:0.73875
+threshold:9 | accuracy:0.97991 | precision:0.74029 | recall:0.60343 | f1:0.66489 | miou:0.73875
