@@ -23,7 +23,7 @@ def get_loss(args):
 
         criterion_val = JointEdgeSegLoss(classes=2, mode='val',ignore_index=255, upper_bound=1,edge_weight=1, seg_weight=1, att_weight=0, dual_weight=0).cuda()
     else:
-        criterion = SegEdgeSegLoss(classes=2, ignore_index=255, dice=args.r0, seg_ce_weight=args.r1, edge_weight=args.r2).cuda()
+        criterion = SegEdgeSegLoss(classes=2, ignore_index=255, dice=args.r0, normalise=args.normal, seg_ce_weight=args.r1, edge_weight=args.r2).cuda()
         criterion_val = SegEdgeSegLoss(classes=2, ignore_index=255, dice=False, seg_ce_weight=1, edge_weight=20).cuda()
                                
     return criterion, criterion_val
@@ -105,7 +105,7 @@ class JointEdgeSegLoss(nn.Module):
         return losses
     
 class SegEdgeSegLoss(nn.Module):
-    def __init__(self, classes, ignore_index=255, dice = True, seg_ce_weight=5, edge_weight=10):
+    def __init__(self, classes, ignore_index=255, dice = True, normalise = False, seg_ce_weight=5, edge_weight=10):
         super(SegEdgeSegLoss, self).__init__()
         self.num_classes = classes
         # if mode == 'train':
@@ -114,8 +114,10 @@ class SegEdgeSegLoss(nn.Module):
         # elif mode == 'val':
         self.seg_loss = CrossEntropyLoss2d(size_average=True, ignore_index=ignore_index).cuda()
         self.dice_loss = DiceLoss(multiclass=False)
+        self.dual_task = DualTaskLoss()
 
         self.dice = dice
+        self.normalise = normalise
         self.edge_weight = edge_weight
         self.seg_weight = seg_ce_weight
 
@@ -168,6 +170,14 @@ class SegEdgeSegLoss(nn.Module):
         losses['edge_loss'] = self.edge_weight * self.bce2d(edgein, edgemask)
         if self.dice:
             losses['dice_loss'] = self.dice_loss(segin, segmask)
+        
+        if self.normalise:
+            attention_edge = self.edge_attention(segin, segmask, edgein)
+            if(torch.isnan(attention_edge)):
+                attention_edge = torch.zeros_like(attention_edge)
+            losses['att_loss'] =  attention_edge
+            # losses['att_loss'] = self.att_weight * self.edge_attention(segin, segmask, edgein)
+            losses['dual_loss'] = self.dual_task(segin, segmask)
               
         return losses
 
