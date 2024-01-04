@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # python train_gate.py --data_dir  /mnt/hangzhou_116_homes/zek/crackseg9k/ --model_dir checkpoints/crackseg9k/loss1 --r0 --r1 1 --r2 20
-python train_gate.py --data_dir  /mnt/hangzhou_116_homes/zek/crackseg9k/ --model_dir checkpoints/crackseg9k/loss2 --joint_edgeseg_loss
+# python train_gate.py --data_dir  /mnt/hangzhou_116_homes/zek/crackseg9k/ --model_dir checkpoints/crackseg9k/loss2 --joint_edgeseg_loss
 # python train_gate.py --data_dir  /mnt/hangzhou_116_homes/zek/crackseg9k/ --model_dir checkpoints/crackseg9k/loss3 --r1 1 --r2 20
 # python train_gate.py --data_dir  /mnt/hangzhou_116_homes/zek/crackseg9k/ --model_dir checkpoints/crackseg9k/loss4 --r1 5 --r2 20
 # python train_gate.py --data_dir  /mnt/hangzhou_116_homes/zek/crackseg9k/ --model_dir checkpoints/crackseg9k/loss5 --r1 1 --r2 10

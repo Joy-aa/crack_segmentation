@@ -1,3 +1,2 @@
 /home/wj/local/crack_segmentation/GSCNN/checkpoints/cutDatasetV2/model_best.pt
 threshold:0.5 | accuracy:0.98823 | precision:0.86265 | recall:0.74650 | f1:0.80038 
- o
