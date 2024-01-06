@@ -1,0 +1,2 @@
+/mnt/nfs/wj/checkpoints/gscnn/cutDatasetV2/model_best.pt
+threshold:0.5 | accuracy:0.98823 | precision:0.86267 | recall:0.74648 | f1:0.80038 | miou:0.82757 

@@ -58,7 +58,7 @@ class AverageMeter(object):
 
 def adjust_learning_rate(optimizer, epoch, lr):
     """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
-    lr = lr * (0.1 ** (epoch // 20))
+    lr = lr * (0.1 ** (epoch // 10))
     for param_group in optimizer.param_groups:
         param_group['lr'] = lr
 
@@ -202,7 +202,7 @@ def train(dataset, model, criterion, optimizer, validation, args, logger, criter
             train_main_loss.update(log_main_loss.item(), batch_pixel_size)
             tq.set_postfix(main_loss='{:.5f}'.format(train_main_loss.avg),
                            seg_loss='{:.5f}'.format(train_seg_loss.avg),
-                            edge_acc='{:.5f}'.format(train_edge_loss.avg))
+                            edge_loss='{:.5f}'.format(train_edge_loss.avg))
             tq.update(args.batch_size)
 
             main_loss.backward()
@@ -328,34 +328,26 @@ def predict(test_loader, model, latest_model_path, save_dir = './result/test_loa
                 # threshold = i / 10
     metric = calc_metric(pred_list, gt_list, mode='list', threshold=0.5, max_value=255)
     print(metric)
-    # if len(metrics) < i:
-    #     metrics.append(metric)
-    # else:
-    #     metrics[i-1]['accuracy'] += metric['accuracy']
-    #     metrics[i-1]['precision'] += metric['precision']
-    #     metrics[i-1]['recall'] += metric['recall']
-    #     metrics[i-1]['f1'] += metric['f1']
-    # print(metrics)
     d = datetime.datetime.today()
     datetime.datetime.strftime(d,'%Y-%m-%d %H-%M-%S')
     os.makedirs('./result_dir', exist_ok=True)
     with open(os.path.join('./result_dir', str(d)+'.txt'), 'a', encoding='utf-8') as fout:
                 fout.write(str(latest_model_path)+'\n')
                 # for i in range(1, 10): 
-                line =  "threshold:0.5 | accuracy:{:.5f} | precision:{:.5f} | recall:{:.5f} | f1:{:.5f} " \
-                    .format(metric['accuracy'],  metric['precision'],  metric['recall'],  metric['f1']) + '\n'
+                line =  "threshold:0.5 | accuracy:{:.5f} | precision:{:.5f} | recall:{:.5f} | f1:{:.5f} | miou:{:.5f} " \
+                    .format(metric['accuracy'],  metric['precision'],  metric['recall'],  metric['f1'],  metric['miou']) + '\n'
                 fout.write(line)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
     parser.add_argument('--max_epoch', default=50, type=int, metavar='N', help='number of total epochs to run')
-    parser.add_argument('--lr', default=0.005, type=float, metavar='LR', help='initial learning rate')
+    parser.add_argument('--lr', default=0.0005, type=float, metavar='LR', help='initial learning rate')
     parser.add_argument('--momentum', default=0.9, type=float, metavar='M', help='momentum')
     parser.add_argument('--print_freq', default=100, type=int, metavar='N', help='print frequency (default: 10)')
     parser.add_argument('--weight_decay', default=5e-4, type=float, metavar='W', help='weight decay (default: 1e-4)')
     parser.add_argument('--batch_size',  default=32, type=int,  help='weight decay (default: 1e-4)')
     parser.add_argument('--num_workers', default=2, type=int, help='output dataset directory')
-    parser.add_argument('--num_classes', default=1, type=int, help='output category')
+    parser.add_argument('--num_classes', default=2, type=int, help='output category')
     parser.add_argument('--joint_edgeseg_loss', action='store_true', default=True,help='joint loss')
     parser.add_argument('--img_wt_loss', action='store_true', default=False,help='per-image class-weighted loss')
     parser.add_argument('--edge_weight', type=float, default=1.0,help='Edge loss weight for joint loss')
@@ -364,7 +356,7 @@ if __name__ == '__main__':
     parser.add_argument('--dual_weight', type=float, default=1.0,help='Dual loss weight for joint loss')
     # parser.add_argument('--data_dir',type=str, help='input dataset directory')
     # /home/wj/dataset/seg_dataset /nfs/wj/DamCrack /nfs/wj/192_255_segmentation
-    parser.add_argument('--model_dir', type=str, default='/home/wj/local/crack_segmentation/GSCNN/checkpoints/cutDataset', help='output dataset directory')
+    parser.add_argument('--model_dir', type=str, default='/home/wj/local/crack_segmentation/GSCNN/checkpoints/cutDatasetV2', help='output dataset directory')
     parser.add_argument('--arch', type=str, default='network.gscnn.GSCNN')
     parser.add_argument('--trunk', type=str, default='resnet50', help='trunk model, can be: resnet101 (default), resnet50')
     parser.add_argument('-wb', '--wt_bound', type=float, default=1.0)
@@ -377,7 +369,7 @@ if __name__ == '__main__':
     parser.add_argument('--lr_schedule', type=str, default='poly',help='name of lr schedule: poly')
     parser.add_argument('--poly_exp', type=float, default=1.0,help='polynomial LR exponent')
     # parser.add_argument('--snapshot', type=str, default=None)
-    parser.add_argument('--snapshot', type=str, default='/home/wj/local/crack_segmentation/GSCNN/checkpoints/pretrain/gscnn_initial_epoch_50.pt')
+    parser.add_argument('--snapshot', type=str, default='/mnt/nfs/wj/checkpoints/gscnn/cutDatasetV2/model_best.pt')
     parser.add_argument('--restore_optimizer', action='store_true', default=False)
     args = parser.parse_args()
     args.dataset_cls = crack
@@ -390,6 +382,11 @@ if __name__ == '__main__':
     train_mask_names = [path.name for path in Path(TRAIN_MASK).glob('*.png')]
     print(f'total train images = {len(train_img_names)}')
 
+    TEST_IMG  = os.path.join(cfg.DATASET.CITYSCAPES_DIR, 'test', 'imgs')
+    TEST_MASK = os.path.join(cfg.DATASET.CITYSCAPES_DIR, 'test', 'masks')
+    test_img_names  = [path.name for path in Path(TEST_IMG).glob('*.png')]
+    test_mask_names = [path.name for path in Path(TEST_MASK).glob('*.png')]
+
     channel_means = [0.485, 0.456, 0.406]
     channel_stds  = [0.229, 0.224, 0.225]
     train_tfms = transforms.Compose([transforms.ToTensor(),
@@ -398,8 +395,12 @@ if __name__ == '__main__':
                                    transforms.Normalize(channel_means, channel_stds)])
     mask_tfms = transforms.Compose([transforms.ToTensor()])
 
-    dataset = crack.CrackDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
-    _dataset, test_dataset = random_split(dataset, [0.9, 0.1],torch.Generator().manual_seed(42))
+    # dataset = crack.CrackDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
+    # _dataset, test_dataset = random_split(dataset, [0.9, 0.1],torch.Generator().manual_seed(42))
+    # test_loader = torch.utils.data.DataLoader(test_dataset, 1, shuffle=False, pin_memory=False)
+
+    _dataset = crack.CrackDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
+    test_dataset = crack.CrackDataSet(img_dir=TEST_IMG, img_fnames=test_img_names, img_transform=train_tfms, mask_dir=TEST_MASK, mask_fnames=test_mask_names, mask_transform=mask_tfms)
     test_loader = torch.utils.data.DataLoader(test_dataset, 1, shuffle=False, pin_memory=False)
 
 
@@ -412,15 +413,16 @@ if __name__ == '__main__':
     model = network.get_net(args, criterion)
     optim, scheduler = optimizer.get_optimizer(args, model)
 
-    long_id = 'damcrack_%s_%s' % (str(args.lr), datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S'))
-    logger = BoardLogger(long_id)
-    train(_dataset, model, criterion, optim, validate, args, logger, criterion_val)
+    # long_id = 'damcrack_%s_%s' % (str(args.lr), datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S'))
+    # logger = BoardLogger(long_id)
+    # train(_dataset, model, criterion, optim, validate, args, logger, criterion_val)
 
     np.random.seed(0)
     vis_sample_id = np.random.randint(0, len(test_loader), 100, np.int32)  # sample idxs for visualization
 
     # latest_model_path = find_latest_model_path(args.model_dir)
-    latest_model_path = os.path.join(*[args.model_dir, 'model_best.pt'])
+    # latest_model_path = os.path.join(*[args.model_dir, 'model_best.pt'])
+    latest_model_path = args.snapshot
     state = torch.load(latest_model_path)
     epoch = state['epoch']
     model.load_state_dict(state['state_dict'])

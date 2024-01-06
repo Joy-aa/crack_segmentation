@@ -1,0 +1,2 @@
+/home/wj/local/crack_segmentation/deeplab_drn/checkpoints/deeplabv3_best_value.pth
+threshold:0.5 | accuracy:0.98012 | precision:0.72420 | recall:0.59956 | f1:0.65601 

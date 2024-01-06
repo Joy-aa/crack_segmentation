@@ -1,0 +1,2 @@
+/home/wj/local/crack_segmentation/deeplab_drn/DSCNet_best_value.pth
+threshold:0.5 | accuracy:0.98542 | precision:0.75479 | recall:0.79831 | f1:0.77594 

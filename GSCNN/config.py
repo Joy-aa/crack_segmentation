@@ -64,7 +64,8 @@ __C.STRICTBORDERCLASS= None
 __C.DATASET =AttrDict()
 
 # __C.DATASET.CITYSCAPES_DIR='/mnt/nfs/wj/crackseg9k/'
-__C.DATASET.CITYSCAPES_DIR='/mnt/hangzhou_116_homes/DamDetection/data/cutDataset/overlap0.6_ts1000_slice224/total/'
+__C.DATASET.CITYSCAPES_DIR='/mnt/hangzhou_116_homes/DamDetection/data/cutDataset/damV2_overlap0.6_ts1000_slice224/'
+# __C.DATASET.CITYSCAPES_DIR='/mnt/hangzhou_116_homes/DamDetection/data/cutDataset/overlap0.6_ts1000_slice224/total/'
 # __C.DATASET.CITYSCAPES_DIR='/mnt/nfs/wj/192_255_segmentation/'
 __C.DATASET.CV_SPLITS=3
 
