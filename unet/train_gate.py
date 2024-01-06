@@ -202,9 +202,10 @@ def train(dataset, model, criterion, criterion_val, optimizer, validation, args,
                 main_loss += loss_dict['dual_loss']
             elif args.r0:
                 main_loss += loss_dict['dice_loss']
+            main_loss = main_loss.mean()
 
             # main_loss = sum(loss_dict.values()).mean()
-            main_loss = main_loss.mean()
+            
             log_main_loss = main_loss.clone().detach_()
 
             losses.update(log_main_loss.item(), batch_pixel_size)
@@ -313,7 +314,7 @@ def predict(test_loader, model, latest_model_path, save_dir = './result/test_loa
                 res = cv2.addWeighted(image,0.6,temp,0.4,0)
 
                 edge_pred = torch.sigmoid(edge_out.squeeze(0)).contiguous().cpu().numpy().transpose(2, 1, 0)
-                edge_mask = np.where(edge_pred > 0.5, edge_pred, zeros)
+                edge_mask = np.where(edge_pred > 0.8, edge_pred, zeros)
                 # edge_mask[edge_mask > 127] = 255
                 edge_mask = np.concatenate((zeros,zeros,edge_mask * 255),axis=-1).astype(np.uint8)
                 res_edge = cv2.addWeighted(image,0.6,edge_mask,0.4,0)
@@ -371,6 +372,7 @@ if __name__ == '__main__':
     parser.add_argument('--r0',  action='store_true', default=True,  help='seg loss dice weight')
     parser.add_argument('--r1',  default=1, type=int,  help='seg loss bce weight')
     parser.add_argument('--r2', default=20, type=int, help='edge loss weight')
+    parser.add_argument('--normal',  action='store_true', default=False,  help='seg loss dice weight')
     parser.add_argument("--deconv", action='store_true', default=False)
 
     args = parser.parse_args()
