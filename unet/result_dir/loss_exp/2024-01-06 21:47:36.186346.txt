@@ -1,0 +1,2 @@
+/home/wj/local/crack_segmentation/unet/checkpoints/crackseg9k/loss6/model_best.pt
+threshold:0.5 | accuracy:0.98172 | precision:0.82013 | recall:0.57168 | f1:0.67373 | miou:0.74467 

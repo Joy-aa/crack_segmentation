@@ -7,6 +7,11 @@ import argparse
 from datasets import crack
 import os
 import time
+import torch
+import inspect
+
+from torchvision import models
+# from gpu_mem_track import MemTracker  # 引用显存跟踪代码
 
 parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
 parser.add_argument('--max_epoch', default=50, type=int, metavar='N', help='number of total epochs to run')
@@ -42,34 +47,39 @@ parser.add_argument('--restore_optimizer', action='store_true', default=False)
 args = parser.parse_args()
 args.dataset_cls = crack
 
-
 # os.environ["CUDA_VISIBLE_DEVICES"] = ','.join(map(str, [0])) 
-# device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-device = torch.device('cpu')
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+# device = torch.device('cpu')
 print(torch.cuda.device_count())
 
-dump_input = torch.ones(1,3,224,224).to(device)
+dump_input = torch.ones(1,3,1024,1024).to(device)
 
 criterion = torch.nn.BCEWithLogitsLoss()
 model = network.get_model(network='network.gscnn.GSCNN', num_classes=2, criterion=criterion, trunk='resnet50')
 model.eval()
 model.to(device)
 
-flops, params = profile(model, inputs=(dump_input, )) 
+output = model(dump_input)
+print(output.size())
 
-flops, params = clever_format([flops, params], "%.3f") 
-print(flops)
-print(params)
+# flops, params = profile(model, inputs=(dump_input, )) 
+# flops, params = clever_format([flops, params], "%.3f") 
+# print(flops)
+# print(params)
 
 
 # Warn-up
+total_mean = 0
 for _ in range(10):
     start = time.time()
     outputs = model(dump_input)
     torch.cuda.synchronize()
     end = time.time()
+    if _ > 0:
+        total_mean += (end-start)*1000
     print('Time:{}ms'.format((end-start)*1000))
 
-with torch.autograd.profiler.profile(enabled=True, use_cuda=True, record_shapes=False, profile_memory=False) as prof:
+with torch.autograd.profiler.profile(enabled=True, use_cuda=False, record_shapes=False, profile_memory=False) as prof:
     outputs = model(dump_input)
 print(prof.table())
+print(total_mean/9)

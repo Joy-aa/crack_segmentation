@@ -115,19 +115,19 @@ class CrackDataSetWithEdge(Dataset):
         
         for dir_path in path:
             
-            filenames = sorted(os.listdir(os.path.join(dir_path, 'images')))
+            filenames = sorted(os.listdir(os.path.join(dir_path, 'imgs')))
             train_filenames, val_filenames = train_test_split(
                 filenames, test_size=0.3, random_state=42)
             dataset_filenames = {
                 'train': train_filenames,
                 'val': val_filenames
             }
-            self.image_paths += [os.path.join(dir_path, 'images', i)
+            self.image_paths += [os.path.join(dir_path, 'imgs', i)
                                  for i in dataset_filenames[mode]]
-            self.label_paths += [os.path.join(dir_path, 'labels', i.rpartition('.')[0] + '.png')
+            self.label_paths += [os.path.join(dir_path, 'masks', i.rpartition('.')[0] + '.png')
                                  for i in dataset_filenames[mode]]
         self.transform = A.Compose(
-            [A.RandomCrop(width=400, height=400,p = 1), 
+            [A.RandomCrop(width=224, height=224,p = 1), 
             A.HorizontalFlip(p=0.5),        
             ],
             additional_targets={'label': 'image'}
@@ -157,8 +157,8 @@ class CrackDataSetWithEdge(Dataset):
     def __getitem__(self, index):
         image = np.array(ImageOps.exif_transpose(Image.open(self.image_paths[index])))
         label = np.array(ImageOps.exif_transpose(Image.open(self.label_paths[index])))
-        if(image.shape[0] != 400 and image.shape[1] != 400):
-            paddings = A.PadIfNeeded(p=1, min_height=400, min_width=400)(image=image, mask=label)
+        if(image.shape[0] != 224 and image.shape[1] != 224):
+            paddings = A.PadIfNeeded(p=1, min_height=224, min_width=224)(image=image, mask=label)
             image, label = paddings["image"], paddings["mask"]
         if self.mode == 'train':
             augmented_result = self.transform(image=image,label=label)
@@ -170,17 +170,14 @@ class CrackDataSetWithEdge(Dataset):
         
         # return torch.tensor(image).transpose(1,2).transpose(0,1), torch.tensor(label)
         img = torch.tensor(image).transpose(1,2).transpose(0,1)
-        mask = torch.tensor(label).long()
+        mask = torch.tensor(label / 255).long()
 
         _edgemap = (mask.numpy())
-        # print(_edgemap.shape)
         _edgemap = edge_utils.mask_to_onehot(_edgemap, 1)
-        # print(_edgemap.shape)
 
         _edgemap = edge_utils.onehot_to_binary_edges(_edgemap, 1, 1)
 
         edgemap = torch.from_numpy(_edgemap).float()
-        # print(edgemap)
 
         return img, mask, edgemap
     

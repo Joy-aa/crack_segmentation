@@ -3,13 +3,14 @@ Copyright (C) 2019 NVIDIA Corporation.  All rights reserved.
 Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode).
 """
 
-from config import cfg
+# from config import cfg
 import torch.nn as nn
 from math import sqrt
 import torch
 from torch.autograd.function import InplaceFunction
 from itertools import repeat
 from torch.nn.modules import Module
+from network.sync_batchnorm.batchnorm import SynchronizedBatchNorm2d
 from  torch.utils.checkpoint  import checkpoint
 
 
@@ -17,7 +18,11 @@ def Norm2d(in_channels):
     """
     Custom Norm Function to allow flexible switching
     """
-    layer = getattr(cfg.MODEL,'BNFUNC')
+    sync = True
+    if sync:
+        layer = SynchronizedBatchNorm2d
+    else:
+        layer = torch.nn.BatchNorm2d
     normalizationLayer = layer(in_channels)
     return normalizationLayer
 

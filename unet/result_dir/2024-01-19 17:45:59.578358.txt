@@ -1,0 +1,3 @@
+checkpoints/aspp/joint/model_best.pt
+ /mnt/hangzhou_116_homes/DamDetection/data/cutDataset/overlap0.6_ts1000_slice224/total/(0.7:0.3)
+threshold:0.5 | accuracy:0.98319 | precision:0.75343 | recall:0.76309 | f1:0.75823 | miou:0.79667 

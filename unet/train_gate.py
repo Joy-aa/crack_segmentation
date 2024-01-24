@@ -101,84 +101,72 @@ def find_latest_model_path(dir):
     else:
         return None
 
-def calc_loss(masks_pred, target_var, criterion, r0, r1):
-    masks_probs_flat = masks_pred.view(-1)
-    true_masks_flat  = target_var.view(-1)
+def f_score(inputs, target):
+    n, c, *_ = inputs.size() #torch.Size([n, 2, 64, 64])
+    nt, *_  = target.size() #torch.Size([n, 64, 64])
+    #n h c w -> n h w c -> n h*w c
+    temp_inputs = torch.softmax(inputs.transpose(1, 2).transpose(2, 3).contiguous().view(n, -1, c),-1)
+    temp_target = target.view(nt, -1) #torch.Size([n, h * w])
     
-    loss = r1 * criterion(masks_probs_flat, true_masks_flat)
-    if(r0):
-        loss += dice_loss(torch.sigmoid(masks_pred.squeeze(1)), target_var.squeeze(1).float(), multiclass=False)
-    return loss
-
-def calc_dual_loss(masks_pred, target_var, criterion, r0 = True, r1 = 5, r2 = 10):
-    segin, edgein = masks_pred
-    segmask, edgemask = target_var
-
-    masks_probs_flat = segin.view(-1)
-    true_masks_flat  = segmask.view(-1)
+    #--------------------------------------------#
+    #   计算f1_score
+    #--------------------------------------------#
     
-    seg_loss = r1 * criterion(masks_probs_flat, true_masks_flat)
-    if(r0):
-        seg_loss += dice_loss(torch.sigmoid(segin.squeeze(1)), segmask.float(), multiclass=False)
+    #agrmax(dim = -1)
+    preds = torch.gt(temp_inputs[...,1], temp_inputs[...,0]).int().flatten() #torch.Size([n, h * w])
+    
+    
+    label = temp_target.flatten()
+    
+    Positive_correct = torch.sum(torch.logical_and(label == 1, preds == 1))
+    
+    recall = (Positive_correct)  / (label.sum() + 1)
+    precision = (Positive_correct)  / (preds.sum() + 1)
+    """ 
+    计算IOU
+    """
+    
+    return 1, torch.mean(recall).cpu(), torch.mean(precision).cpu()
 
-    edge_probs_flat = edgein.view(-1)
-    true_edge_flat = edgemask.view(-1)
-    edge_loss = r2 * criterion(edge_probs_flat, true_edge_flat)
-
-    loss = seg_loss + edge_loss
-    return loss
-
-def train(dataset, model, criterion, criterion_val, optimizer, validation, args, logger):
+def train(train_loader, test_loader, model, criterion, criterion_val, optimizer, validation, args, logger):
 
     # latest_model_path = find_latest_model_path(args.model_dir)
     # latest_model_path = os.path.join(*[args.model_dir, 'model_start.pt'])
-    latest_model_path = None
+    latest_model_path = args.snapshot
     best_model_path = os.path.join(*[args.model_dir, 'model_best.pt'])
 
     if latest_model_path is not None:
         state = torch.load(latest_model_path)
-        epoch = state['epoch']
+        # epoch = state['epoch']
+        epoch = 0
         model.load_state_dict(state['model'])
-        # weights = state['model']
-        # weights_dict = {}
-        # for k, v in weights.items():
-        #     new_k = k.replace('module.', '') if 'module' in k else k
-        #     weights_dict[new_k] = v
-        # model.load_state_dict(weights_dict)
+        # best_state = torch.load(latest_model_path)
+        # min_val_los = best_state['valid_loss']
+        min_val_los = -1
 
-        #if latest model path does exist, best_model_path should exists as well
-        # assert Path(best_model_path).exists() == True, f'best model path {best_model_path} does not exist'
-        #load the min loss so far
-        best_state = torch.load(latest_model_path)
-        min_val_los = best_state['valid_loss']
-
-        print(f'Restored model at epoch {epoch}. Min validation loss so far is : {min_val_los}')
+        print(f'Restored model at epoch {epoch}. Max validation metric so far is : {min_val_los}')
         epoch += 1
         print(f'Started training model from epoch {epoch}')
     else:
         print('Started training model from epoch 0')
         epoch = 1
-        min_val_los = 9999
+        min_val_los = -1
+        print(f'Max validation metric so far is : {min_val_los}')
 
-    valid_losses = []
     total_iter = 0
-    # # train_size = int(len(dataset)*0.9)
-    # train_dataset, valid_dataset = random_split(dataset, [265, 10])
-    # train_loader = torch.utils.data.DataLoader(train_dataset, args.batch_size, shuffle=True, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
-    # valid_loader = torch.utils.data.DataLoader(valid_dataset, 1, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
     for epoch in range(epoch, args.n_epoch + 1):
-
-        train_size = int(len(dataset)*0.9)
-        train_dataset, valid_dataset = random_split(dataset, [train_size,  len(dataset) - train_size])
-        train_loader = torch.utils.data.DataLoader(train_dataset, args.batch_size, shuffle=True, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
-        valid_loader = torch.utils.data.DataLoader(valid_dataset, 1, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
 
         adjust_learning_rate(optimizer, epoch, args.lr)
 
-        tq = tqdm.tqdm(total=(len(train_loader) * args.batch_size), ncols = 150)
+        tq = tqdm.tqdm(total=(len(train_loader) * args.batch_size), ncols = 120)
         tq.set_description(f'Epoch {epoch}')
 
         losses = AverageMeter()
+        seg_loss = AverageMeter()
+        edge_loss = AverageMeter()
+        att_loss = AverageMeter()
+        dual_loss = AverageMeter()
+        dice_loss = AverageMeter()
         model.train()
         for i, (input, target, edge) in enumerate(train_loader):
             batch_pixel_size = input.size(0) * input.size(2) * input.size(3)
@@ -189,31 +177,46 @@ def train(dataset, model, criterion, criterion_val, optimizer, validation, args,
 
             masks_pred = model(input_var)
 
-            # loss = calc_dual_loss(masks_pred, (target_var, edge_var), criterion, args.r0, args.r1, args.r2)
-            # losses.update(loss)
             loss_dict = criterion(masks_pred, (target_var, edge_var))
-            # print(loss_dict)
-            main_loss = loss_dict['seg_loss']
-            main_loss += loss_dict['edge_loss']
-            if args.joint_edgeseg_loss:
-                # main_loss = loss_dict['seg_loss']
-                # main_loss += loss_dict['edge_loss']
-                main_loss += loss_dict['att_loss']
-                main_loss += loss_dict['dual_loss']
-            elif args.r0:
-                main_loss += loss_dict['dice_loss']
-            main_loss = main_loss.mean()
 
-            # main_loss = sum(loss_dict.values()).mean()
+            main_loss = sum(loss_dict.values()).mean()
+            if(torch.isnan(main_loss)):
+                print(loss_dict)
+                with open(os.path.join('./result_dir', 'error.txt'), 'a+', encoding='utf-8') as fout:
+                    d = datetime.datetime.today()
+                    datetime.datetime.strftime(d,'%Y-%m-%d %H-%M-%S')
+                    fout.write(str(d)+'\t'+loss_dict+'\n')
+                exit(0)
             
             log_main_loss = main_loss.clone().detach_()
 
             losses.update(log_main_loss.item(), batch_pixel_size)
+            if 'seg_loss' in loss_dict:
+                seg_loss.update(loss_dict['seg_loss'], batch_pixel_size)
+            if 'edge_loss' in loss_dict:
+                edge_loss.update(loss_dict['edge_loss'], batch_pixel_size)
+            if 'att_loss' in loss_dict:
+                att_loss.update(loss_dict['att_loss'], batch_pixel_size)
+            if 'dual_loss' in loss_dict:
+                dual_loss.update(loss_dict['dual_loss'], batch_pixel_size)
+            if 'dice_loss' in loss_dict:
+                dice_loss.update(loss_dict['dice_loss'], batch_pixel_size)
+
 
             # total_iter = 
             if (i+total_iter) % args.print_freq == 0:
                 logger.log_scalar('train/lr', optimizer.param_groups[0]['lr'], i+total_iter)
                 logger.log_scalar('train/loss', losses.avg, i+total_iter)
+                if 'seg_loss' in loss_dict:
+                    logger.log_scalar('train/seg_loss', seg_loss.avg, i+total_iter)
+                if 'edge_loss' in loss_dict:
+                    logger.log_scalar('train/edge_loss', edge_loss.avg, i+total_iter)
+                if 'att_loss' in loss_dict:
+                    logger.log_scalar('train/att_loss', att_loss.avg, i+total_iter)
+                if 'dual_loss' in loss_dict:
+                    logger.log_scalar('train/dual_loss', dual_loss.avg, i+total_iter)
+                if 'dice_loss' in loss_dict:
+                    logger.log_scalar('train/dice_loss', dice_loss.avg, i+total_iter)
             tq.set_postfix(loss='{:.5f}'.format(losses.avg))
             tq.update(args.batch_size)
             # compute gradient and do SGD step
@@ -222,70 +225,81 @@ def train(dataset, model, criterion, criterion_val, optimizer, validation, args,
             optimizer.step()
 
         total_iter += len(train_loader)
-        valid_metrics = validation(model, valid_loader, criterion_val, args.r0, args.r1)
-        valid_loss = valid_metrics['valid_loss']
-        valid_losses.append(valid_loss)
-        logger.log_scalar('valid/loss', valid_loss, epoch)
-        print(f'\tvalid_loss = {valid_loss:.5f}')
+        valid_metrics = validation(model, test_loader, criterion_val, args.r0, args.r1)
+        logger.log_scalar('valid/precision', valid_metrics['precision'], epoch)
+        logger.log_scalar('valid/recall', valid_metrics['recall'], epoch)
+        logger.log_scalar('valid/f1', valid_metrics['f1'], epoch)
+        valid_metric = valid_metrics['f1']
+        print(f'\nvalid_f1 = {valid_metric:.5f}')
         tq.close()
 
-        #save the model of the current epoch
+        # save the model of the current epoch
         epoch_model_path = os.path.join(*[args.model_dir, f'model_epoch_{epoch}.pt'])
         if(epoch % 10 == 0):
             torch.save({
                 'model': model.state_dict(),
                 'epoch': epoch,
-                'valid_loss': valid_loss,
+                'valid_loss': valid_metric,
                 'train_loss': losses.avg
             }, epoch_model_path)
 
-        if valid_loss < min_val_los:
-            min_val_los = valid_loss
+        if valid_metric > min_val_los:
+            min_val_los = valid_metric
 
             torch.save({
                 'model': model.state_dict(),
                 'epoch': epoch,
-                'valid_loss': valid_loss,
+                'valid_loss': valid_metric,
                 'train_loss': losses.avg
             }, best_model_path)
 
 def validate(model, val_loader, criterion, r0 = True, r1 = 10):
     losses = AverageMeter()
+    Fscore = AverageMeter()
+    Recall = AverageMeter()
+    Precision = AverageMeter()
     model.eval()
+    pbar = tqdm.tqdm(total=len(val_loader),desc='val',postfix=dict,mininterval=0.3)
     with torch.no_grad():
         for i, (input, target, edge) in enumerate(val_loader):
-            batch_pixel_size = input.size(0) * input.size(2) * input.size(3)
+            # batch_pixel_size = input.size(0) * input.size(2) * input.size(3)
 
             input_var = Variable(input).to(device)
             target_var = Variable(target).to(device)
             edge_var = Variable(edge).to(device)
 
             pred, edge_out = model(input_var)
-            loss_dict = criterion((pred, edge_out), (target_var, edge_var))
-            losses.update(sum(loss_dict.values()).item(), batch_pixel_size)
+            _, recall, precision = f_score(pred, target_var)
+            Recall.update(recall, input.size(0))
+            Precision.update(precision, input.size(0))
+            if precision != 0 or recall != 0:
+                Fscore.update(2 * recall * precision / (recall + precision), input.size(0))
+            pbar.set_postfix(**{ 'f1': Fscore.avg,'recall': Recall.avg, 'precision':Precision.avg,})
+            pbar.update(input.size(0))
+            # loss_dict = criterion((pred, edge_out), (target_var, edge_var))
+            # losses.update(sum(loss_dict.values()).item(), batch_pixel_size)
             # loss = calc_loss(pred, target_var, criterion, r0, r1)
 
             # losses.update(loss.item())
 
-    return {'valid_loss': losses.avg}
+    return {'recall': Recall.avg,
+            'precision':Precision.avg,
+            'f1': Fscore.avg}
 
 def predict(test_loader, model, latest_model_path, save_dir = './result/test_loader', vis_sample_id = None):
     os.makedirs(save_dir, exist_ok=True)
     model.eval()
-    metrics=[]
     pred_list = []
     gt_list = []
     denorm = Denormalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
     bar = tqdm.tqdm(total=len(test_loader), ncols = 100)
     with torch.no_grad():
         for idx, (img, lab, edge) in enumerate(test_loader, 1):
-            # val_data  = Variable(img).cuda()
             val_data = Variable(img).to(device)
             pred, edge_out = model(val_data)
 
             image = (denorm(img) * 255).squeeze(0).contiguous().cpu().numpy()
             image = image.transpose(2, 1, 0).astype(np.uint8)
-            # mask = torch.sigmoid(pred.squeeze(0)).contiguous().cpu().numpy()
             n, c, h, w = pred.size()
             temp_inputs = torch.softmax(pred.transpose(1, 2).transpose(2, 3).contiguous().view(n, -1, c),-1)
             preds = torch.gt(temp_inputs[...,1], temp_inputs[...,0]).int().squeeze(-1)
@@ -308,14 +322,29 @@ def predict(test_loader, model, latest_model_path, save_dir = './result/test_loa
                 zeros = np.zeros(mask.shape)
                 mask = np.concatenate((mask,zeros,zeros),axis=-1).astype(np.uint8)
                 label = np.concatenate((zeros,zeros,label),axis=-1).astype(np.uint8)
-                # print(label.shape)
                 
                 temp = cv2.addWeighted(label,1,mask,1,0)
                 res = cv2.addWeighted(image,0.6,temp,0.4,0)
 
-                edge_pred = torch.sigmoid(edge_out.squeeze(0)).contiguous().cpu().numpy().transpose(2, 1, 0)
-                edge_mask = np.where(edge_pred > 0.8, edge_pred, zeros)
-                # edge_mask[edge_mask > 127] = 255
+                # edge_pred = torch.sigmoid(edge_out.squeeze(0)).contiguous().cpu().numpy().transpose(2, 1, 0)
+                edge_pred =edge_out.squeeze(0).contiguous().cpu().numpy().transpose(2, 1, 0)
+
+                # # 开始统计
+                # # 将数据拉平为一维数组
+                # flat_data = edge_pred.flatten()
+                # # 定义分组边界，这里按照0-1均分成10组
+                # bins = np.linspace(0, 1, 11)
+                # # 使用histogram函数统计各区间内的数据个数
+                # hist, bin_edges = np.histogram(flat_data, bins=bins)
+                # # 打印各区间的数据个数
+                # sum = 0
+                # print()
+                # for i in range(0,len(hist)):
+                #     sum += hist[i]
+                #     print(f"区间[{bin_edges[i]:.1f}, {bin_edges[i + 1]:.1f}) 的数据个数: {hist[i]} ，至今总个数：{sum}")
+
+                edge_mask = np.where(edge_pred > 0.001, edge_pred*100, zeros)
+                edge_mask[edge_mask > 1] = 1
                 edge_mask = np.concatenate((zeros,zeros,edge_mask * 255),axis=-1).astype(np.uint8)
                 res_edge = cv2.addWeighted(image,0.6,edge_mask,0.4,0)
 
@@ -330,28 +359,17 @@ def predict(test_loader, model, latest_model_path, save_dir = './result/test_loa
             bar.update(1)
     bar.close
 
-    for i in range(1, 10):
-            threshold = i / 10
-            metric = calc_metric(pred_list, gt_list, mode='list', threshold=threshold)
-            print(metric)
-            if len(metrics) < i:
-                metrics.append(metric)
-            else:
-                metrics[i-1]['accuracy'] += metric['accuracy']
-                metrics[i-1]['precision'] += metric['precision']
-                metrics[i-1]['recall'] += metric['recall']
-                metrics[i-1]['f1'] += metric['f1']
-                metrics[i-1]['miou'] += metric['miou']
-    print(metrics)
+    metric = calc_metric(pred_list, gt_list, mode='list', threshold=0.5, max_value=1)
+    print(metric)
     d = datetime.datetime.today()
     datetime.datetime.strftime(d,'%Y-%m-%d %H-%M-%S')
     os.makedirs('./result_dir', exist_ok=True)
     with open(os.path.join('./result_dir', str(d)+'.txt'), 'a', encoding='utf-8') as fout:
                 fout.write(str(latest_model_path)+'\n')
-                for i in range(1, 10): 
-                    line =  "threshold:{:d} | accuracy:{:.5f} | precision:{:.5f} | recall:{:.5f} | f1:{:.5f} | miou:{:.5f}" \
-                        .format(i, metrics[i-1]['accuracy'],  metrics[i-1]['precision'],  metrics[i-1]['recall'],  metrics[i-1]['f1'], metrics[i-1]['miou']) + '\n'
-                    fout.write(line)
+                # for i in range(1, 10): 
+                line =  "threshold:0.5 | accuracy:{:.5f} | precision:{:.5f} | recall:{:.5f} | f1:{:.5f} | miou:{:.5f} " \
+                    .format(metric['accuracy'],  metric['precision'],  metric['recall'],  metric['f1'],  metric['miou']) + '\n'
+                fout.write(line)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='PyTorch ImageNet Training')
@@ -363,49 +381,26 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size',  default=4, type=int,  help='weight decay (default: 1e-4)')
     parser.add_argument('--num_workers', default=4, type=int, help='output dataset directory')
     parser.add_argument('--num_classes', default=2, type=int, help='output dataset directory')
-    parser.add_argument('--data_dir',type=str, default='/mnt/hangzhou_116_homes/zek/crackseg9k/', help='input dataset directory')
+    parser.add_argument('--data_dir',type=str, default='/mnt/hangzhou_116_homes/DamDetection/data/cutDataset/overlap0.6_ts1000_slice224/total/', help='input dataset directory')
     # /nfs/wj/DamCrack /nfs/wj/192_255_segmentation /mnt/hangzhou_116_homes/DamDetection/data/cutDataset/overlap0.6_ts1000_slice224/total/ /mnt/hangzhou_116_homes/zek/crackseg9k/
-    parser.add_argument('--model_dir', type=str, default='/home/wj/local/crack_segmentation/unet/checkpoints/crackseg9k', help='output dataset directory')
+    parser.add_argument('--model_dir', type=str, default='/home/wj/local/crack_segmentation/unet/checkpoints/crackseg9k/loss', help='output dataset directory')
     parser.add_argument('--model_type', type=str, required=False, default='gate', choices=['vgg16', 'vgg16V2', 'vgg16V3', 'gate'])
-    parser.add_argument('--snapshot', type=str, default=None)
+    parser.add_argument('--snapshot', type=str, default="/home/wj/local/crack_segmentation/unet/checkpoints/crackseg9k/loss/model_best.pt")
     parser.add_argument('--joint_edgeseg_loss', action='store_true', default=False,help='joint loss')
     parser.add_argument('--r0',  action='store_true', default=True,  help='seg loss dice weight')
-    parser.add_argument('--r1',  default=1, type=int,  help='seg loss bce weight')
+    parser.add_argument('--r1',  default=10, type=int,  help='seg loss bce weight')
     parser.add_argument('--r2', default=20, type=int, help='edge loss weight')
+    parser.add_argument('--att_th', type=float, default=0.8,help='Attention loss weight for joint loss')
     parser.add_argument('--normal',  action='store_true', default=False,  help='seg loss dice weight')
     parser.add_argument("--deconv", action='store_true', default=False)
 
     args = parser.parse_args()
     os.makedirs(args.model_dir, exist_ok=True)
 
-# 第二阶段训练
-    # TRAIN_IMG  = os.path.join(args.data_dir, 'imgs')
-    # TRAIN_MASK = os.path.join(args.data_dir, 'masks')
-
-
-    # train_img_names  = [path.name for path in Path(TRAIN_IMG).glob('*.png')]
-    # train_mask_names = [path.name for path in Path(TRAIN_MASK).glob('*.png')]
-    # print(f'total train images = {len(train_img_names)}')
-
-    # channel_means = [0.485, 0.456, 0.406]
-    # channel_stds  = [0.229, 0.224, 0.225]
-    # train_tfms = transforms.Compose([transforms.ToTensor(),
-    #                                  transforms.Normalize(channel_means, channel_stds)])
-
-    # val_tfms = transforms.Compose([transforms.ToTensor(),
-    #                                transforms.Normalize(channel_means, channel_stds)])
-
-    # mask_tfms = transforms.Compose([transforms.ToTensor()])
-
-    # train_dataset = ImgDataSetJoint(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
-    # train_size = int(len(train_dataset)*0.7)
-    # train_Dataset, test_dataset = random_split(train_dataset, [train_size, len(train_dataset) - train_size],torch.Generator().manual_seed(42))
     train_Dataset = CrackDataSetWithEdge('train',[args.data_dir])
     test_dataset = CrackDataSetWithEdge('val',[args.data_dir]) 
 
-    # train_dataset, valid_dataset = random_split(_dataset, [0.9, 0.1],torch.Generator().manual_seed(42))
-    # train_loader = torch.utils.data.DataLoader(train_dataset, args.batch_size, shuffle=True, pin_memory=torch.cuda.is_available(), num_workers=4)
-    # val_loader = torch.utils.data.DataLoader(valid_dataset, 1, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=4)
+    train_loader = torch.utils.data.DataLoader(train_Dataset, args.batch_size, shuffle=True, pin_memory=torch.cuda.is_available(), num_workers=4)
     test_loader = torch.utils.data.DataLoader(test_dataset, 1, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
 
     model = create_model(args.num_classes, args.model_type, args.deconv)
@@ -421,7 +416,7 @@ if __name__ == '__main__':
 
     long_id = 'unetgate_%s_%s' % (str(args.lr), datetime.datetime.now().strftime('%Y-%m-%d_%H:%M:%S'))
     logger = BoardLogger(long_id)
-    train(train_Dataset, model, criterion, criterion_val, optimizer, validate, args, logger)
+    train(train_loader, test_loader, model, criterion, criterion_val, optimizer, validate, args, logger)
 
     np.random.seed(0)
     vis_sample_id = np.random.randint(0, len(test_loader), 50, np.int32)  # sample idxs for visualization

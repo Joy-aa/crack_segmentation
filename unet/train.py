@@ -149,7 +149,7 @@ def train(dataset, model, criterion, optimizer, validation, args, logger):
     # train_loader = torch.utils.data.DataLoader(train_dataset, args.batch_size, shuffle=True, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
     # valid_loader = torch.utils.data.DataLoader(valid_dataset, 1, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
     for epoch in range(epoch, args.n_epoch + 1):
-        train_size = int(len(dataset)*0.7)
+        train_size = int(len(dataset)*0.9)
         train_dataset, valid_dataset = random_split(dataset, [train_size, len(dataset) - train_size])
         train_loader = torch.utils.data.DataLoader(train_dataset, args.batch_size, shuffle=True, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
         valid_loader = torch.utils.data.DataLoader(valid_dataset, 1, shuffle=False, pin_memory=torch.cuda.is_available(), num_workers=args.num_workers)
@@ -240,7 +240,7 @@ def predict(test_loader, model, latest_model_path, save_dir = './result/test_loa
             image = (denorm(img) * 255).squeeze(0).contiguous().cpu().numpy()
             image = image.transpose(2, 1, 0).astype(np.uint8)
             mask = torch.sigmoid(pred.squeeze(0)).contiguous().cpu().numpy()
-            label = lab.contiguous().cpu().numpy()
+            label = lab.squeeze(0).contiguous().cpu().numpy()
 
             pred_list.append(mask)
             gt_list.append(label)
@@ -303,11 +303,11 @@ if __name__ == '__main__':
     parser.add_argument('--weight_decay', default=5e-4, type=float, metavar='W', help='weight decay (default: 1e-4)')
     parser.add_argument('--batch_size',  default=4, type=int,  help='weight decay (default: 1e-4)')
     parser.add_argument('--num_workers', default=8, type=int, help='output dataset directory')
-    parser.add_argument('--data_dir',type=str, default='/mnt/nfs/wj/192_255_segmentation', help='input dataset directory')
+    parser.add_argument('--data_dir',type=str, default='/mnt/hangzhou_116_homes/DamDetection/data/cutDataset/overlap0.6_ts1000_slice224/dataV2', help='input dataset directory')
     # /home/wj/dataset/seg_dataset /nfs/wj/DamCrack /nfs/wj/192_255_segmentation
-    parser.add_argument('--model_dir', type=str, default='/home/wj/local/crack_segmentation/unet/checkpoints/gateconv', help='output dataset directory')
+    parser.add_argument('--model_dir', type=str, default='/home/wj/local/crack_segmentation/unet/checkpoints/cutDatasetV2', help='output dataset directory')
     parser.add_argument('--snapshot', type=str, default=None, help='pretrained model')
-    parser.add_argument('--model_type', type=str, required=False, default='gate', choices=['vgg16', 'vgg16V2', 'vgg16V3', 'gate'])
+    parser.add_argument('--model_type', type=str, required=False, default='vgg16', choices=['vgg16', 'vgg16V2', 'vgg16V3', 'gate'])
     parser.add_argument("--deconv", action='store_true', default=False)
 
     args = parser.parse_args()
@@ -351,7 +351,7 @@ if __name__ == '__main__':
 
     train_dataset = ImgDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
     # train_dataset = CrackDataSet(img_dir=TRAIN_IMG, img_fnames=train_img_names, img_transform=train_tfms, mask_dir=TRAIN_MASK, mask_fnames=train_mask_names, mask_transform=mask_tfms)
-    train_size = int(len(train_dataset)*0.9)
+    train_size = int(len(train_dataset)*0.7)
     _dataset, test_dataset = random_split(train_dataset, [train_size, len(train_dataset) - train_size],torch.Generator().manual_seed(42))
     # train_dataset, valid_dataset = random_split(_dataset, [0.9, 0.1],torch.Generator().manual_seed(42))
     # train_loader = torch.utils.data.DataLoader(train_dataset, args.batch_size, shuffle=True, pin_memory=torch.cuda.is_available(), num_workers=4)

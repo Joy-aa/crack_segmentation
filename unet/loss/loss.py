@@ -23,7 +23,7 @@ def get_loss(args):
 
         criterion_val = JointEdgeSegLoss(classes=2, mode='val',ignore_index=255, upper_bound=1,edge_weight=1, seg_weight=1, att_weight=0, dual_weight=0).cuda()
     else:
-        criterion = SegEdgeSegLoss(classes=2, ignore_index=255, dice=args.r0, normalise=args.normal, seg_ce_weight=args.r1, edge_weight=args.r2).cuda()
+        criterion = SegEdgeSegLoss(classes=2, ignore_index=255, dice=args.r0, normalise=args.normal, seg_ce_weight=args.r1, edge_weight=args.r2, threshold=args.att_th).cuda()
         criterion_val = SegEdgeSegLoss(classes=2, ignore_index=255, dice=False, seg_ce_weight=1, edge_weight=20).cuda()
                                
     return criterion, criterion_val
@@ -97,7 +97,7 @@ class JointEdgeSegLoss(nn.Module):
         losses['edge_loss'] = self.edge_weight * 20 * self.bce2d(edgein, edgemask)
         attention_edge = self.edge_attention(segin, segmask, edgein)
         if(torch.isnan(attention_edge)):
-            attention_edge = torch.zeros_like(attention_edge)
+            attention_edge = torch.ones_like(attention_edge)
         losses['att_loss'] = self.att_weight * attention_edge
         # losses['att_loss'] = self.att_weight * self.edge_attention(segin, segmask, edgein)
         losses['dual_loss'] = self.dual_weight * self.dual_task(segin, segmask)
@@ -105,9 +105,10 @@ class JointEdgeSegLoss(nn.Module):
         return losses
     
 class SegEdgeSegLoss(nn.Module):
-    def __init__(self, classes, ignore_index=255, dice = True, normalise = False, seg_ce_weight=5, edge_weight=10):
+    def __init__(self, classes, ignore_index=255, dice = True, normalise = False, seg_ce_weight=5, edge_weight=10, threshold=0.8):
         super(SegEdgeSegLoss, self).__init__()
         self.num_classes = classes
+        self.th = threshold
         # if mode == 'train':
         #     self.seg_loss = ImageBasedCrossEntropyLoss2d(
         #             classes=classes, ignore_index=ignore_index, upper_bound=upper_bound).cuda()
@@ -158,7 +159,7 @@ class SegEdgeSegLoss(nn.Module):
         n, c, h, w = input.size()
         filler = torch.ones_like(target) * 255
         return self.seg_loss(input, 
-                             torch.where(edge.max(1)[0] > 0.8, target, filler))
+                             torch.where(edge.max(1)[0] > self.th, target, filler))
 
     def forward(self, inputs, targets):
         segin, edgein = inputs

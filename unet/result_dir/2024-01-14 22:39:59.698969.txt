@@ -1,0 +1,2 @@
+checkpoints/crackseg9k/loss6/model_best.pt
+threshold:0.5 | accuracy:0.98184 | precision:0.78435 | recall:0.62079 | f1:0.69305 | miou:0.75587 
